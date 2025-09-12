@@ -1,0 +1,20 @@
+PRIVACY POLICY
+for "Badminton Event Technology"
+Version 2.0.0
+© 2025 NGUYEN VIET HAU
+
+1. DATA COLLECTION
+This Software is designed to operate fully offline. It does NOT collect, store, or transmit any personal data to the Licensor or third parties.
+
+2. USER DATA
+All data you enter or create using the Software (e.g., match schedules, scores, or team details) remains stored locally on your device. You are solely responsible for the management and security of your data.
+
+3. INTERNET ACCESS
+The current version of the Software does not require or use internet access. If future versions add online features, you will be notified and given the option to consent.
+
+4. THIRD-PARTY LIBRARIES
+This Software uses third-party libraries (such as H2 Database and FlatLaf). These libraries do not collect user data in offline mode.
+
+5. CONTACT
+If you have questions about privacy, please contact:  
+Email: nguyenviethau.it.2004@gmail.com

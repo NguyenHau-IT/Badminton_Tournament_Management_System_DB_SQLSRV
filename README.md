@@ -1,2 +1,2 @@
-# BadmintonEventTechnology_DB_MYSQL
-BadmintonEventTechnology_DB_MYSQL
+# BadmintonEventTechnology
+Bảng điếm thi đấu cầu lông

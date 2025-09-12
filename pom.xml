@@ -1,0 +1,214 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>mysqlclient</artifactId>
+    <version>2.0.0</version>
+    <packaging>jar</packaging>
+    <name>BET - Badminton Event Technology</name>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.6</version>
+        <relativePath/>
+    </parent>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <app.name>BET - Badminton Event Technology</app.name>
+        <maven.compiler.release>17</maven.compiler.release>
+        <main.class>com.example.badmintoneventtechnology.BadmintonEventTechnologyApplication</main.class>
+
+        <!-- Mặc định (sẽ bị profiles override tùy theo có ổ D hay không) -->
+        <install.dir>C:\Program Files\BET-OVR</install.dir>
+        <dist.dir>${project.build.directory}/dist</dist.dir>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf-extras</artifactId>
+            <version>3.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.2</version>
+        </dependency>
+
+        <!-- Để Spring Boot BOM quản lý version -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp-sse</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compiler -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+
+            <!-- Repackage Spring Boot fat-jar -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- jpackage tạo MSI; cài mặc định theo ${install.dir} -->
+            <plugin>
+                <groupId>org.panteleyev</groupId>
+                <artifactId>jpackage-maven-plugin</artifactId>
+                <version>1.6.6</version>
+                <executions>
+                    <execution>
+                        <id>windows-msi</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jpackage</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Nơi sinh file MSI: để trong target/dist để khỏi phụ thuộc ổ D -->
+                            <destination>${dist.dir}</destination>
+
+                            <!-- Thư mục chứa jar đã repackage -->
+                            <input>${project.build.directory}</input>
+
+                            <name>${app.name}</name>
+                            <appVersion>${project.version}</appVersion>
+                            <vendor>NGUYEN VIET HAU</vendor>
+                            <description>
+                                Offline badminton tournament manager: handle players, scheduling, scoring, and statistics.
+                            </description>
+
+                            <type>MSI</type>
+
+                            <!-- Dùng fat-jar của Spring Boot -->
+                            <mainJar>${project.build.finalName}.jar</mainJar>
+
+                            <!-- Icon & options Windows -->
+                            <icon>src/main/resources/icons/app.ico</icon>
+                            <winMenu>true</winMenu>
+                            <winMenuGroup>${app.name}</winMenuGroup>
+                            <winShortcut>true</winShortcut>
+
+                            <!-- Cho phép người dùng đổi thư mục cài nếu muốn -->
+                            <winDirChooser>true</winDirChooser>
+
+                            <!-- CÀI MẶC ĐỊNH: dùng profile để set D:\BET hoặc fallback C:\Program Files\BET -->
+                            <installDir>${install.dir}</installDir>
+
+                            <winUpgradeUuid>6b1d7f39-9c8a-4a11-9c36-6e0be3e2c2a1</winUpgradeUuid>
+                            <licenseFile>src/main/resources/license.txt</licenseFile>
+                            <javaOptions>
+                                <option>-Xmx1024m</option>
+                            </javaOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Profiles auto-chọn installDir theo sự tồn tại của ổ D -->
+    <profiles>
+        <!-- Nếu CÓ ổ D: cài mặc định D:\BET -->
+        <profile>
+            <id>default-d</id>
+            <activation>
+                <file>
+                    <exists>D:/</exists>
+                </file>
+            </activation>
+            <properties>
+                <install.dir>D:\BET-OVR</install.dir>
+            </properties>
+        </profile>
+
+        <!-- Nếu KHÔNG có ổ D: fallback C:\Program Files\BET -->
+        <profile>
+            <id>fallback-c</id>
+            <activation>
+                <file>
+                    <missing>D:/</missing>
+                </file>
+            </activation>
+            <properties>
+                <install.dir>C:\Program Files\BET-OVR</install.dir>
+            </properties>
+        </profile>
+    </profiles>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </pluginRepository>
+    </pluginRepositories>
+</project>
