@@ -22,8 +22,17 @@ public class CategoryRepository {
      * - singles: map nội dung đơn (tenSuKien -> suKienId)
      * - doubles: map nội dung đôi/đồng đội (tenSuKien -> suKienId)
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Integer>[] loadCategories() {
+        return loadCategories(null);
+    }
+
+    /**
+     * Trả về mảng 2 phần tử: [singles, doubles] theo giải đấu được chọn
+     * - singles: map nội dung đơn (tenSuKien -> suKienId)
+     * - doubles: map nội dung đôi/đồng đội (tenSuKien -> suKienId)
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Integer>[] loadCategories(Integer giaiId) {
         Map<String, Integer> singles = new LinkedHashMap<>();
         Map<String, Integer> doubles = new LinkedHashMap<>();
 
@@ -31,7 +40,16 @@ public class CategoryRepository {
             return (Map<String, Integer>[]) new Map[] { singles, doubles };
         }
 
-        final String sql = "SELECT su_kien_id, ten, ma FROM su_kien ORDER BY ten";
+        // Nếu có giaiId, lấy su_kien theo giải đấu, nếu không thì lấy tất cả
+        String sql;
+        if (giaiId != null) {
+            sql = "SELECT su_kien_id, ten, ma " +
+                    "FROM su_kien " +
+                    "WHERE giai_id = " + giaiId + " " +
+                    "ORDER BY ten";
+        } else {
+            sql = "SELECT su_kien_id, ten, ma FROM su_kien ORDER BY ten";
+        }
 
         try (Statement st = conn.createStatement();
                 ResultSet rs = st.executeQuery(sql)) {
@@ -55,9 +73,12 @@ public class CategoryRepository {
             }
 
         } catch (SQLException ex) {
+            String errorMsg = giaiId != null
+                    ? "Tải \"nội dung\" cho giải đấu từ DB lỗi: " + ex.getMessage()
+                    : "Tải \"nội dung\" từ DB lỗi: " + ex.getMessage();
             JOptionPane.showMessageDialog(
                     null,
-                    "Tải \"nội dung\" từ DB lỗi: " + ex.getMessage(),
+                    errorMsg,
                     "Lỗi DB",
                     JOptionPane.ERROR_MESSAGE);
         }

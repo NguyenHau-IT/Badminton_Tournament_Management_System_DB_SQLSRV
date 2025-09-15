@@ -77,6 +77,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private NetworkInterface selectedIf;
     private int courtPort = -1; // Port của sân tương ứng
     private String courtId = ""; // ID của sân để hiển thị trên monitor
+    private Integer selectedGiaiId; // ID của giải đấu được chọn
 
     /* ===== Widgets: Config ===== */
     private final JComboBox<String> cboHeaderSingles = new JComboBox<>();
@@ -924,7 +925,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
         if (conn != null) {
             var repo = new CategoryRepository(conn);
-            Map<String, Integer>[] maps = repo.loadCategories();
+            Map<String, Integer>[] maps = repo.loadCategories(selectedGiaiId);
             maps[0].forEach((k, v) -> {
                 cboHeaderSingles.addItem(k);
                 headerKnrSingles.put(k, v);
@@ -1846,6 +1847,20 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             } else if (comp instanceof JPanel) {
                 updatePinLinkInPanel((JPanel) comp);
             }
+        }
+    }
+
+    /**
+     * Thiết lập giải đấu được chọn để load danh mục phù hợp
+     */
+    public void setSelectedGiai(com.example.badmintoneventtechnology.model.tournament.Giai giai) {
+        if (giai != null) {
+            this.selectedGiaiId = giai.getGiaiId();
+            // Reload danh mục theo giải đấu mới
+            reloadListsFromDb();
+        } else {
+            this.selectedGiaiId = null;
+            reloadListsFromDb();
         }
     }
 

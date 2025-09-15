@@ -57,6 +57,9 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
     // Network interface được chọn
     private NetworkInterface selectedIf;
 
+    // Giải đấu được chọn
+    private com.example.badmintoneventtechnology.model.tournament.Giai selectedGiai;
+
     public MultiCourtControlPanel() {
         setupUI();
         courtManager.addPropertyChangeListener(this);
@@ -503,6 +506,11 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             panel.setNetworkInterface(selectedIf);
         }
 
+        // Set giải đấu được chọn
+        if (selectedGiai != null) {
+            panel.setSelectedGiai(selectedGiai);
+        }
+
         Dimension screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
         int screenWidth = screenSize.width;
         int screenHeight = screenSize.height;
@@ -725,6 +733,22 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         // Nếu tất cả sân đều đã được tạo, chọn sân đầu tiên
         if (allCourts.length > 0) {
             courtCombo.setSelectedItem(allCourts[0]);
+        }
+    }
+
+    /**
+     * Thiết lập giải đấu được chọn để load danh mục phù hợp cho tất cả các sân
+     */
+    public void setSelectedGiai(com.example.badmintoneventtechnology.model.tournament.Giai giai) {
+        this.selectedGiai = giai;
+
+        // Cập nhật giải đấu cho tất cả các BadmintonControlPanel hiện có
+        for (int i = 0; i < courtTabs.getTabCount(); i++) {
+            java.awt.Component component = courtTabs.getComponentAt(i);
+            if (component instanceof BadmintonControlPanel) {
+                BadmintonControlPanel panel = (BadmintonControlPanel) component;
+                panel.setSelectedGiai(giai);
+            }
         }
     }
 }

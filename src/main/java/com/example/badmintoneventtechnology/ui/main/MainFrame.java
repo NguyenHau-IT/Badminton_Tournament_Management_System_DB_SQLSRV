@@ -104,6 +104,10 @@ public class MainFrame extends JFrame {
                 com.example.badmintoneventtechnology.model.tournament.Giai giai = (com.example.badmintoneventtechnology.model.tournament.Giai) evt
                         .getNewValue();
                 giaiContentPanel.loadByGiai(giai);
+                // Thông báo cho controlPanel về giải đấu được chọn
+                controlPanel.setSelectedGiai(giai);
+                // Thông báo cho multiCourtPanel về giải đấu được chọn
+                multiCourtPanel.setSelectedGiai(giai);
             }
         });
         // Khi tab chọn giải được hiển thị, cũng hiển thị panel nội dung/VĐV
@@ -207,7 +211,7 @@ public class MainFrame extends JFrame {
         pack();
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
-        setAlwaysOnTop(true); // Luôn hiển thị trên cùng
+        // setAlwaysOnTop(true); // Không bắt buộc hiện trên cùng nữa
         IconUtil.applyTo(this);
 
         // Hiển thị version từ MANIFEST (nếu có)
