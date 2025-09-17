@@ -64,7 +64,7 @@ public class GiaiFormDialog extends JDialog {
 
         try {
             // Thử gọi API provinces.open-api.vn
-            URL url = new URL("https://provinces.open-api.vn/api/p/");
+            URL url = new URL("https://provinces.open-api.vn/api/v2/p/");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(3000); // 3 giây timeout
