@@ -34,7 +34,7 @@ Desktop Application (Swing UI)
     ↕
 Spring Boot Backend
     ↕
-H2 Database (Embedded)
+MySQL Database (Embedded)
     ↕
 Web Interface (Thymeleaf + Bootstrap)
     ↕
@@ -69,7 +69,7 @@ Mobile Devices ←→ REST API ←→ Real-time Updates (SSE)
 - **Bootstrap Icons**: Icon set cho web interface
 
 ### 3. **Database & Persistence**
-- **H2 Database 2.2.224**: Embedded database engine
+- **MySQL**: Embedded database engine
 - **JDBC**: Database connectivity
 - **Connection Pooling**: Quản lý kết nối database
 - **SQL**: Query language cho data manipulation

@@ -28,8 +28,11 @@ import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
 import com.example.badmintoneventtechnology.config.AppProps;
+import com.example.badmintoneventtechnology.model.db.ConnectionConfig;
 import com.example.badmintoneventtechnology.model.db.MySqlConnectionManager;
+import com.example.badmintoneventtechnology.model.tournament.Giai;
 import com.example.badmintoneventtechnology.service.db.DatabaseService;
+import com.example.badmintoneventtechnology.service.db.GiaiRelatedService;
 import com.example.badmintoneventtechnology.ui.control.BadmintonControlPanel;
 import com.example.badmintoneventtechnology.ui.control.MultiCourtControlPanel; // <-- NEW
 import com.example.badmintoneventtechnology.ui.log.LogTab;
@@ -37,6 +40,10 @@ import com.example.badmintoneventtechnology.ui.monitor.MonitorTab;
 import com.example.badmintoneventtechnology.ui.monitor.ScreenshotTab;
 import com.example.badmintoneventtechnology.ui.net.NetworkConfig;
 import com.example.badmintoneventtechnology.ui.tool.ConnectionsManagerPanel;
+import com.example.badmintoneventtechnology.ui.tournament.GiaiChooserPanel;
+import com.example.badmintoneventtechnology.ui.tournament.GiaiContentPanel;
+import com.example.badmintoneventtechnology.ui.tournament.GiaiTab;
+import com.example.badmintoneventtechnology.ui.tournament.SuKienTab;
 import com.example.badmintoneventtechnology.util.ui.IconUtil;
 import com.example.badmintoneventtechnology.util.ui.Ui;
 import com.formdev.flatlaf.FlatDarkLaf;
@@ -49,10 +56,10 @@ public class MainFrame extends JFrame {
     private final MySqlConnectionManager manager = new MySqlConnectionManager();
     private final DatabaseService service = new DatabaseService(manager);
     // Service lấy nội dung và VĐV theo giải
-    private final com.example.badmintoneventtechnology.service.db.GiaiRelatedService giaiRelatedService = new com.example.badmintoneventtechnology.service.db.GiaiRelatedService(
+    private final GiaiRelatedService giaiRelatedService = new GiaiRelatedService(
             service);
     // Panel hiển thị nội dung và VĐV
-    private final com.example.badmintoneventtechnology.ui.tournament.GiaiContentPanel giaiContentPanel = new com.example.badmintoneventtechnology.ui.tournament.GiaiContentPanel(
+    private final GiaiContentPanel giaiContentPanel = new GiaiContentPanel(
             giaiRelatedService);
 
     private final BadmintonControlPanel controlPanel = new BadmintonControlPanel();
@@ -62,10 +69,12 @@ public class MainFrame extends JFrame {
     private final ScreenshotTab screenshotTab = new ScreenshotTab();
     private final LogTab logTab = new LogTab();
     // Tab quản lý giải đấu
-    private final com.example.badmintoneventtechnology.ui.tournament.GiaiTab giaiTab = new com.example.badmintoneventtechnology.ui.tournament.GiaiTab(
+    private final GiaiTab giaiTab = new GiaiTab(
             service);
     // Panel chọn giải đấu
-    private final com.example.badmintoneventtechnology.ui.tournament.GiaiChooserPanel giaiChooserPanel = new com.example.badmintoneventtechnology.ui.tournament.GiaiChooserPanel(
+    private final GiaiChooserPanel giaiChooserPanel = new GiaiChooserPanel(
+            service);
+    private final SuKienTab suKienTab = new SuKienTab(
             service);
 
     // UI fields
@@ -101,13 +110,11 @@ public class MainFrame extends JFrame {
         // Lắng nghe chọn giải để load nội dung và VĐV (sau khi super đã gọi)
         giaiChooserPanel.addPropertyChangeListener(evt -> {
             if ("selectedGiai".equals(evt.getPropertyName())) {
-                com.example.badmintoneventtechnology.model.tournament.Giai giai = (com.example.badmintoneventtechnology.model.tournament.Giai) evt
-                        .getNewValue();
+                Giai giai = (Giai) evt.getNewValue();
                 giaiContentPanel.loadByGiai(giai);
-                // Thông báo cho controlPanel về giải đấu được chọn
                 controlPanel.setSelectedGiai(giai);
-                // Thông báo cho multiCourtPanel về giải đấu được chọn
                 multiCourtPanel.setSelectedGiai(giai);
+                suKienTab.setSelectedGiai(giai);
             }
         });
         // Khi tab chọn giải được hiển thị, cũng hiển thị panel nội dung/VĐV
@@ -238,13 +245,13 @@ public class MainFrame extends JFrame {
         String user = AppProps.get("db.user", "root");
         String pass = AppProps.get("db.password", "");
 
-        var cfg = new com.example.badmintoneventtechnology.model.db.ConnectionConfig()
+        var cfg = new ConnectionConfig()
                 .host(host)
                 .port(port)
                 .databaseInput(name)
                 .user(user)
                 .password(pass)
-                .mode(com.example.badmintoneventtechnology.model.db.ConnectionConfig.Mode.NAME);
+                .mode(ConnectionConfig.Mode.NAME);
 
         service.setConfig(cfg);
         try {
@@ -292,6 +299,7 @@ public class MainFrame extends JFrame {
             ensureTabPresent("Giám sát", monitorTab, icMonitor);
             ensureTabPresent("Screenshots", screenshotTab, icScreenshot);
             ensureTabPresent("Logs", logTab, icLog);
+            ensureTabPresent("Nội dung thi đấu", suKienTab, icScore);
 
             // Bắt đầu từ tab chọn giải
             tabs.setSelectedComponent(giaiChooserPanel);

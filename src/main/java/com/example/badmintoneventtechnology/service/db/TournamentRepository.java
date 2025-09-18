@@ -61,7 +61,7 @@ public class TournamentRepository {
 
         final String sql = "SELECT su_kien_id, giai_id, ma, ten, nhom_tuoi, trinh_do, so_luong, luat_thi_dau, loai_bang, created_at "
                 +
-                "FROM su_kien WHERE giai_id = ? ORDER BY ma, ten";
+                "FROM su_kien WHERE giai_id = ? ORDER BY su_kien_id";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, giaiId);
             try (ResultSet rs = ps.executeQuery()) {
