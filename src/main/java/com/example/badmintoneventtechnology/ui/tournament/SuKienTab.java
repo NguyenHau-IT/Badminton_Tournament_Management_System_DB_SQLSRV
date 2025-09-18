@@ -3,6 +3,7 @@ package com.example.badmintoneventtechnology.ui.tournament;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.util.List;
+import java.util.ArrayList;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -11,6 +12,14 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
+import javax.swing.RowFilter;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.JComboBox;
+import javax.swing.JTextField;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import javax.swing.ListSelectionModel;
 
 import com.example.badmintoneventtechnology.model.tournament.Giai;
@@ -27,6 +36,12 @@ public class SuKienTab extends JPanel {
     private JButton btnAdd, btnEdit, btnDelete;
     private Giai selectedGiai;
     private final JLabel lblCurrentGiai = new JLabel("Chưa chọn giải");
+    // Filter & sort components
+    private JTextField txtFilterTen;
+    private JSpinner spFilterAgeMin;
+    private JSpinner spFilterAgeMax;
+    private JComboBox<String> cmbSort;
+    private TableRowSorter<DefaultTableModel> sorter;
 
     public SuKienTab(DatabaseService service) {
         this.service = service;
@@ -36,7 +51,9 @@ public class SuKienTab extends JPanel {
 
     private void initUI() {
         model = new DefaultTableModel(
-                new Object[] { "ID", "Mã", "Tên", "Nhóm tuổi", "Trình độ", "Số lượng", "Luật", "Loại bảng" }, 0) {
+                new Object[] { "ID", "Mã", "Tên", "Tuổi nhỏ", "Tuổi lớn nhất", "Trình độ", "Số lượng", "Luật",
+                        "Loại bảng" },
+                0) {
             @Override
             public boolean isCellEditable(int r, int c) {
                 return false;
@@ -59,6 +76,8 @@ public class SuKienTab extends JPanel {
                 }
             }
         });
+        sorter = new TableRowSorter<>(model);
+        table.setRowSorter(sorter);
         add(new JScrollPane(table), BorderLayout.CENTER);
 
         JPanel top = new JPanel(new BorderLayout());
@@ -70,12 +89,39 @@ public class SuKienTab extends JPanel {
         btnPanel.add(btnEdit);
         btnPanel.add(btnDelete);
         top.add(btnPanel, BorderLayout.WEST);
-        top.add(lblCurrentGiai, BorderLayout.EAST);
+
+        // Right side with filters + current tournament label
+        JPanel rightPanel = new JPanel(new BorderLayout());
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 2));
+        filterPanel.add(new JLabel("Tên:"));
+        txtFilterTen = new JTextField(10);
+        filterPanel.add(txtFilterTen);
+        filterPanel.add(new JLabel("Tuổi:"));
+        spFilterAgeMin = new JSpinner(new SpinnerNumberModel(0, 0, 120, 1));
+        spFilterAgeMax = new JSpinner(new SpinnerNumberModel(120, 0, 120, 1));
+        filterPanel.add(spFilterAgeMin);
+        filterPanel.add(new JLabel("-"));
+        filterPanel.add(spFilterAgeMax);
+        filterPanel.add(new JLabel("Sắp xếp:"));
+        cmbSort = new JComboBox<>(new String[] { "Mặc định", "Tên A-Z", "Tên Z-A", "Tuổi min tăng", "Tuổi min giảm",
+                "Tuổi max tăng", "Tuổi max giảm" });
+        filterPanel.add(cmbSort);
+        JButton btnApply = new JButton("Lọc");
+        JButton btnClear = new JButton("Reset");
+        filterPanel.add(btnApply);
+        filterPanel.add(btnClear);
+        rightPanel.add(filterPanel, BorderLayout.NORTH);
+        rightPanel.add(lblCurrentGiai, BorderLayout.SOUTH);
+        top.add(rightPanel, BorderLayout.EAST);
         add(top, BorderLayout.NORTH);
 
         btnAdd.addActionListener(e -> addSuKien());
         btnEdit.addActionListener(e -> editSuKien());
         btnDelete.addActionListener(e -> deleteSuKien());
+        btnApply.addActionListener(e -> applyFilter());
+        btnClear.addActionListener(e -> clearFilter());
+        cmbSort.addActionListener(e -> applySort());
+        txtFilterTen.addActionListener(e -> applyFilter());
 
         updateButtons();
     }
@@ -100,7 +146,17 @@ public class SuKienTab extends JPanel {
             return;
         List<SuKien> list = service.getSuKienByGiai(selectedGiai.getGiaiId());
         for (SuKien s : list) {
-            model.addRow(new Object[] { s.getSuKienId(), s.getMa(), s.getTen(), s.getNhomTuoi(), s.getTrinhDo(),
+            int min = 0, max = 0;
+            String nt = s.getNhomTuoi();
+            if (nt != null && nt.matches("\\d+\\-\\d+")) {
+                String[] parts = nt.split("-");
+                try {
+                    min = Integer.parseInt(parts[0]);
+                    max = Integer.parseInt(parts[1]);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            model.addRow(new Object[] { s.getSuKienId(), s.getMa(), s.getTen(), min, max, s.getTrinhDo(),
                     s.getSoLuong(), s.getLuatThiDau(), s.getLoaiBang() });
         }
         // Sau khi load lại dữ liệu thì reset chọn & nút
@@ -108,6 +164,8 @@ public class SuKienTab extends JPanel {
             table.clearSelection();
         }
         updateButtons();
+        applySort();
+        applyFilter();
     }
 
     private void addSuKien() {
@@ -129,21 +187,23 @@ public class SuKienTab extends JPanel {
     }
 
     private void editSuKien() {
-        int row = table.getSelectedRow();
-        if (row == -1 || selectedGiai == null)
+        int viewRow = table.getSelectedRow();
+        if (viewRow == -1 || selectedGiai == null)
             return;
+        int row = table.convertRowIndexToModel(viewRow);
         int id = (int) model.getValueAt(row, 0);
-        // Tạo đối tượng SuKien từ hàng hiện tại (vì chưa có getSuKienById)
         SuKien s = new SuKien();
         s.setSuKienId(id);
         s.setGiaiId(selectedGiai.getGiaiId());
         s.setMa((String) model.getValueAt(row, 1));
         s.setTen((String) model.getValueAt(row, 2));
-        s.setNhomTuoi((String) model.getValueAt(row, 3));
-        s.setTrinhDo((String) model.getValueAt(row, 4));
-        s.setSoLuong((int) model.getValueAt(row, 5));
-        s.setLuatThiDau((String) model.getValueAt(row, 6));
-        s.setLoaiBang((String) model.getValueAt(row, 7));
+        int tuoiMin = (int) model.getValueAt(row, 3);
+        int tuoiMax = (int) model.getValueAt(row, 4);
+        s.setNhomTuoi(tuoiMin + "-" + tuoiMax);
+        s.setTrinhDo((String) model.getValueAt(row, 5));
+        s.setSoLuong((int) model.getValueAt(row, 6));
+        s.setLuatThiDau((String) model.getValueAt(row, 7));
+        s.setLoaiBang((String) model.getValueAt(row, 8));
 
         SuKienFormDialog dlg = new SuKienFormDialog(s);
         if (dlg.showDialog()) {
@@ -155,14 +215,66 @@ public class SuKienTab extends JPanel {
     }
 
     private void deleteSuKien() {
-        int row = table.getSelectedRow();
-        if (row == -1 || selectedGiai == null)
+        int viewRow = table.getSelectedRow();
+        if (viewRow == -1 || selectedGiai == null)
             return;
+        int row = table.convertRowIndexToModel(viewRow);
         int id = (int) model.getValueAt(row, 0);
         int confirm = JOptionPane.showConfirmDialog(this, "Xoá nội dung này?", "Xác nhận", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             service.deleteSuKien(id);
             loadData();
         }
+    }
+
+    private void applyFilter() {
+        if (sorter == null)
+            return;
+        String ten = txtFilterTen.getText().trim().toLowerCase();
+        int ageMin = (int) spFilterAgeMin.getValue();
+        int ageMax = (int) spFilterAgeMax.getValue();
+        RowFilter<DefaultTableModel, Object> rf = new RowFilter<>() {
+            @Override
+            public boolean include(Entry<? extends DefaultTableModel, ? extends Object> entry) {
+                String tenVal = String.valueOf(entry.getValue(2)).toLowerCase();
+                int minVal = (int) entry.getValue(3);
+                int maxVal = (int) entry.getValue(4);
+                boolean matchTen = ten.isEmpty() || tenVal.contains(ten);
+                boolean matchAge = (minVal >= ageMin) && (maxVal <= ageMax);
+                return matchTen && matchAge;
+            }
+        };
+        sorter.setRowFilter(rf);
+    }
+
+    private void clearFilter() {
+        txtFilterTen.setText("");
+        spFilterAgeMin.setValue(0);
+        spFilterAgeMax.setValue(120);
+        if (sorter != null)
+            sorter.setRowFilter(null);
+    }
+
+    private void applySort() {
+        if (sorter == null)
+            return;
+        String sel = (String) cmbSort.getSelectedItem();
+        List<RowSorter.SortKey> keys = new ArrayList<>();
+        if ("Tên A-Z".equals(sel))
+            keys.add(new RowSorter.SortKey(2, SortOrder.ASCENDING));
+        else if ("Tên Z-A".equals(sel))
+            keys.add(new RowSorter.SortKey(2, SortOrder.DESCENDING));
+        else if ("Tuổi min tăng".equals(sel))
+            keys.add(new RowSorter.SortKey(3, SortOrder.ASCENDING));
+        else if ("Tuổi min giảm".equals(sel))
+            keys.add(new RowSorter.SortKey(3, SortOrder.DESCENDING));
+        else if ("Tuổi max tăng".equals(sel))
+            keys.add(new RowSorter.SortKey(4, SortOrder.ASCENDING));
+        else if ("Tuổi max giảm".equals(sel))
+            keys.add(new RowSorter.SortKey(4, SortOrder.DESCENDING));
+        else { // Mặc định: theo ID
+            keys.add(new RowSorter.SortKey(0, SortOrder.ASCENDING));
+        }
+        sorter.setSortKeys(keys);
     }
 }

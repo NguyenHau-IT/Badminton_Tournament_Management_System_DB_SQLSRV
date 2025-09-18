@@ -24,7 +24,8 @@ public class SuKienFormDialog extends JDialog {
 
     private JComboBox<String> cmbMa;
     private JTextField txtTen;
-    private JTextField txtNhomTuoi;
+    private JSpinner spTuoiMin;
+    private JSpinner spTuoiMax;
     private JTextField txtTrinhDo;
     private JSpinner spSoLuong;
     private JTextField txtLuatThiDau;
@@ -42,7 +43,7 @@ public class SuKienFormDialog extends JDialog {
     }
 
     private void initUI() {
-        JPanel form = new JPanel(new GridLayout(7, 2, 8, 8));
+        JPanel form = new JPanel(new GridLayout(8, 2, 8, 8));
         form.setBorder(new javax.swing.border.EmptyBorder(12, 16, 12, 16));
 
         form.add(new JLabel("Mã:"));
@@ -53,9 +54,12 @@ public class SuKienFormDialog extends JDialog {
         txtTen = new JTextField();
         form.add(txtTen);
 
-        form.add(new JLabel("Nhóm tuổi:"));
-        txtNhomTuoi = new JTextField();
-        form.add(txtNhomTuoi);
+        form.add(new JLabel("Tuổi tối thiểu:"));
+        spTuoiMin = new JSpinner(new SpinnerNumberModel(10, 5, 80, 1));
+        form.add(spTuoiMin);
+        form.add(new JLabel("Tuổi tối đa:"));
+        spTuoiMax = new JSpinner(new SpinnerNumberModel(18, 5, 100, 1));
+        form.add(spTuoiMax);
 
         form.add(new JLabel("Trình độ:"));
         txtTrinhDo = new JTextField();
@@ -109,7 +113,18 @@ public class SuKienFormDialog extends JDialog {
     private void fillForm(SuKien s) {
         cmbMa.setSelectedItem(s.getMa());
         txtTen.setText(s.getTen());
-        txtNhomTuoi.setText(s.getNhomTuoi());
+        // Parse nhomTuoi dạng "min-max" nếu có
+        String nt = s.getNhomTuoi();
+        if (nt != null && nt.matches("\\d+\\-\\d+")) {
+            String[] parts = nt.split("-");
+            try {
+                int min = Integer.parseInt(parts[0]);
+                int max = Integer.parseInt(parts[1]);
+                spTuoiMin.setValue(min);
+                spTuoiMax.setValue(max);
+            } catch (NumberFormatException ignored) {
+            }
+        }
         txtTrinhDo.setText(s.getTrinhDo());
         spSoLuong.setValue(s.getSoLuong());
         txtLuatThiDau.setText(s.getLuatThiDau());
@@ -126,7 +141,14 @@ public class SuKienFormDialog extends JDialog {
         s.setGiaiId(giaiId);
         s.setMa((String) cmbMa.getSelectedItem());
         s.setTen(txtTen.getText().trim());
-        s.setNhomTuoi(txtNhomTuoi.getText().trim());
+        int min = (Integer) spTuoiMin.getValue();
+        int max = (Integer) spTuoiMax.getValue();
+        if (min > max) {
+            int tmp = min;
+            min = max;
+            max = tmp;
+        }
+        s.setNhomTuoi(min + "-" + max);
         s.setTrinhDo(txtTrinhDo.getText().trim());
         s.setSoLuong((Integer) spSoLuong.getValue());
         s.setLuatThiDau(txtLuatThiDau.getText().trim());
