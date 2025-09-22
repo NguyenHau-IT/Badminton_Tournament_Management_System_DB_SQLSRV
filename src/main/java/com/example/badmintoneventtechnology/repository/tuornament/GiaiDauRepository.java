@@ -1,4 +1,4 @@
-package com.example.badmintoneventtechnology.service.db;
+package com.example.badmintoneventtechnology.repository.tuornament;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

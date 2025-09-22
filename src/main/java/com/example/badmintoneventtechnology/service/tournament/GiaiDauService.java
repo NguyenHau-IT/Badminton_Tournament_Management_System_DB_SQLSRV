@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 import com.example.badmintoneventtechnology.model.tournament.GiaiDau;
+import com.example.badmintoneventtechnology.repository.tuornament.GiaiDauRepository;
 import com.example.badmintoneventtechnology.service.db.DatabaseService;
-import com.example.badmintoneventtechnology.service.db.GiaiDauRepository;
 
 /**
  * Service class để xử lý business logic cho GiaiDau

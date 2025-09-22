@@ -41,8 +41,7 @@ public class GiaiDauManagementPanel extends JPanel {
 
     private void initializeComponents() {
         // Table
-        String[] columnNames = { "ID", "Tên Giải", "Ngày Bắt Đầu", "Ngày Kết Thúc", "Ngày Tạo", "Trạng Thái",
-                "User ID" };
+        String[] columnNames = { "Tên Giải", "Ngày Bắt Đầu", "Ngày Kết Thúc", "Trạng Thái" };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
