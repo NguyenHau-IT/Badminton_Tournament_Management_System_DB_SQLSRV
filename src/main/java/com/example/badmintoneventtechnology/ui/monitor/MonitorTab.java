@@ -17,6 +17,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.prefs.Preferences;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -36,6 +37,7 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
+import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 
 public class MonitorTab extends JPanel implements AutoCloseable {
@@ -72,6 +74,12 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     private String dockTitle;
     private Icon dockIcon;
     private boolean shuttingDown = false; // tránh tự-đính lại khi app đang đóng
+
+    // Setting: số cột hiển thị
+    private int columns = 3;
+    private final javax.swing.JComboBox<String> cboColumns = new javax.swing.JComboBox<>(
+            new String[] { "1", "2", "3" });
+    private final Preferences prefs = Preferences.userNodeForPackage(MonitorTab.class);
 
     public MonitorTab() {
         this(false, null); // Default to client mode
@@ -113,16 +121,49 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         header.add(right, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
-        // Cấu hình JList để hiển thị dạng lưới card
+        // Cấu hình JList để hiển thị dạng lưới card (3 card mỗi hàng)
         list.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         list.setVisibleRowCount(-1);
-        list.setFixedCellWidth(470); // bề ngang mỗi card
-        list.setFixedCellHeight(200); // chiều cao card đồng đều (tăng để hiển thị thông tin mới)
+        list.setFixedCellWidth(460); // mặc định, sẽ tự điều chỉnh theo viewport để luôn 3 cột
+        list.setFixedCellHeight(220); // chiều cao card đồng đều
         list.setCellRenderer(new CardRenderer());
         list.setBackground(UIManager.getColor("Panel.background"));
         list.putClientProperty("JComponent.roundRect", true); // hint FlatLaf
 
-        add(new JScrollPane(list), BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(list);
+        // Tabs bên trong: Danh sách | Cài đặt
+        JTabbedPane innerTabs = new JTabbedPane();
+
+        JPanel listPanel = new JPanel(new BorderLayout());
+        listPanel.add(scroll, BorderLayout.CENTER);
+        innerTabs.addTab("Danh sách", listPanel);
+
+        JPanel settingsPanel = buildSettingsPanel();
+        innerTabs.addTab("Cài đặt", settingsPanel);
+
+        add(innerTabs, BorderLayout.CENTER);
+
+        // Tải số cột đã lưu
+        try {
+            int savedCols = Math.max(1, Math.min(3, prefs.getInt("monitor.columns", columns)));
+            columns = savedCols;
+            try {
+                cboColumns.setSelectedItem(String.valueOf(columns));
+            } catch (Exception ignore) {
+            }
+        } catch (Exception ignore) {
+        }
+
+        // Tự điều chỉnh độ rộng cell để luôn hiển thị 3 card mỗi hàng
+        java.awt.Component viewport = scroll.getViewport();
+        viewport.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                updateCellWidthForColumns();
+            }
+        });
+        // Gọi lần đầu sau khi UI dựng xong
+        SwingUtilities.invokeLater(this::updateCellWidthForColumns);
 
         // Mở viewer khi double click
         list.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -202,6 +243,56 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         }
         sessions.clear();
         refreshCards();
+    }
+
+    /** Tính và set độ rộng cell để luôn vừa N cột trong viewport */
+    private void updateCellWidthForColumns() {
+        try {
+            java.awt.Container parent = list.getParent();
+            while (parent != null && !(parent instanceof javax.swing.JViewport)) {
+                parent = parent.getParent();
+            }
+            if (!(parent instanceof javax.swing.JViewport))
+                return;
+            javax.swing.JViewport vp = (javax.swing.JViewport) parent;
+            int vw = vp.getExtentSize().width;
+            // chừa khoảng margin nhỏ giữa các card
+            int hGap = 12;
+            int totalGap = (columns + 1) * (hGap / 2);
+            int cellWidth = Math.max(320, (vw - totalGap) / columns);
+            list.setFixedCellWidth(cellWidth);
+            list.revalidate();
+            list.repaint();
+        } catch (Exception ignore) {
+        }
+    }
+
+    /** Panel cài đặt số cột */
+    private JPanel buildSettingsPanel() {
+        JPanel p = new JPanel(new BorderLayout(8, 8));
+        p.setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+        row.add(new JLabel("Số cột:"));
+        cboColumns.setSelectedItem(String.valueOf(columns));
+        row.add(cboColumns);
+        p.add(row, BorderLayout.NORTH);
+
+        cboColumns.addActionListener(e -> {
+            try {
+                String sel = (String) cboColumns.getSelectedItem();
+                int col = Integer.parseInt(sel);
+                columns = Math.max(1, Math.min(3, col));
+                updateCellWidthForColumns();
+                try {
+                    prefs.putInt("monitor.columns", columns);
+                } catch (Exception ignore) {
+                }
+            } catch (Exception ignore) {
+            }
+        });
+
+        return p;
     }
 
     private void rxLoop() {
@@ -610,6 +701,8 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         // Thêm các panel để hiển thị ô điểm
         private final JPanel scoreAPanel = new JPanel(); // Không set layout cố định
         private final JPanel scoreBPanel = new JPanel(); // Không set layout cố định
+        private final JPanel nameAPanel = new JPanel(new BorderLayout());
+        private final JPanel nameBPanel = new JPanel(new BorderLayout());
 
         CardRenderer() {
             setLayout(new BorderLayout());
@@ -660,13 +753,12 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             JPanel teamAPanel = new JPanel(new BorderLayout(8, 0));
             teamAPanel.setOpaque(false);
 
-            // Tạo panel chứa tên với kích thước cố định
-            JPanel nameAPanel = new JPanel(new BorderLayout());
+            // Panel tên A (kích thước sẽ cập nhật theo số cột)
             nameAPanel.setOpaque(false);
             nameAPanel.setPreferredSize(new Dimension(250, 50));
-            nameAPanel.setMinimumSize(new Dimension(250, 50)); // Kích thước tối thiểu
-            nameAPanel.setMaximumSize(new Dimension(250, 50)); // Kích thước tối đa
-            nameAPanel.setSize(new Dimension(250, 50)); // Kích thước cố định
+            nameAPanel.setMinimumSize(new Dimension(250, 50));
+            nameAPanel.setMaximumSize(new Dimension(250, 50));
+            nameAPanel.setSize(new Dimension(250, 50));
             nameAPanel.add(lblNames, BorderLayout.CENTER); // Căn giữa tên theo chiều dọc
 
             teamAPanel.add(nameAPanel, BorderLayout.WEST);
@@ -687,13 +779,12 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             JPanel teamBPanel = new JPanel(new BorderLayout(8, 0));
             teamBPanel.setOpaque(false);
 
-            // Tạo panel chứa tên với kích thước cố định
-            JPanel nameBPanel = new JPanel(new BorderLayout());
+            // Panel tên B (kích thước sẽ cập nhật theo số cột)
             nameBPanel.setOpaque(false);
             nameBPanel.setPreferredSize(new Dimension(250, 50));
-            nameBPanel.setMinimumSize(new Dimension(250, 50)); // Kích thước tối thiểu
-            nameBPanel.setMaximumSize(new Dimension(250, 50)); // Kích thước tối đa
-            nameBPanel.setSize(new Dimension(250, 50)); // Kích thước cố định
+            nameBPanel.setMinimumSize(new Dimension(250, 50));
+            nameBPanel.setMaximumSize(new Dimension(250, 50));
+            nameBPanel.setSize(new Dimension(250, 50));
             nameBPanel.add(lblNames2, BorderLayout.CENTER); // Căn giữa tên theo chiều dọc
 
             teamBPanel.add(nameBPanel, BorderLayout.WEST);
@@ -724,9 +815,25 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                 JList<? extends Row> list, Row r, int index, boolean isSelected, boolean cellHasFocus) {
 
             // Nội dung
+            // Cập nhật kích thước linh hoạt theo số cột hiện tại
+            int cellW = Math.max(320, list.getFixedCellWidth());
+            int nameW = Math.max(160, (int) Math.round(cellW * 0.5));
+            Dimension nameSize = new Dimension(nameW, 50);
+            nameAPanel.setPreferredSize(nameSize);
+            nameAPanel.setMinimumSize(nameSize);
+            nameAPanel.setMaximumSize(new Dimension(nameW, Integer.MAX_VALUE));
+            nameBPanel.setPreferredSize(nameSize);
+            nameBPanel.setMinimumSize(nameSize);
+            nameBPanel.setMaximumSize(new Dimension(nameW, Integer.MAX_VALUE));
+
+            // Đặt kích thước renderer theo ô
+            Dimension fixedSize = new Dimension(cellW, 200);
+            setPreferredSize(fixedSize);
+            setMinimumSize(fixedSize);
+            setMaximumSize(new Dimension(cellW, Integer.MAX_VALUE));
             // Hiển thị courtId trong header nếu có
             String headerText = (r.courtId != null && !r.courtId.isEmpty())
-                    ? String.format("[%s] %s", safe(r.courtId), safe(r.header))
+                    ? String.format("%s", safe(r.header))
                     : safe(r.header);
             lblHeader.setText(headerText);
 
@@ -875,15 +982,19 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
             // Style card
             setBackground(Color.BLACK); // Thay đổi background thành màu đen
-            setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(cardStroke(isSelected)),
-                    new EmptyBorder(12, 12, 12, 12)));
-
-            // Đảm bảo kích thước cố định để tránh nhảy layout
-            Dimension fixedSize = new Dimension(500, 180); // Tăng chiều rộng từ 450 lên 500 để card rộng hơn
-            setPreferredSize(fixedSize);
-            setMinimumSize(fixedSize);
-            setMaximumSize(fixedSize);
+            // Viền trắng duy nhất + tiêu đề hiển thị thông tin sân trên viền
+            Border margin = new EmptyBorder(6, 6, 6, 6); // khoảng cách giữa các card
+            String borderTitle = (r.courtId != null && !r.courtId.isEmpty()) ? (safe(r.courtId)) : "";
+            javax.swing.border.TitledBorder titled = BorderFactory.createTitledBorder(
+                    BorderFactory.createLineBorder(Color.WHITE, 3),
+                    borderTitle,
+                    javax.swing.border.TitledBorder.LEFT,
+                    javax.swing.border.TitledBorder.TOP,
+                    getFont().deriveFont(Font.BOLD, 18f),
+                    Color.WHITE);
+            Border padding = new EmptyBorder(16, 16, 16, 16); // khoảng cách nội dung tới viền
+            setBorder(BorderFactory.createCompoundBorder(margin,
+                    BorderFactory.createCompoundBorder(titled, padding)));
 
             return this;
         }

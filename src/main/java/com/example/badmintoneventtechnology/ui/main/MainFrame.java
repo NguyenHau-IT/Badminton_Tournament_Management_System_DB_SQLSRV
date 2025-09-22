@@ -15,6 +15,8 @@ import java.net.SocketException;
 import java.sql.Connection;
 import java.text.DecimalFormat;
 
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JComponent;
@@ -27,23 +29,21 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
-import com.example.badmintoneventtechnology.config.AppProps;
-import com.example.badmintoneventtechnology.model.db.ConnectionConfig;
-import com.example.badmintoneventtechnology.model.db.MySqlConnectionManager;
-import com.example.badmintoneventtechnology.model.tournament.Giai;
-import com.example.badmintoneventtechnology.service.db.DatabaseService;
-import com.example.badmintoneventtechnology.service.db.GiaiRelatedService;
+import com.example.badmintoneventtechnology.config.Prefs;
+import com.example.badmintoneventtechnology.model.db.H2ConnectionManager;
+import com.example.badmintoneventtechnology.service.auth.AuthService;
+import com.example.badmintoneventtechnology.service.db.DatabaseService; // <-- NEW
+import com.example.badmintoneventtechnology.ui.auth.LoginTab;
+import com.example.badmintoneventtechnology.ui.auth.LoginTab.Role;
+import com.example.badmintoneventtechnology.ui.connect.ConnectPanel;
 import com.example.badmintoneventtechnology.ui.control.BadmintonControlPanel;
-import com.example.badmintoneventtechnology.ui.control.MultiCourtControlPanel; // <-- NEW
+import com.example.badmintoneventtechnology.ui.control.MultiCourtControlPanel;
 import com.example.badmintoneventtechnology.ui.log.LogTab;
 import com.example.badmintoneventtechnology.ui.monitor.MonitorTab;
 import com.example.badmintoneventtechnology.ui.monitor.ScreenshotTab;
 import com.example.badmintoneventtechnology.ui.net.NetworkConfig;
 import com.example.badmintoneventtechnology.ui.tool.ConnectionsManagerPanel;
-import com.example.badmintoneventtechnology.ui.tournament.GiaiChooserPanel;
-import com.example.badmintoneventtechnology.ui.tournament.GiaiContentPanel;
-import com.example.badmintoneventtechnology.ui.tournament.GiaiTab;
-import com.example.badmintoneventtechnology.ui.tournament.SuKienTab;
+import com.example.badmintoneventtechnology.ui.tournament.TournamentTabPanel;
 import com.example.badmintoneventtechnology.util.ui.IconUtil;
 import com.example.badmintoneventtechnology.util.ui.Ui;
 import com.formdev.flatlaf.FlatDarkLaf;
@@ -52,15 +52,10 @@ import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 public class MainFrame extends JFrame {
+    private final Prefs prefs = new Prefs();
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
-    private final MySqlConnectionManager manager = new MySqlConnectionManager();
+    private final H2ConnectionManager manager = new H2ConnectionManager();
     private final DatabaseService service = new DatabaseService(manager);
-    // Service lấy nội dung và VĐV theo giải
-    private final GiaiRelatedService giaiRelatedService = new GiaiRelatedService(
-            service);
-    // Panel hiển thị nội dung và VĐV
-    private final GiaiContentPanel giaiContentPanel = new GiaiContentPanel(
-            giaiRelatedService);
 
     private final BadmintonControlPanel controlPanel = new BadmintonControlPanel();
     private final MultiCourtControlPanel multiCourtPanel = new MultiCourtControlPanel();
@@ -68,14 +63,11 @@ public class MainFrame extends JFrame {
     private final MonitorTab monitorTab = new MonitorTab();
     private final ScreenshotTab screenshotTab = new ScreenshotTab();
     private final LogTab logTab = new LogTab();
-    // Tab quản lý giải đấu
-    private final GiaiTab giaiTab = new GiaiTab(
-            service);
-    // Panel chọn giải đấu
-    private final GiaiChooserPanel giaiChooserPanel = new GiaiChooserPanel(
-            service);
-    private final SuKienTab suKienTab = new SuKienTab(
-            service);
+    private final LoginTab loginTab = new LoginTab();
+    private final TournamentTabPanel tournamentTabPanel = new TournamentTabPanel(service);
+
+    // NEW: AuthService (được set/bỏ dựa trên Connection)
+    private AuthService authService;
 
     // UI fields
     private final JLabel lblAppTitle = new JLabel("Badminton Event Technology");
@@ -89,14 +81,18 @@ public class MainFrame extends JFrame {
 
     // Tabs
     private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+    private ConnectPanel connectPanel;
 
     // Icons
+    private final Icon icConnect = loadIcon("/icons/plug.svg", 20);
     private final Icon icScore = loadIcon("/icons/scoreboard.svg", 20);
     private final Icon icConns = loadIcon("/icons/link-2.svg", 20);
     private final Icon icMonitor = loadIcon("/icons/monitor.svg", 20);
     private final Icon icScreenshot = loadIcon("/icons/camera.svg", 20);
     private final Icon icLog = loadIcon("/icons/file-text.svg", 20);
+    private final Icon icLogin = loadIcon("/icons/login.svg", 20);
     private final Icon icMultiCourt = loadIcon("/icons/management.svg", 20);
+    private final Icon icTournament = loadIcon("/icons/trophy.svg", 20);
 
     // RAM ticker
     private javax.swing.Timer ramTimer;
@@ -107,18 +103,6 @@ public class MainFrame extends JFrame {
 
     public MainFrame(NetworkConfig cfg) {
         super("Badminton Event Technology");
-        // Lắng nghe chọn giải để load nội dung và VĐV (sau khi super đã gọi)
-        giaiChooserPanel.addPropertyChangeListener(evt -> {
-            if ("selectedGiai".equals(evt.getPropertyName())) {
-                Giai giai = (Giai) evt.getNewValue();
-                giaiContentPanel.loadByGiai(giai);
-                controlPanel.setSelectedGiai(giai);
-                multiCourtPanel.setSelectedGiai(giai);
-                suKienTab.setSelectedGiai(giai);
-            }
-        });
-        // Khi tab chọn giải được hiển thị, cũng hiển thị panel nội dung/VĐV
-        ensureTabPresent("Nội dung & VĐV", giaiContentPanel, icScore);
         this.netCfg = cfg;
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         Ui.installModernUi();
@@ -145,8 +129,125 @@ public class MainFrame extends JFrame {
         // Đảm bảo các tab chiếm toàn bộ không gian có sẵn
         tabs.setPreferredSize(new Dimension(1200, 800)); // Kích thước mặc định lớn hơn
 
-        // Tự động kết nối và đăng nhập
-        autoConnectAndLogin();
+        // Connect panel + callbacks (đảm bảo cập nhật UI trên EDT)
+        connectPanel = new ConnectPanel(service, prefs, new ConnectPanel.ConnectionConsumer() {
+            @Override
+            public void onConnected(Connection c, String host, String port) {
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        connMgrPanel.setConnection(c);
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        controlPanel.setConnection(c);
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        multiCourtPanel.setConnection(c);
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        tournamentTabPanel.updateConnection();
+                    } catch (Exception ignored) {
+                    }
+
+                    updateAuthService(c); // <-- quan trọng: cung cấp AuthService cho LoginTab
+
+                    statusConn.setText("Đã kết nối");
+                    statusHost.setText(host + ":" + port);
+
+                    // Sau khi kết nối: chỉ hiển thị Connect + Login
+                    ensureTabPresent("Login", loginTab, icLogin);
+                    ensureTabPresent("Connect", connectPanel, icConnect);
+                    ensureTabAbsent(controlPanel);
+                    ensureTabAbsent(connMgrPanel);
+                    ensureTabAbsent(monitorTab);
+                    tabs.setSelectedComponent(loginTab);
+                });
+            }
+
+            @Override
+            public void onDisconnected() {
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        connMgrPanel.setConnection(null);
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        controlPanel.setConnection(null);
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        multiCourtPanel.setConnection(null);
+                    } catch (Exception ignored) {
+                    }
+                    try {
+                        tournamentTabPanel.updateConnection();
+                    } catch (Exception ignored) {
+                    }
+
+                    try {
+                        // Mở khóa chọn giải đấu khi ngắt kết nối / logout
+                        tournamentTabPanel.unlockSelection();
+                    } catch (Exception ignored) {
+                    }
+
+                    updateAuthService(null); // ngắt service đăng nhập
+
+                    statusConn.setText("Chưa kết nối");
+                    statusHost.setText("-");
+
+                    ensureTabAbsent(loginTab);
+                    ensureTabPresent("Connect", connectPanel, icConnect);
+                    ensureTabAbsent(controlPanel);
+                    ensureTabAbsent(connMgrPanel);
+                    ensureTabAbsent(monitorTab);
+                    tabs.setSelectedComponent(connectPanel);
+                });
+            }
+        });
+
+        // Ràng buộc OUTBOUND theo interface đã chọn (nếu có)
+        if (netCfg != null) {
+            connectPanel.setOutboundBind(netCfg);
+        }
+
+        // Lắng nghe đăng nhập: ADMIN thấy tất cả; CLIENT chỉ Connect + Score
+        loginTab.setListener((username, role) -> SwingUtilities.invokeLater(() -> {
+            ensureTabAbsent(loginTab); // ẩn tab login sau khi đăng nhập
+
+            if (role == Role.ADMIN) {
+                // Admin mode: thấy tất cả
+                monitorTab.setAdminMode(true, null);
+                controlPanel.setClientName("ADMIN-" + username);
+                ensureTabPresent("Kết nối", connectPanel, icConnect);
+                ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
+                ensureTabPresent("Thi đấu", multiCourtPanel, icMultiCourt);
+                ensureTabPresent("Giám sát", monitorTab, icMonitor);
+                ensureTabPresent("Kết quả đã thi đấu", screenshotTab, icScreenshot);
+                ensureTabPresent("Logs", logTab, icLog);
+                tabs.setSelectedComponent(tournamentTabPanel);
+            } else {
+                // Client mode: chỉ thấy chính mình
+                monitorTab.setAdminMode(false, username);
+                controlPanel.setClientName("CLIENT-" + username);
+                ensureTabPresent("Connect", connectPanel, icConnect);
+                ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
+                ensureTabPresent("Nhiều sân", multiCourtPanel, icMultiCourt);
+                ensureTabPresent("Giám sát", monitorTab, icMonitor);
+                tabs.setSelectedComponent(tournamentTabPanel);
+            }
+
+            // Khi vừa đăng nhập: nếu đã có lựa chọn trước đó, panel sẽ tự khóa; nếu chưa,
+            // cho phép chọn 1 lần
+            try {
+                tournamentTabPanel.unlockSelection(); // đảm bảo cho phép chọn nếu chưa chọn trước đó
+            } catch (Exception ignored) {
+            }
+        }));
+
+        // Ban đầu chỉ có Connect
+        ensureTabPresent("Connect", connectPanel, icConnect);
 
         // Lắp vào frame - để các tab chiếm toàn màn hình
         // Loại bỏ wrapCenter để các tab có thể mở rộng tối đa
@@ -181,11 +282,9 @@ public class MainFrame extends JFrame {
                         javax.swing.JOptionPane.YES_NO_OPTION,
                         javax.swing.JOptionPane.QUESTION_MESSAGE);
 
-                ensureTabPresent("Giải đấu", giaiTab, icScore);
-                ensureTabPresent("Chọn giải", giaiChooserPanel, icScore);
                 if (result == javax.swing.JOptionPane.YES_OPTION) {
                     // Người dùng xác nhận, đóng ứng dụng
-                    dispose();
+                    System.exit(0);
                 }
                 // Nếu chọn NO hoặc Cancel, không làm gì cả - cửa sổ sẽ không đóng
             }
@@ -218,7 +317,7 @@ public class MainFrame extends JFrame {
         pack();
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
-        // setAlwaysOnTop(true); // Không bắt buộc hiện trên cùng nữa
+        setAlwaysOnTop(false); // Luôn hiển thị trên cùng
         IconUtil.applyTo(this);
 
         // Hiển thị version từ MANIFEST (nếu có)
@@ -231,89 +330,6 @@ public class MainFrame extends JFrame {
         // RAM ticker
         ramTimer = new javax.swing.Timer(1000, ae -> updateMemory());
         ramTimer.start();
-
-        // Auto-connect if configured
-        // autoConnectIfConfigured(); // Commented out vì đã thay bằng
-        // autoConnectAndLogin
-    }
-
-    private void autoConnectAndLogin() {
-        // Tự động kết nối database
-        String host = AppProps.get("db.host", "127.0.0.1");
-        String port = AppProps.get("db.port", "3306");
-        String name = AppProps.get("db.name", "bet_db");
-        String user = AppProps.get("db.user", "root");
-        String pass = AppProps.get("db.password", "");
-
-        var cfg = new ConnectionConfig()
-                .host(host)
-                .port(port)
-                .databaseInput(name)
-                .user(user)
-                .password(pass)
-                .mode(ConnectionConfig.Mode.NAME);
-
-        service.setConfig(cfg);
-        try {
-            Connection c = service.connect();
-            // Propagate to panels
-            try {
-                connMgrPanel.setConnection(c);
-            } catch (Exception ignored) {
-            }
-            try {
-                controlPanel.setConnection(c);
-            } catch (Exception ignored) {
-            }
-            try {
-                multiCourtPanel.setConnection(c);
-            } catch (Exception ignored) {
-            }
-
-            statusConn.setText("Đã kết nối");
-            statusHost.setText(host + ":" + port);
-
-            // Refresh data cho các tab giải đấu
-            try {
-                giaiTab.refreshData();
-            } catch (Exception e) {
-                System.err.println("Lỗi khi refresh giải tab: " + e.getMessage());
-            }
-
-            try {
-                giaiChooserPanel.refreshData();
-            } catch (Exception e) {
-                System.err.println("Lỗi khi refresh giải chooser: " + e.getMessage());
-            }
-
-            // Tự động đăng nhập với quyền Admin
-            monitorTab.setAdminMode(true, null);
-            controlPanel.setClientName("ADMIN-auto");
-
-            // Hiển thị tất cả các tab (Admin mode)
-            ensureTabPresent("Quản lý giải", giaiTab, icScore);
-            ensureTabPresent("Chọn giải", giaiChooserPanel, icScore);
-            ensureTabPresent("Nội dung & VĐV", giaiContentPanel, icScore);
-            ensureTabPresent("Nhiều sân", multiCourtPanel, icMultiCourt);
-            ensureTabPresent("Connections", connMgrPanel, icConns);
-            ensureTabPresent("Giám sát", monitorTab, icMonitor);
-            ensureTabPresent("Screenshots", screenshotTab, icScreenshot);
-            ensureTabPresent("Logs", logTab, icLog);
-            ensureTabPresent("Nội dung thi đấu", suKienTab, icScore);
-
-            // Bắt đầu từ tab chọn giải
-            tabs.setSelectedComponent(giaiChooserPanel);
-
-        } catch (Exception e) {
-            // Nếu không kết nối được, hiển thị thông báo lỗi
-            javax.swing.JOptionPane.showMessageDialog(this,
-                    "Không thể kết nối database!\n" +
-                            "Host: " + host + ":" + port + "\n" +
-                            "Database: " + name + "\n" +
-                            "Lỗi: " + e.getMessage(),
-                    "Lỗi kết nối",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
-        }
     }
 
     /* -------------------- UI Builders -------------------- */
@@ -385,6 +401,12 @@ public class MainFrame extends JFrame {
         }
     }
 
+    private void ensureTabAbsent(Component comp) {
+        int idx = indexOf(comp);
+        if (idx != -1)
+            tabs.removeTabAt(idx);
+    }
+
     private int indexOf(Component comp) {
         for (int i = 0; i < tabs.getTabCount(); i++)
             if (tabs.getComponentAt(i) == comp)
@@ -393,6 +415,21 @@ public class MainFrame extends JFrame {
     }
 
     /* -------------------- Helpers -------------------- */
+
+    private JPanel wrapCenter(JComponent content, int maxWidth) {
+        JPanel inner = new JPanel(new BorderLayout());
+        inner.setOpaque(false);
+        inner.add(content, BorderLayout.CENTER);
+        inner.setMaximumSize(new Dimension(maxWidth, Integer.MAX_VALUE));
+
+        JPanel outer = new JPanel();
+        outer.setOpaque(false);
+        outer.setLayout(new BoxLayout(outer, BoxLayout.X_AXIS));
+        outer.add(Box.createHorizontalGlue());
+        outer.add(inner);
+        outer.add(Box.createHorizontalGlue());
+        return outer;
+    }
 
     private JComponent wrapCard(JComponent c) {
         JPanel p = new JPanel(new BorderLayout());
@@ -448,5 +485,11 @@ public class MainFrame extends JFrame {
 
     public DatabaseService service() {
         return service;
+    }
+
+    /* -------------------- NEW: Auth wiring -------------------- */
+    private void updateAuthService(Connection c) {
+        this.authService = (c != null) ? new AuthService(c) : null;
+        loginTab.setAuthService(this.authService); // LoginTab chỉ phụ thuộc AuthService
     }
 }

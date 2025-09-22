@@ -53,6 +53,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 
+import com.example.badmintoneventtechnology.config.Prefs;
 import com.example.badmintoneventtechnology.controller.ScoreboardPinController;
 import com.example.badmintoneventtechnology.model.match.BadmintonMatch;
 import com.example.badmintoneventtechnology.model.match.Player;
@@ -77,7 +78,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private NetworkInterface selectedIf;
     private int courtPort = -1; // Port của sân tương ứng
     private String courtId = ""; // ID của sân để hiển thị trên monitor
-    private Integer selectedGiaiId; // ID của giải đấu được chọn
 
     /* ===== Widgets: Config ===== */
     private final JComboBox<String> cboHeaderSingles = new JComboBox<>();
@@ -333,6 +333,34 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     /** Lấy ID của sân */
     public String getCourtId() {
         return courtId;
+    }
+
+    /**
+     * Bắt đầu broadcast ở trạng thái chờ (chưa bấm Bắt đầu trận) để hiện card trên
+     * Monitor ngay khi mở sân
+     */
+    public void startIdleBroadcast(String header) {
+        try {
+            String hdr = (header == null || header.isBlank()) ? "TRẬN ĐẤU" : header;
+            String displayKind = (cboDisplayKind.getSelectedIndex() == 0) ? "VERTICAL" : "HORIZONTAL";
+            String clientName = customClientName != null ? customClientName : System.getProperty("user.name", "client");
+            String hostShown = "";
+
+            // Không thay đổi trạng thái match, chỉ phát thông tin rỗng ban đầu
+            scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
+                    hdr, doubles.isSelected(), "", "", courtId);
+            logger.logTs("startIdleBroadcast: court=%s, header=%s", courtId, hdr);
+        } catch (Exception ex) {
+            logger.logTs("Lỗi startIdleBroadcast: %s", ex.getMessage());
+        }
+    }
+
+    /** Dừng mọi broadcast (dùng khi đóng/xóa sân) */
+    public void stopBroadcast() {
+        try {
+            scoreboardSvc.stopBroadcast();
+        } catch (Exception ignore) {
+        }
     }
 
     /** Force update remote link UI */
@@ -925,7 +953,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
         if (conn != null) {
             var repo = new CategoryRepository(conn);
-            Map<String, Integer>[] maps = repo.loadCategories(selectedGiaiId);
+            Map<String, Integer>[] maps = repo.loadCategories();
             maps[0].forEach((k, v) -> {
                 cboHeaderSingles.addItem(k);
                 headerKnrSingles.put(k, v);
@@ -959,12 +987,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             return;
         }
         Integer knr = headerKnrSingles.get(header);
-        if (knr == null)
+        Integer vernr = new Prefs().getInt("selectedTournamentVernr", -1);
+        if (knr == null || vernr == null)
             return;
 
         var repo = new TeamAndPlayerRepository(conn);
         singlesNameToId.clear();
-        singlesNameToId.putAll(repo.loadSinglesNamesByKnr(knr));
+        singlesNameToId.putAll(repo.loadSinglesNamesByKnr(knr, vernr));
 
         guard.runSilently(() -> {
             cboNameA.removeAllItems();
@@ -1008,11 +1037,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             return;
         }
         Integer knr = headerKnrDoubles.get(header);
-        if (knr == null)
+        Integer vernr = new Prefs().getInt("selectedTournamentVernr", -1);
+        if (knr == null || vernr == null)
             return;
 
         var repo = new TeamAndPlayerRepository(conn);
-        List<TeamItem> teams = repo.fetchTeamsByKnr(knr);
+        List<TeamItem> teams = repo.fetchTeamsByKnr(knr, vernr);
 
         guard.runSilently(() -> {
             setTeamPlaceholder(cboTeamA);
@@ -1280,7 +1310,20 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
 
         closeDisplays();
-        scoreboardSvc.stopBroadcast();
+        // Không dừng broadcast để card Monitor vẫn còn. Chỉ dừng khi xoá sân.
+
+        // Cập nhật trạng thái sân: đặt trận về trạng thái sẵn sàng (không thi đấu)
+        try {
+            synchronized (ScoreboardRemote.get().lock()) {
+                match.resetAll();
+            }
+        } catch (Exception ignore) {
+        }
+        // Báo cho listeners (overview/tổng quan) cập nhật ngay
+        try {
+            firePropertyChange("matchFinishedManual", false, true);
+        } catch (Exception ignore) {
+        }
 
         hasStarted = false;
         btnStart.setEnabled(true);
@@ -1631,7 +1674,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         } else if (s.betweenGamesInterval) {
             lblStatus
                     .setText(
-                            "Nghỉ giữa ván - bấm \"Ván tiếp theo\" hoặc sau 20 giây sẽ tự động chuyển sang ván kế tiếp");
+                            "Nghỉ giữa ván - bấm \"Ván tiếp theo\" hoặc sau 3 giây sẽ tự động chuyển sang ván kế tiếp");
             setScoreButtonsEnabled(false);
             nextGame.setEnabled(true);
             finishScheduled = false;
@@ -1847,20 +1890,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             } else if (comp instanceof JPanel) {
                 updatePinLinkInPanel((JPanel) comp);
             }
-        }
-    }
-
-    /**
-     * Thiết lập giải đấu được chọn để load danh mục phù hợp
-     */
-    public void setSelectedGiai(com.example.badmintoneventtechnology.model.tournament.Giai giai) {
-        if (giai != null) {
-            this.selectedGiaiId = giai.getGiaiId();
-            // Reload danh mục theo giải đấu mới
-            reloadListsFromDb();
-        } else {
-            this.selectedGiaiId = null;
-            reloadListsFromDb();
         }
     }
 

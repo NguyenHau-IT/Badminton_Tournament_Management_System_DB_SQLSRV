@@ -2,13 +2,6 @@
     "configurations": [
         {
             "type": "java",
-            "name": "BadmintonEventTechnologyApplication",
-            "request": "launch",
-            "mainClass": "com.example.badmintoneventtechnology.BadmintonEventTechnologyApplication",
-            "projectName": "mysqlclient"
-        },
-        {
-            "type": "java",
             "name": "Spring Boot-BadmintonEventTechnologyApplication<h2client>",
             "request": "launch",
             "cwd": "${workspaceFolder}",

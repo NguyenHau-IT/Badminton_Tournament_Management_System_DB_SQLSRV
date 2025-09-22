@@ -1,27 +1,12 @@
 package com.example.badmintoneventtechnology.ui.tool;
 
-import java.awt.BorderLayout;
-import java.awt.FlowLayout;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
-
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
-import javax.swing.JTable;
-import javax.swing.Timer;
-import javax.swing.table.DefaultTableModel;
 
 public class ConnectionsManagerPanel extends JPanel {
     private Connection conn;
@@ -116,13 +101,14 @@ public class ConnectionsManagerPanel extends JPanel {
             setTableEmpty(tblSessions, "Not connected");
             return;
         }
-        // MySQL: Sử dụng SHOW PROCESSLIST để xem các kết nối
-        String sql = "SHOW PROCESSLIST";
+        // Cố gắng lấy toàn bộ cột có trong INFORMATION_SCHEMA.SESSIONS (H2 2.x)
+        String sql = "SELECT * FROM INFORMATION_SCHEMA.SESSIONS";
         try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
             tblSessions.setModel(toModel(rs));
-            lblHint.setText("MySQL Process List - Shows active connections");
+            lblHint.setText(hintFromColumns(tblSessions));
         } catch (SQLException ex) {
-            setTableEmpty(tblSessions, "Cannot read MySQL processlist: " + ex.getMessage());
+            // Nếu không có view này, báo đơn giản
+            setTableEmpty(tblSessions, "Cannot read INFORMATION_SCHEMA.SESSIONS: " + ex.getMessage());
         }
     }
 
@@ -130,20 +116,30 @@ public class ConnectionsManagerPanel extends JPanel {
         if (conn == null)
             return;
         String id = JOptionPane.showInputDialog(this,
-                "Enter CONNECTION ID to kill:",
-                "Kill Connection", JOptionPane.QUESTION_MESSAGE);
+                "Enter SESSION ID to cancel/kill:",
+                "Kill Session", JOptionPane.QUESTION_MESSAGE);
         if (id == null || id.isBlank())
             return;
 
-        // MySQL: KILL CONNECTION <id>
+        // Thử 1: function phổ biến ở H2 mới: CALL CANCEL_SESSION(<id>)
+        try (PreparedStatement ps = conn.prepareStatement("CALL CANCEL_SESSION(?)")) {
+            ps.setString(1, id.trim());
+            ps.execute();
+            JOptionPane.showMessageDialog(this, "Requested to cancel session " + id);
+            loadSessions();
+            return;
+        } catch (SQLException ignore) {
+        }
+
+        // Thử 2: ALTER SYSTEM KILL SESSION <id> (tùy phiên bản)
         try (Statement st = conn.createStatement()) {
-            st.execute("KILL CONNECTION " + id.trim());
-            JOptionPane.showMessageDialog(this, "Requested to kill connection " + id);
+            st.execute("ALTER SYSTEM KILL SESSION " + id.trim());
+            JOptionPane.showMessageDialog(this, "Requested to kill session " + id);
             loadSessions();
             return;
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this,
-                    "Kill connection failed: " + ex.getMessage(),
+                    "Kill session failed: " + ex.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -153,7 +149,7 @@ public class ConnectionsManagerPanel extends JPanel {
     private void ensureWhitelistTable() throws SQLException {
         try (Statement st = conn.createStatement()) {
             st.execute("""
-                        CREATE TABLE IF NOT EXISTS ALLOWED_CLIENTS(
+                        CREATE TABLE IF NOT EXISTS PUBLIC.ALLOWED_CLIENTS(
                             IP   VARCHAR(100) PRIMARY KEY,
                             NOTE VARCHAR(255)
                         )
@@ -168,7 +164,7 @@ public class ConnectionsManagerPanel extends JPanel {
         try {
             ensureWhitelistTable();
             try (Statement st = conn.createStatement();
-                    ResultSet rs = st.executeQuery("SELECT IP, NOTE FROM ALLOWED_CLIENTS ORDER BY IP")) {
+                    ResultSet rs = st.executeQuery("SELECT IP, NOTE FROM PUBLIC.ALLOWED_CLIENTS ORDER BY IP")) {
                 while (rs.next()) {
                     wlModel.addRow(new Object[] { rs.getString(1), rs.getString(2) });
                 }
@@ -187,10 +183,10 @@ public class ConnectionsManagerPanel extends JPanel {
             ensureWhitelistTable();
             conn.setAutoCommit(false);
             try (Statement st = conn.createStatement()) {
-                st.execute("TRUNCATE TABLE ALLOWED_CLIENTS");
+                st.execute("TRUNCATE TABLE PUBLIC.ALLOWED_CLIENTS");
             }
             try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO ALLOWED_CLIENTS(IP, NOTE) VALUES(?, ?)")) {
+                    "INSERT INTO PUBLIC.ALLOWED_CLIENTS(IP, NOTE) VALUES(?, ?)")) {
                 for (int r = 0; r < wlModel.getRowCount(); r++) {
                     String ip = val(wlModel.getValueAt(r, 0));
                     String note = val(wlModel.getValueAt(r, 1));
@@ -258,12 +254,12 @@ public class ConnectionsManagerPanel extends JPanel {
         List<String> cols = new ArrayList<>();
         for (int i = 0; i < t.getColumnCount(); i++)
             cols.add(t.getColumnName(i).toUpperCase());
-        boolean hasAddr = cols.contains("HOST") || cols.contains("USER") || cols.contains("DB");
+        boolean hasAddr = cols.contains("CLIENT_ADDR") || cols.contains("CLIENT_PORT") || cols.contains("REMOTE_ADDR");
         StringBuilder sb = new StringBuilder("Columns: ").append(String.join(", ", cols));
         if (hasAddr)
-            sb.append("  |  MySQL connection info detected.");
+            sb.append("  |  Client/IP column detected.");
         else
-            sb.append("  |  MySQL processlist columns.");
+            sb.append("  |  No explicit client address column in this H2 version.");
         return sb.toString();
     }
 }

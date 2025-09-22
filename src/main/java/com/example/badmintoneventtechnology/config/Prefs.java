@@ -3,7 +3,7 @@ package com.example.badmintoneventtechnology.config;
 import java.util.prefs.Preferences;
 
 public class Prefs {
-    private final Preferences p = Preferences.userRoot().node("demo.mysqlclient");
+    private final Preferences p = Preferences.userRoot().node("demo.h2client");
 
     public String get(String key, String def) {
         return p.get(key, def);

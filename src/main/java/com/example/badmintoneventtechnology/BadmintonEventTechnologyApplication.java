@@ -43,7 +43,8 @@ public class BadmintonEventTechnologyApplication {
 			dlg.setVisible(true);
 			NetworkConfig cfg = dlg.getSelected();
 			if (cfg == null) {
-				// No network configuration selected. GUI will not be launched. Backend continues.
+				// No network configuration selected. GUI will not be launched. Backend
+				// continues.
 				return;
 			}
 			MainFrame mf = new MainFrame(cfg);

@@ -1,2 +1,2 @@
-# BadmintonEventTechnology
-Bảng điếm thi đấu cầu lông
+# BadmintonEventTechnology_DB_H2
+NguyenHau-IT/BadmintonEventTechnology_DB_H2

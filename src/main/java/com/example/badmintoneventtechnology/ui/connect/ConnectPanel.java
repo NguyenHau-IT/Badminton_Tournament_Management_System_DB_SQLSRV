@@ -42,13 +42,15 @@ public class ConnectPanel extends JPanel {
     private final Prefs prefs;
 
     // --- Form fields ---
-    private final JTextField txtDb = new JTextField("bet_db");
+    private final JTextField txtDb = new JTextField("BaoLoc_25_05_2025");
     private final JComboBox<String> dbMode = new JComboBox<>(new String[] {
-            "Database name"
+            "NAME (server started with -baseDir)",
+            "HOME (~/<name>) on server",
+            "ABSOLUTE PATH on server"
     });
 
-    private final JTextField txtServer = new JTextField("127.0.0.1");
-    private final JTextField txtPort = new JTextField("3306");
+    private final JTextField txtServer = new JTextField("192.168.1.16");
+    private final JTextField txtPort = new JTextField("9092");
     private final JTextField txtUser = new JTextField("root");
     private final JPasswordField txtPass = new JPasswordField("");
     private final JCheckBox chkRemember = new JCheckBox("Remember password on next login", true);
@@ -90,7 +92,7 @@ public class ConnectPanel extends JPanel {
     private void buildUi() {
         JPanel header = new JPanel(new BorderLayout());
         header.setBorder(new EmptyBorder(6, 8, 6, 8));
-        JLabel title = new JLabel("Kết nối đến MySQL Server");
+        JLabel title = new JLabel("Kết nối đến H2 TCP Server");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
         JLabel subtitle = new JLabel("Nhập thông số kết nối, chọn chế độ đường dẫn và quản lý phiên làm việc.");
         subtitle.setForeground(new Color(120, 120, 120));
@@ -103,10 +105,10 @@ public class ConnectPanel extends JPanel {
         c.insets = new Insets(6, 8, 6, 8);
         c.fill = GridBagConstraints.HORIZONTAL;
 
-        Ui.placeholder(txtDb, "Tên database (schema)");
-        Ui.placeholder(txtServer, "IP/Host của MySQL Server");
-        Ui.placeholder(txtPort, "Cổng (mặc định 3306)");
-        Ui.placeholder(txtUser, "Tên đăng nhập DB (ví dụ: root)");
+        Ui.placeholder(txtDb, "Tên DB hoặc đường dẫn trên máy chủ");
+        Ui.placeholder(txtServer, "IP/Host của TCP Server");
+        Ui.placeholder(txtPort, "Cổng (mặc định 9092)");
+        Ui.placeholder(txtUser, "Tên đăng nhập DB");
         txtPass.putClientProperty("JPasswordField.placeholderText", "Mật khẩu DB (có thể để trống)");
 
         int r = 0;
@@ -245,8 +247,7 @@ public class ConnectPanel extends JPanel {
             case HOME -> raw.startsWith("~/") ? raw : ("~/" + raw);
             case ABSOLUTE -> raw;
         };
-        String port = (cfg.port() == null || cfg.port().isBlank()) ? "3306" : cfg.port();
-        return "jdbc:mysql://" + cfg.host() + ":" + port + "/" + cfg.databaseInput() + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+        return "jdbc:h2:tcp://" + cfg.host() + ":" + cfg.port() + "/" + dbPath + ";IFEXISTS=TRUE";
     }
 
     /* --------- Nhận interface đã chọn (để kiểm tra subnet) --------- */
@@ -363,7 +364,7 @@ public class ConnectPanel extends JPanel {
 
         var cfg = configFromFields();
         service.manager().setConfig(cfg);
-        append("Connecting to: " + service.builtUrl());
+        append("Connecting (server-side) to: " + service.builtUrl());
         try {
             Connection c = service.connect();
             onConnected(c);
@@ -377,10 +378,19 @@ public class ConnectPanel extends JPanel {
         if (!enforceSameSubnet())
             return; // << khóa khác mạng
 
-        JOptionPane.showMessageDialog(this,
-                "Probe chỉ áp dụng cho H2. Với MySQL, hãy dùng Connect.",
-                "Probe không khả dụng",
-                JOptionPane.INFORMATION_MESSAGE);
+        var cfg = configFromFields();
+        service.manager().setConfig(cfg);
+        try {
+            var res = service.probeAndConnect();
+            append("✓ Probe connected.");
+            onConnected(res);
+            JOptionPane.showMessageDialog(this, "Connected via probe.", "Probe OK", JOptionPane.INFORMATION_MESSAGE);
+        } catch (SQLException ex) {
+            append("✗ Probe failed: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this,
+                    "Không probe được đường dẫn nào.\nBạn cần nhập ABSOLUTE PATH đúng trên máy chủ.",
+                    "Probe failed", JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     private void doDisconnect() {

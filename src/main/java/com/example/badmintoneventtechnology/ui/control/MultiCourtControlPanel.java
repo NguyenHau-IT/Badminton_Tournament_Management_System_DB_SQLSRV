@@ -57,9 +57,6 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
     // Network interface được chọn
     private NetworkInterface selectedIf;
 
-    // Giải đấu được chọn
-    private com.example.badmintoneventtechnology.model.tournament.Giai selectedGiai;
-
     public MultiCourtControlPanel() {
         setupUI();
         courtManager.addPropertyChangeListener(this);
@@ -138,7 +135,7 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         btnAddCourt.addActionListener(e -> addNewCourtFromCombo(courtCombo));
         panel.add(btnAddCourt);
 
-        JButton btnCloseAll = new JButton("Đóng tất cả");
+        JButton btnCloseAll = new JButton("Đóng tất cả sân");
         btnCloseAll.addActionListener(e -> closeAllCourts());
         panel.add(btnCloseAll);
 
@@ -241,16 +238,73 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
 
         courtTabs.addTab(tabTitle, courtControlPanel);
         courtTabs.setSelectedComponent(courtControlPanel);
+
+        // Phát broadcast ở trạng thái chờ để MonitorTab hiện card ngay khi mở sân
+        try {
+            java.lang.reflect.Method idle = courtControlPanel.getClass().getDeclaredMethod("startIdleBroadcast",
+                    String.class);
+            idle.setAccessible(true);
+            idle.invoke(courtControlPanel, session.header);
+        } catch (Exception ex) {
+            System.err.println("Không thể start idle broadcast khi tạo sân: " + ex.getMessage());
+        }
     }
 
     private void closeAllCourts() {
+        // Chặn đóng nếu có sân đang thi đấu
+        Map<String, CourtStatus> all = courtManager.getAllCourtStatus();
+        java.util.List<String> playingCourts = new java.util.ArrayList<>();
+        for (CourtStatus st : all.values()) {
+            if (st.isPlaying) {
+                playingCourts.add(st.courtId);
+            }
+        }
+
+        if (!playingCourts.isEmpty()) {
+            String msg = "Các sân sau đang thi đấu: " + String.join(", ", playingCourts)
+                    + "\nVui lòng kết thúc các trận trước khi đóng tất cả sân.";
+            JOptionPane.showMessageDialog(this, msg, "Đang thi đấu", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int result = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc muốn đóng tất cả các sân?",
                 "Xác nhận", JOptionPane.YES_NO_OPTION);
 
         if (result == JOptionPane.YES_OPTION) {
+            // 1) Dừng broadcast cho tất cả các tab hiện có
+            for (int i = 0; i < courtTabs.getTabCount(); i++) {
+                java.awt.Component comp = courtTabs.getComponentAt(i);
+                if (comp instanceof BadmintonControlPanel) {
+                    try {
+                        ((BadmintonControlPanel) comp).stopBroadcast();
+                    } catch (Exception ignore) {
+                    }
+                }
+            }
+
+            // 2) Đóng tất cả cửa sổ hiển thị nếu đang mở
+            try {
+                Map<String, CourtStatus> all2 = courtManager.getAllCourtStatus();
+                for (String cid : all2.keySet()) {
+                    com.example.badmintoneventtechnology.model.match.CourtSession session = courtManager.getCourt(cid);
+                    if (session != null && session.display != null) {
+                        try {
+                            session.display.dispose();
+                        } catch (Exception ignore) {
+                        }
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+
+            // 3) Xoá tất cả sân trong service (tương đương removeCourt cho từng sân)
             courtManager.closeAllCourts();
+
+            // 4) Xoá toàn bộ tab điều khiển
             courtTabs.removeAll();
+
+            // 5) Cập nhật lại overview
             refreshOverview();
         }
     }
@@ -344,7 +398,7 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         // Buttons (gọn)
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
         buttonPanel.setOpaque(false);
-        JButton btnRemove = new JButton("Xóa");
+        JButton btnRemove = new JButton("Đóng sân");
         btnRemove.setMargin(new Insets(4, 12, 4, 12));
         btnRemove.addActionListener(e -> removeCourt(status.courtId));
         buttonPanel.add(btnRemove);
@@ -467,8 +521,17 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
     }
 
     private void removeCourt(String courtId) {
+        // Chặn đóng sân nếu đang thi đấu
+        CourtStatus st = courtManager.getAllCourtStatus().get(courtId);
+        if (st != null && st.isPlaying) {
+            JOptionPane.showMessageDialog(this,
+                    courtId + " đang thi đấu. Vui lòng kết thúc trận trước khi đóng sân.",
+                    "Đang thi đấu", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int result = JOptionPane.showConfirmDialog(this,
-                "Bạn có chắc muốn xóa sân " + courtId + "?",
+                "Bạn có chắc muốn đóng sân " + courtId + "?",
                 "Xác nhận", JOptionPane.YES_NO_OPTION);
 
         if (result == JOptionPane.YES_OPTION) {
@@ -476,6 +539,15 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             if (session != null && session.display != null) {
                 try {
                     session.display.dispose();
+                } catch (Exception ignore) {
+                }
+            }
+
+            // Dừng broadcast nếu có
+            if (session != null && session.controlPanel instanceof BadmintonControlPanel) {
+                try {
+                    BadmintonControlPanel cp = (BadmintonControlPanel) session.controlPanel;
+                    cp.stopBroadcast();
                 } catch (Exception ignore) {
                 }
             }
@@ -504,11 +576,6 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         // Set network interface để hiển thị IP đúng cho web scoreboard
         if (selectedIf != null) {
             panel.setNetworkInterface(selectedIf);
-        }
-
-        // Set giải đấu được chọn
-        if (selectedGiai != null) {
-            panel.setSelectedGiai(selectedGiai);
         }
 
         Dimension screenSize = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
@@ -733,22 +800,6 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         // Nếu tất cả sân đều đã được tạo, chọn sân đầu tiên
         if (allCourts.length > 0) {
             courtCombo.setSelectedItem(allCourts[0]);
-        }
-    }
-
-    /**
-     * Thiết lập giải đấu được chọn để load danh mục phù hợp cho tất cả các sân
-     */
-    public void setSelectedGiai(com.example.badmintoneventtechnology.model.tournament.Giai giai) {
-        this.selectedGiai = giai;
-
-        // Cập nhật giải đấu cho tất cả các BadmintonControlPanel hiện có
-        for (int i = 0; i < courtTabs.getTabCount(); i++) {
-            java.awt.Component component = courtTabs.getComponentAt(i);
-            if (component instanceof BadmintonControlPanel) {
-                BadmintonControlPanel panel = (BadmintonControlPanel) component;
-                panel.setSelectedGiai(giai);
-            }
         }
     }
 }
