@@ -1,4 +1,4 @@
-package com.example.badmintoneventtechnology.model;
+package com.example.badmintoneventtechnology.model.court;
 
 import java.util.Objects;
 
