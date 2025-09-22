@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
+import com.example.badmintoneventtechnology.config.Prefs;
 import com.example.badmintoneventtechnology.model.auth.AuthResult;
 
 public class AuthService {
@@ -13,7 +14,7 @@ public class AuthService {
         this.conn = conn;
     }
 
-    /** Trả về (found, locked) theo bảng PUBLIC."USER" */
+    /** Trả về (found, locked, userId) theo bảng NGUOI_DUNG */
     public AuthResult authenticate(String username, String md5Hex) throws Exception {
         String sql = """
                 SELECT COALESCE(0, 0) AS LOCKED, ID, HO_TEN
@@ -26,9 +27,13 @@ public class AuthService {
             ps.setString(2, md5Hex);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next())
-                    return new AuthResult(false, false);
+                    return new AuthResult(false, false, -1);
                 boolean locked = toLocked(rs.getObject("LOCKED"));
-                return new AuthResult(true, locked);
+                int userId = rs.getInt("ID");
+                // Lưu userId vào Preferences
+                Prefs prefs = new Prefs();
+                prefs.putInt("userId", userId);
+                return new AuthResult(true, locked, userId);
             }
         }
     }

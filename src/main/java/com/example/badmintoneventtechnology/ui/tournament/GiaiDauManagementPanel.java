@@ -4,7 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -125,7 +125,6 @@ public class GiaiDauManagementPanel extends JPanel {
 
     private void loadData() {
         try {
-            giaiDauService.initializeDatabase();
             List<GiaiDau> giaiDaus = giaiDauService.getAllGiaiDau();
             updateTable(giaiDaus);
         } catch (Exception e) {
@@ -136,17 +135,24 @@ public class GiaiDauManagementPanel extends JPanel {
 
     private void updateTable(List<GiaiDau> giaiDaus) {
         tableModel.setRowCount(0);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
 
         for (GiaiDau giaiDau : giaiDaus) {
+            String ngayBdStr = "";
+            if (giaiDau.getNgayBd() != null) {
+                java.sql.Date date = java.sql.Date.valueOf(giaiDau.getNgayBd());
+                ngayBdStr = formatter.format(date);
+            }
+            String ngayKtStr = "";
+            if (giaiDau.getNgayKt() != null) {
+                java.sql.Date date = java.sql.Date.valueOf(giaiDau.getNgayKt());
+                ngayKtStr = formatter.format(date);
+            }
             Object[] row = {
-                    giaiDau.getId(),
                     giaiDau.getTenGiai(),
-                    giaiDau.getNgayBd() != null ? giaiDau.getNgayBd().format(formatter) : "",
-                    giaiDau.getNgayKt() != null ? giaiDau.getNgayKt().format(formatter) : "",
-                    giaiDau.getNgayTao().format(formatter),
+                    ngayBdStr,
+                    ngayKtStr,
                     getStatusText(giaiDau),
-                    giaiDau.getIdUser()
             };
             tableModel.addRow(row);
         }
@@ -178,9 +184,17 @@ public class GiaiDauManagementPanel extends JPanel {
             return;
         }
 
-        Long id = (Long) tableModel.getValueAt(selectedRow, 0);
+        Object idObj = tableModel.getValueAt(selectedRow, 0);
+        Integer id;
+        if (idObj instanceof Integer) {
+            id = (Integer) idObj;
+        } else if (idObj instanceof Long) {
+            id = ((Long) idObj).intValue();
+        } else {
+            throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
+        }
         try {
-            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id);
+            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.longValue());
             if (giaiDauOpt.isPresent()) {
                 java.awt.Window parent = javax.swing.SwingUtilities.getWindowAncestor(this);
                 GiaiDauDialog dialog = new GiaiDauDialog(parent,
@@ -202,7 +216,15 @@ public class GiaiDauManagementPanel extends JPanel {
             return;
         }
 
-        Long id = (Long) tableModel.getValueAt(selectedRow, 0);
+        Object idObj = tableModel.getValueAt(selectedRow, 0);
+        Integer id;
+        if (idObj instanceof Integer) {
+            id = (Integer) idObj;
+        } else if (idObj instanceof Long) {
+            id = ((Long) idObj).intValue();
+        } else {
+            throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
+        }
         String tenGiai = (String) tableModel.getValueAt(selectedRow, 1);
 
         int confirm = JOptionPane.showConfirmDialog(this,
@@ -285,9 +307,17 @@ public class GiaiDauManagementPanel extends JPanel {
             return null;
         }
 
-        Long id = (Long) tableModel.getValueAt(selectedRow, 0);
+        Object idObj = tableModel.getValueAt(selectedRow, 0);
+        Integer id;
+        if (idObj instanceof Integer) {
+            id = (Integer) idObj;
+        } else if (idObj instanceof Long) {
+            id = ((Long) idObj).intValue();
+        } else {
+            throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
+        }
         try {
-            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id);
+            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.longValue());
             return giaiDauOpt.orElse(null);
         } catch (Exception e) {
             return null;

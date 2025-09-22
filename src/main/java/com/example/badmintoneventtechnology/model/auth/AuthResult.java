@@ -1,4 +1,4 @@
 package com.example.badmintoneventtechnology.model.auth;
 
-public record AuthResult(boolean found, boolean locked) {
+public record AuthResult(boolean found, boolean locked, int userId) {
 }

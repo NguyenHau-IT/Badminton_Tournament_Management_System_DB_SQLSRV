@@ -2,7 +2,7 @@ package com.example.badmintoneventtechnology.service.tournament;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,17 +46,9 @@ public class GiaiDauService {
     }
 
     /**
-     * Tạo bảng nếu chưa tồn tại
-     */
-    public void initializeDatabase() throws SQLException {
-        ensureRepository();
-        repository.createTableIfNotExists();
-    }
-
-    /**
      * Tạo giải đấu mới
      */
-    public GiaiDau createGiaiDau(String tenGiai, LocalDateTime ngayBd, LocalDateTime ngayKt, Long idUser)
+    public GiaiDau createGiaiDau(String tenGiai, LocalDate ngayBd, LocalDate ngayKt, Integer idUser)
             throws SQLException {
         ensureRepository();
 
@@ -134,7 +126,7 @@ public class GiaiDauService {
         }
 
         // Cập nhật timestamp
-        giaiDau.updateTimestamp();
+        giaiDau.updatestamp();
 
         return repository.update(giaiDau);
     }
@@ -142,7 +134,7 @@ public class GiaiDauService {
     /**
      * Xóa giải đấu
      */
-    public boolean deleteGiaiDau(Long id) throws SQLException {
+    public boolean deleteGiaiDau(Integer id) throws SQLException {
         ensureRepository();
 
         if (id == null) {
@@ -160,7 +152,7 @@ public class GiaiDauService {
     /**
      * Đếm số lượng giải đấu
      */
-    public long countGiaiDau() throws SQLException {
+    public Integer countGiaiDau() throws SQLException {
         ensureRepository();
         return repository.count();
     }
@@ -168,7 +160,7 @@ public class GiaiDauService {
     /**
      * Kiểm tra giải đấu có tồn tại không
      */
-    public boolean existsGiaiDau(Long id) throws SQLException {
+    public boolean existsGiaiDau(Integer id) throws SQLException {
         ensureRepository();
         return repository.exists(id);
     }
@@ -179,7 +171,7 @@ public class GiaiDauService {
     public List<GiaiDau> getActiveGiaiDau() throws SQLException {
         ensureRepository();
         List<GiaiDau> allGiaiDau = repository.findAll();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
 
         return allGiaiDau.stream()
                 .filter(giaiDau -> giaiDau.getNgayBd() != null && giaiDau.getNgayKt() != null)
@@ -193,7 +185,7 @@ public class GiaiDauService {
     public List<GiaiDau> getUpcomingGiaiDau() throws SQLException {
         ensureRepository();
         List<GiaiDau> allGiaiDau = repository.findAll();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
 
         return allGiaiDau.stream()
                 .filter(giaiDau -> giaiDau.getNgayBd() != null)
@@ -207,7 +199,7 @@ public class GiaiDauService {
     public List<GiaiDau> getFinishedGiaiDau() throws SQLException {
         ensureRepository();
         List<GiaiDau> allGiaiDau = repository.findAll();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
 
         return allGiaiDau.stream()
                 .filter(giaiDau -> giaiDau.getNgayKt() != null)

@@ -1,5 +1,6 @@
 package com.example.badmintoneventtechnology.model.tournament;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -7,19 +8,19 @@ import java.time.LocalDateTime;
  * Tương ứng với schema database đã được cung cấp
  */
 public class GiaiDau {
-    private Long id;
+    private Integer id;
     private String tenGiai;
-    private LocalDateTime ngayBd;
-    private LocalDateTime ngayKt;
+    private LocalDate ngayBd;
+    private LocalDate ngayKt;
     private LocalDateTime ngayTao;
     private LocalDateTime ngayCapNhat;
-    private Long idUser;
+    private Integer idUser;
 
     // Constructors
     public GiaiDau() {
     }
 
-    public GiaiDau(String tenGiai, LocalDateTime ngayBd, LocalDateTime ngayKt, Long idUser) {
+    public GiaiDau(String tenGiai, LocalDate ngayBd, LocalDate ngayKt, Integer idUser) {
         this.tenGiai = tenGiai;
         this.ngayBd = ngayBd;
         this.ngayKt = ngayKt;
@@ -29,11 +30,11 @@ public class GiaiDau {
     }
 
     // Getters and Setters
-    public Long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -45,19 +46,19 @@ public class GiaiDau {
         this.tenGiai = tenGiai;
     }
 
-    public LocalDateTime getNgayBd() {
+    public LocalDate getNgayBd() {
         return ngayBd;
     }
 
-    public void setNgayBd(LocalDateTime ngayBd) {
+    public void setNgayBd(LocalDate ngayBd) {
         this.ngayBd = ngayBd;
     }
 
-    public LocalDateTime getNgayKt() {
+    public LocalDate getNgayKt() {
         return ngayKt;
     }
 
-    public void setNgayKt(LocalDateTime ngayKt) {
+    public void setNgayKt(LocalDate ngayKt) {
         this.ngayKt = ngayKt;
     }
 
@@ -77,32 +78,32 @@ public class GiaiDau {
         this.ngayCapNhat = ngayCapNhat;
     }
 
-    public Long getIdUser() {
+    public Integer getIdUser() {
         return idUser;
     }
 
-    public void setIdUser(Long idUser) {
+    public void setIdUser(Integer idUser) {
         this.idUser = idUser;
     }
 
     // Utility methods
-    public void updateTimestamp() {
+    public void updatestamp() {
         this.ngayCapNhat = LocalDateTime.now();
     }
 
     public boolean isActive() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
         return ngayBd != null && ngayKt != null &&
                 now.isAfter(ngayBd) && now.isBefore(ngayKt);
     }
 
     public boolean isUpcoming() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
         return ngayBd != null && now.isBefore(ngayBd);
     }
 
     public boolean isFinished() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
         return ngayKt != null && now.isAfter(ngayKt);
     }
 
