@@ -1,10 +1,10 @@
 package com.example.badmintoneventtechnology.service.auth;
 
-import com.example.badmintoneventtechnology.model.auth.AuthResult;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+
+import com.example.badmintoneventtechnology.model.auth.AuthResult;
 
 public class AuthService {
     private final Connection conn;
@@ -16,10 +16,11 @@ public class AuthService {
     /** Trả về (found, locked) theo bảng PUBLIC."USER" */
     public AuthResult authenticate(String username, String md5Hex) throws Exception {
         String sql = """
-                SELECT COALESCE("GESPERRT",0) AS LOCKED
-                FROM PUBLIC."USER"
-                WHERE UPPER("USER") = UPPER(?) AND UPPER("PASSWORT") = UPPER(?)
-                """;
+                SELECT COALESCE(0, 0) AS LOCKED, ID, HO_TEN
+                FROM NGUOI_DUNG
+                WHERE UPPER(HO_TEN) = UPPER(?)
+                  AND UPPER(MAT_KHAU) = UPPER(?);
+                                """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
             ps.setString(2, md5Hex);

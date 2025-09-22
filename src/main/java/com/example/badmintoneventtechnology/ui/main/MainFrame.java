@@ -29,8 +29,10 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
+import com.example.badmintoneventtechnology.config.DatabaseConfig;
 import com.example.badmintoneventtechnology.config.Prefs;
-import com.example.badmintoneventtechnology.model.db.H2ConnectionManager;
+import com.example.badmintoneventtechnology.model.db.ConnectionConfig;
+import com.example.badmintoneventtechnology.model.db.SQLSRVConnectionManager;
 import com.example.badmintoneventtechnology.service.auth.AuthService;
 import com.example.badmintoneventtechnology.service.db.DatabaseService; // <-- NEW
 import com.example.badmintoneventtechnology.ui.auth.LoginTab;
@@ -42,7 +44,6 @@ import com.example.badmintoneventtechnology.ui.log.LogTab;
 import com.example.badmintoneventtechnology.ui.monitor.MonitorTab;
 import com.example.badmintoneventtechnology.ui.monitor.ScreenshotTab;
 import com.example.badmintoneventtechnology.ui.net.NetworkConfig;
-import com.example.badmintoneventtechnology.ui.tool.ConnectionsManagerPanel;
 import com.example.badmintoneventtechnology.ui.tournament.TournamentTabPanel;
 import com.example.badmintoneventtechnology.util.ui.IconUtil;
 import com.example.badmintoneventtechnology.util.ui.Ui;
@@ -54,12 +55,12 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
 public class MainFrame extends JFrame {
     private final Prefs prefs = new Prefs();
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
-    private final H2ConnectionManager manager = new H2ConnectionManager();
+    private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
     private final DatabaseService service = new DatabaseService(manager);
+    private final DatabaseConfig dbConfig;
 
     private final BadmintonControlPanel controlPanel = new BadmintonControlPanel();
     private final MultiCourtControlPanel multiCourtPanel = new MultiCourtControlPanel();
-    private final ConnectionsManagerPanel connMgrPanel = new ConnectionsManagerPanel();
     private final MonitorTab monitorTab = new MonitorTab();
     private final ScreenshotTab screenshotTab = new ScreenshotTab();
     private final LogTab logTab = new LogTab();
@@ -98,12 +99,13 @@ public class MainFrame extends JFrame {
     private javax.swing.Timer ramTimer;
 
     public MainFrame() {
-        this(null);
+        this(null, null);
     }
 
-    public MainFrame(NetworkConfig cfg) {
+    public MainFrame(NetworkConfig cfg, DatabaseConfig dbConfig) {
         super("Badminton Event Technology");
         this.netCfg = cfg;
+        this.dbConfig = dbConfig;
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         Ui.installModernUi();
 
@@ -135,10 +137,6 @@ public class MainFrame extends JFrame {
             public void onConnected(Connection c, String host, String port) {
                 SwingUtilities.invokeLater(() -> {
                     try {
-                        connMgrPanel.setConnection(c);
-                    } catch (Exception ignored) {
-                    }
-                    try {
                         controlPanel.setConnection(c);
                     } catch (Exception ignored) {
                     }
@@ -154,14 +152,15 @@ public class MainFrame extends JFrame {
                     updateAuthService(c); // <-- quan trọng: cung cấp AuthService cho LoginTab
 
                     statusConn.setText("Đã kết nối");
-                    statusHost.setText(host + ":" + port);
 
-                    // Sau khi kết nối: chỉ hiển thị Connect + Login
+                    // Sau khi kết nối: hiển thị các tab khác
                     ensureTabPresent("Login", loginTab, icLogin);
-                    ensureTabPresent("Connect", connectPanel, icConnect);
-                    ensureTabAbsent(controlPanel);
-                    ensureTabAbsent(connMgrPanel);
-                    ensureTabAbsent(monitorTab);
+                    ensureTabPresent("Control", controlPanel, icScore);
+                    ensureTabPresent("Multi Court", multiCourtPanel, icMultiCourt);
+                    ensureTabPresent("Tournament", tournamentTabPanel, icTournament);
+                    ensureTabPresent("Monitor", monitorTab, icMonitor);
+                    ensureTabPresent("Screenshot", screenshotTab, icScreenshot);
+                    ensureTabPresent("Log", logTab, icLog);
                     tabs.setSelectedComponent(loginTab);
                 });
             }
@@ -169,10 +168,6 @@ public class MainFrame extends JFrame {
             @Override
             public void onDisconnected() {
                 SwingUtilities.invokeLater(() -> {
-                    try {
-                        connMgrPanel.setConnection(null);
-                    } catch (Exception ignored) {
-                    }
                     try {
                         controlPanel.setConnection(null);
                     } catch (Exception ignored) {
@@ -197,12 +192,11 @@ public class MainFrame extends JFrame {
                     statusConn.setText("Chưa kết nối");
                     statusHost.setText("-");
 
-                    ensureTabAbsent(loginTab);
-                    ensureTabPresent("Connect", connectPanel, icConnect);
+                    // Khi mất kết nối, vẫn hiển thị Login tab để có thể đăng nhập lại
+                    ensureTabPresent("Login", loginTab, icLogin);
                     ensureTabAbsent(controlPanel);
-                    ensureTabAbsent(connMgrPanel);
                     ensureTabAbsent(monitorTab);
-                    tabs.setSelectedComponent(connectPanel);
+                    tabs.setSelectedComponent(loginTab);
                 });
             }
         });
@@ -220,7 +214,6 @@ public class MainFrame extends JFrame {
                 // Admin mode: thấy tất cả
                 monitorTab.setAdminMode(true, null);
                 controlPanel.setClientName("ADMIN-" + username);
-                ensureTabPresent("Kết nối", connectPanel, icConnect);
                 ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
                 ensureTabPresent("Thi đấu", multiCourtPanel, icMultiCourt);
                 ensureTabPresent("Giám sát", monitorTab, icMonitor);
@@ -246,8 +239,8 @@ public class MainFrame extends JFrame {
             }
         }));
 
-        // Ban đầu chỉ có Connect
-        ensureTabPresent("Connect", connectPanel, icConnect);
+        // Ban đầu chỉ có Login (bỏ qua Connect tab)
+        ensureTabPresent("Login", loginTab, icLogin);
 
         // Lắp vào frame - để các tab chiếm toàn màn hình
         // Loại bỏ wrapCenter để các tab có thể mở rộng tối đa
@@ -323,6 +316,9 @@ public class MainFrame extends JFrame {
         // Hiển thị version từ MANIFEST (nếu có)
         String implTitle = getClass().getPackage().getImplementationTitle();
         String implVer = getClass().getPackage().getImplementationVersion();
+
+        // Tự động kết nối database khi khởi động
+        autoConnectDatabase();
         if (implTitle != null)
             lblAppTitle.setText(implTitle);
         lblVersion.setText(implVer != null ? "v" + implVer : "");
@@ -491,5 +487,90 @@ public class MainFrame extends JFrame {
     private void updateAuthService(Connection c) {
         this.authService = (c != null) ? new AuthService(c) : null;
         loginTab.setAuthService(this.authService); // LoginTab chỉ phụ thuộc AuthService
+    }
+
+    /* -------------------- AUTO CONNECT DATABASE -------------------- */
+    private void autoConnectDatabase() {
+        // Chạy kết nối tự động trong background thread để không block UI
+        new Thread(() -> {
+            try {
+                // Sử dụng DatabaseConfig nếu có, nếu không thì dùng default values
+                String host = (dbConfig != null) ? dbConfig.getServer() : "GODZILLA\\SQLDEV";
+                String port = (dbConfig != null) ? dbConfig.getPort() : "1433";
+                String database = (dbConfig != null) ? dbConfig.getDatabaseName() : "badminton";
+                String user = (dbConfig != null) ? dbConfig.getUsername() : "hau2";
+                String password = (dbConfig != null) ? dbConfig.getPassword() : "hau123";
+
+                // Cấu hình kết nối từ application.properties
+                ConnectionConfig config = new ConnectionConfig()
+                        .host(host)
+                        .port(port)
+                        .databaseInput(database)
+                        .user(user)
+                        .password(password)
+                        .mode(ConnectionConfig.Mode.NAME);
+
+                // Thiết lập cấu hình và kết nối
+                service.setConfig(config);
+                Connection conn = service.connect();
+
+                // Cập nhật UI trên EDT
+                SwingUtilities.invokeLater(() -> {
+                    try {
+                        // Cập nhật các panel với connection
+                        controlPanel.setConnection(conn);
+                        multiCourtPanel.setConnection(conn);
+                        tournamentTabPanel.updateConnection();
+
+                        // Cập nhật AuthService
+                        updateAuthService(conn);
+
+                        // Cập nhật UI status
+                        statusConn.setText("Đã kết nối");
+                        statusConn.setForeground(new Color(46, 204, 113));
+
+                        // Hiển thị các tab khác
+                        ensureTabPresent("Login", loginTab, icLogin);
+                        ensureTabPresent("Tournament", tournamentTabPanel, icTournament);
+                        ensureTabPresent("Multi Court", multiCourtPanel, icMultiCourt);
+                        ensureTabPresent("Monitor", monitorTab, icMonitor);
+                        ensureTabPresent("Screenshot", screenshotTab, icScreenshot);
+                        ensureTabPresent("Log", logTab, icLog);
+
+                        // Chuyển đến Login tab
+                        tabs.setSelectedComponent(loginTab);
+
+                        System.out.println("✓ Tự động kết nối SQL Server thành công!");
+
+                    } catch (Exception e) {
+                        System.err.println("Lỗi cập nhật UI sau kết nối: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                });
+
+            } catch (Exception e) {
+                // Hiển thị lỗi trên EDT
+                SwingUtilities.invokeLater(() -> {
+                    statusConn.setText("Lỗi kết nối");
+                    statusConn.setForeground(new Color(231, 76, 60));
+                    statusHost.setText("Không thể kết nối SQL Server");
+
+                    System.err.println("✗ Không thể tự động kết nối SQL Server: " + e.getMessage());
+                    e.printStackTrace();
+
+                    // Hiển thị thông báo cho người dùng
+                    javax.swing.JOptionPane.showMessageDialog(
+                            this,
+                            "Không thể tự động kết nối đến SQL Server.\n\n" +
+                                    "Vui lòng kiểm tra:\n" +
+                                    "- SQL Server đang chạy\n" +
+                                    "- Database 'badminton' đã tồn tại\n" +
+                                    "- Thông tin kết nối đúng\n\n" +
+                                    "Chi tiết lỗi: " + e.getMessage(),
+                            "Lỗi kết nối Database",
+                            javax.swing.JOptionPane.ERROR_MESSAGE);
+                });
+            }
+        }).start();
     }
 }

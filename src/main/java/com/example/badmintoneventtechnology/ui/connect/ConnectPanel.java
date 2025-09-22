@@ -42,17 +42,17 @@ public class ConnectPanel extends JPanel {
     private final Prefs prefs;
 
     // --- Form fields ---
-    private final JTextField txtDb = new JTextField("BaoLoc_25_05_2025");
+    private final JTextField txtDb = new JTextField("badminton");
     private final JComboBox<String> dbMode = new JComboBox<>(new String[] {
-            "NAME (server started with -baseDir)",
-            "HOME (~/<name>) on server",
-            "ABSOLUTE PATH on server"
+            "SQL Server Database",
+            "Instance Name",
+            "Full Connection String"
     });
 
-    private final JTextField txtServer = new JTextField("192.168.1.16");
-    private final JTextField txtPort = new JTextField("9092");
-    private final JTextField txtUser = new JTextField("root");
-    private final JPasswordField txtPass = new JPasswordField("");
+    private final JTextField txtServer = new JTextField("GODZILLA\\SQLDEV");
+    private final JTextField txtPort = new JTextField("1433");
+    private final JTextField txtUser = new JTextField("hau2");
+    private final JPasswordField txtPass = new JPasswordField("hau123");
     private final JCheckBox chkRemember = new JCheckBox("Remember password on next login", true);
 
     private final JTextArea log = new JTextArea(10, 70);
@@ -92,9 +92,10 @@ public class ConnectPanel extends JPanel {
     private void buildUi() {
         JPanel header = new JPanel(new BorderLayout());
         header.setBorder(new EmptyBorder(6, 8, 6, 8));
-        JLabel title = new JLabel("Kết nối đến H2 TCP Server");
+        JLabel title = new JLabel("Kết nối đến SQL Server");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
-        JLabel subtitle = new JLabel("Nhập thông số kết nối, chọn chế độ đường dẫn và quản lý phiên làm việc.");
+        JLabel subtitle = new JLabel(
+                "Nhập thông số kết nối SQL Server, chọn chế độ kết nối và quản lý phiên làm việc.");
         subtitle.setForeground(new Color(120, 120, 120));
         header.add(title, BorderLayout.NORTH);
         header.add(subtitle, BorderLayout.CENTER);
@@ -105,19 +106,19 @@ public class ConnectPanel extends JPanel {
         c.insets = new Insets(6, 8, 6, 8);
         c.fill = GridBagConstraints.HORIZONTAL;
 
-        Ui.placeholder(txtDb, "Tên DB hoặc đường dẫn trên máy chủ");
-        Ui.placeholder(txtServer, "IP/Host của TCP Server");
-        Ui.placeholder(txtPort, "Cổng (mặc định 9092)");
-        Ui.placeholder(txtUser, "Tên đăng nhập DB");
-        txtPass.putClientProperty("JPasswordField.placeholderText", "Mật khẩu DB (có thể để trống)");
+        Ui.placeholder(txtDb, "Tên database SQL Server");
+        Ui.placeholder(txtServer, "IP/Host của SQL Server");
+        Ui.placeholder(txtPort, "Cổng (mặc định 1433)");
+        Ui.placeholder(txtUser, "Tên đăng nhập SQL Server");
+        txtPass.putClientProperty("JPasswordField.placeholderText", "Mật khẩu SQL Server");
 
         int r = 0;
         addRow(form, c, r++, "Database", txtDb);
-        addRow(form, c, r++, "Database mode", dbMode);
+        addRow(form, c, r++, "Connection mode", dbMode);
         addRow(form, c, r++, "Server (IP / Host)", txtServer);
         addRow(form, c, r++, "Port", txtPort);
-        addRow(form, c, r++, "DB-Username", txtUser);
-        addRow(form, c, r++, "DB-Password", txtPass);
+        addRow(form, c, r++, "Username", txtUser);
+        addRow(form, c, r++, "Password", txtPass);
 
         // dòng hiển thị interface
         c.gridx = 0;
@@ -152,9 +153,9 @@ public class ConnectPanel extends JPanel {
         d.insets = new Insets(4, 8, 4, 8);
         d.fill = GridBagConstraints.HORIZONTAL;
         int rd = 0;
-        addRow(detected, d, rd++, "Detected BASE_DIR", lblBaseDir);
-        addRow(detected, d, rd++, "Detected DB Path", lblDbPath);
-        addRow(detected, d, rd++, "Detected DB Name", lblDbName);
+        addRow(detected, d, rd++, "Server Instance", lblBaseDir);
+        addRow(detected, d, rd++, "Database Name", lblDbPath);
+        addRow(detected, d, rd++, "Connection Status", lblDbName);
 
         JPanel mid = new JPanel(new BorderLayout(8, 8));
         log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -226,9 +227,9 @@ public class ConnectPanel extends JPanel {
 
     private ConnectionConfig configFromFields() {
         ConnectionConfig.Mode mode = switch (dbMode.getSelectedIndex()) {
-            case 0 -> ConnectionConfig.Mode.NAME;
-            case 1 -> ConnectionConfig.Mode.HOME;
-            default -> ConnectionConfig.Mode.ABSOLUTE;
+            case 0 -> ConnectionConfig.Mode.NAME; // SQL Server Database
+            case 1 -> ConnectionConfig.Mode.HOME; // Instance Name
+            default -> ConnectionConfig.Mode.ABSOLUTE; // Full Connection String
         };
         return new ConnectionConfig()
                 .databaseInput(txtDb.getText().trim())
@@ -242,12 +243,34 @@ public class ConnectPanel extends JPanel {
     private String buildUrlFromFields() {
         var cfg = configFromFields();
         String raw = cfg.databaseInput();
-        String dbPath = switch (cfg.mode()) {
-            case NAME -> raw;
-            case HOME -> raw.startsWith("~/") ? raw : ("~/" + raw);
-            case ABSOLUTE -> raw;
+        String connectionUrl = switch (cfg.mode()) {
+            case NAME -> {
+                // Xử lý instance name với backslash
+                String host = cfg.host();
+                if (host.contains("\\")) {
+                    String[] parts = host.split("\\\\");
+                    yield "jdbc:sqlserver://" + parts[0] + ":" + cfg.port() + ";instanceName=" + parts[1]
+                            + ";databaseName=" + raw + ";encrypt=true;trustServerCertificate=true;";
+                } else {
+                    yield "jdbc:sqlserver://" + host + ":" + cfg.port() + ";databaseName=" + raw
+                            + ";encrypt=true;trustServerCertificate=true;";
+                }
+            }
+            case HOME -> {
+                // Mode HOME cho instance name riêng biệt
+                String host = cfg.host();
+                if (host.contains("\\")) {
+                    String[] parts = host.split("\\\\");
+                    yield "jdbc:sqlserver://" + parts[0] + ":" + cfg.port() + ";instanceName=" + parts[1]
+                            + ";databaseName=" + raw + ";encrypt=true;trustServerCertificate=true;";
+                } else {
+                    yield "jdbc:sqlserver://" + host + ":" + cfg.port() + ";instanceName=" + raw
+                            + ";encrypt=true;trustServerCertificate=true;";
+                }
+            }
+            case ABSOLUTE -> raw; // Full connection string
         };
-        return "jdbc:h2:tcp://" + cfg.host() + ":" + cfg.port() + "/" + dbPath + ";IFEXISTS=TRUE";
+        return connectionUrl;
     }
 
     /* --------- Nhận interface đã chọn (để kiểm tra subnet) --------- */
@@ -413,13 +436,13 @@ public class ConnectPanel extends JPanel {
     private void onConnected(Connection c) {
         persistPrefs();
         ServerInfo info = service.detectInfo(c);
-        lblBaseDir.setText(info.baseDir());
-        lblDbPath.setText(info.databasePath());
-        lblDbName.setText(info.databaseName());
+        lblBaseDir.setText(txtServer.getText().trim() + ":" + txtPort.getText().trim());
+        lblDbPath.setText(txtDb.getText().trim());
+        lblDbName.setText("Connected");
         consumer.onConnected(c, txtServer.getText().trim(), txtPort.getText().trim());
-        append("✓ Connected!\nDetected BASE_DIR: " + info.baseDir()
-                + "\nDB Path: " + info.databasePath()
-                + "\nDB Name: " + info.databaseName());
+        append("✓ Connected to SQL Server!\nServer: " + txtServer.getText().trim() + ":" + txtPort.getText().trim()
+                + "\nDatabase: " + txtDb.getText().trim()
+                + "\nUser: " + txtUser.getText().trim());
         updateButtons();
         updateStatus();
     }

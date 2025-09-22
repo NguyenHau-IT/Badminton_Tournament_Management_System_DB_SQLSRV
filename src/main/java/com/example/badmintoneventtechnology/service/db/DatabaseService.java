@@ -1,18 +1,18 @@
-// com/example/h2client/service/DatabaseService.java
+// com/example/badmintoneventtechnology/service/DatabaseService.java
 package com.example.badmintoneventtechnology.service.db;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 
 import com.example.badmintoneventtechnology.model.db.ConnectionConfig;
-import com.example.badmintoneventtechnology.model.db.H2ConnectionManager;
+import com.example.badmintoneventtechnology.model.db.SQLSRVConnectionManager;
 import com.example.badmintoneventtechnology.model.system.ServerInfo;
 import com.example.badmintoneventtechnology.model.system.SettingsDetector;
 
 public class DatabaseService {
-    private final H2ConnectionManager manager;
+    private final SQLSRVConnectionManager manager;
 
-    public DatabaseService(H2ConnectionManager manager) {
+    public DatabaseService(SQLSRVConnectionManager manager) {
         this.manager = manager;
     }
 
@@ -21,7 +21,7 @@ public class DatabaseService {
         manager.setConfig(cfg);
     }
 
-    public H2ConnectionManager manager() {
+    public SQLSRVConnectionManager manager() {
         return manager;
     } // optional, nếu vẫn muốn dùng ở chỗ khác
 
@@ -30,7 +30,8 @@ public class DatabaseService {
     }
 
     public Connection probeAndConnect() throws SQLException {
-        return manager.probeCommonPaths().connection();
+        // For SQL Server, we just try to connect directly
+        return manager.connect();
     }
 
     public void disconnect() {

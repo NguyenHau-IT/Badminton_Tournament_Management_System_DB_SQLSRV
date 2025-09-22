@@ -1,9 +1,9 @@
 package com.example.badmintoneventtechnology.service.db;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -18,30 +18,36 @@ public class CategoryRepository {
         this.conn = conn;
     }
 
-    /** Returns [singles, doubles] maps of KATBEZ->KNR */
+    /** Returns [singles, doubles] maps of TEN_NOI_DUNG->ID */
     public Map<String, Integer>[] loadCategories() {
         Map<String, Integer> singles = new LinkedHashMap<>();
         Map<String, Integer> doubles = new LinkedHashMap<>();
         if (conn == null)
             return new Map[] { singles, doubles };
+
         int vernr = new Prefs().getInt("selectedTournamentVernr", -1);
+        if (vernr < 0)
+            return new Map[] { singles, doubles };
 
-        String sql = "SELECT k.KNR, k.KATBEZ, k.TEAM " +
-                "FROM PUBLIC.KATEGORIE k " +
-                "JOIN PUBLIC.VERANSTALTUNGKAT vk ON vk.KNR = k.KNR " +
-                "WHERE vk.VERNR = " + vernr + " " +
-                "ORDER BY k.KNR ASC";
+        String sql = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM " +
+                "FROM NOI_DUNG nd " +
+                "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
+                "WHERE ctgd.ID_GIAI_DAU = ? " +
+                "ORDER BY nd.ID ASC";
 
-        try (Statement st = conn.createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, vernr);
 
-            while (rs.next()) {
-                int knr = rs.getInt(1);
-                String kat = rs.getString(2);
-                String team = rs.getString(3);
-                boolean isTeam = team != null && team.trim().equalsIgnoreCase("T");
-                if (kat != null && !kat.isBlank()) {
-                    (isTeam ? doubles : singles).put(kat, knr);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int id = rs.getInt(1);
+                    String tenNoiDung = rs.getString(2);
+                    Object teamVal = rs.getObject(3);
+
+                    boolean isTeam = parseTeamFlag(teamVal);
+                    if (tenNoiDung != null && !tenNoiDung.isBlank()) {
+                        (isTeam ? doubles : singles).put(tenNoiDung, id);
+                    }
                 }
             }
 
@@ -52,5 +58,20 @@ public class CategoryRepository {
         }
 
         return new Map[] { singles, doubles };
+    }
+
+    /** Chuyển giá trị TEAM về boolean */
+    private boolean parseTeamFlag(Object v) {
+        if (v == null)
+            return false;
+        if (v instanceof Boolean b)
+            return b;
+        if (v instanceof Number n)
+            return n.intValue() != 0;
+        String s = v.toString().trim();
+        return s.equalsIgnoreCase("T")
+                || s.equalsIgnoreCase("Y")
+                || s.equalsIgnoreCase("TRUE")
+                || s.equals("1");
     }
 }
