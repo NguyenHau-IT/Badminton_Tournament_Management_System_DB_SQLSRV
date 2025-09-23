@@ -81,16 +81,16 @@ File: `src/main/resources/application.properties`
   - `server.port=2345`
   - `spring.main.headless=false` (cho phép mở UI Swing)
 - SQL Server (mẫu đi kèm)
-  - `spring.datasource.url=jdbc:sqlserver://GODZILLA\\SQLDEV:1433;databaseName=badminton;encrypt=true;trustServerCertificate=true;`
-  - `spring.datasource.username=hau2`
-  - `spring.datasource.password=hau123`
+  - `spring.datasource.url`
+  - `spring.datasource.username`
+  - `spring.datasource.password`
   - Hikari pool: `maximum-pool-size=10`, `minimum-idle=5`, …
 - JPA/Hibernate
   - `spring.jpa.hibernate.ddl-auto=update`
   - `spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.SQLServerDialect`
 
 Desktop auto-connect (MainFrame.autoConnectDatabase):
-- Đọc cấu hình runtime (nếu có) hoặc fallback sang `GODZILLA\\SQLDEV:1433`, database `badminton`, user `hau2`.
+- Đọc cấu hình runtime (nếu có) hoặc fallback.
 - Lắp URL JDBC, thiết lập encrypt/trustServerCertificate, loginTimeout, integratedSecurity.
 
 ---
