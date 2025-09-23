@@ -11,6 +11,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.SwingConstants;
 
 import com.example.badmintoneventtechnology.model.category.NoiDung;
 import com.example.badmintoneventtechnology.service.category.NoiDungService;
@@ -40,6 +42,21 @@ public class NoiDungManagementPanel extends JPanel {
         table.setRowSelectionAllowed(true);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        // Center align selected columns (ID, Tuổi dưới, Tuổi trên, Giới tính, Thể loại)
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        int[] centerCols = { 0, 2, 3, 4, 5 };
+        for (int col : centerCols) {
+            if (col < table.getColumnModel().getColumnCount()) {
+                table.getColumnModel().getColumn(col).setCellRenderer(centerRenderer);
+            }
+        }
+
+        // Center align table header text
+        DefaultTableCellRenderer headerRenderer = (DefaultTableCellRenderer) table.getTableHeader()
+                .getDefaultRenderer();
+        headerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+
         btnAdd = new JButton("Thêm mới");
         btnEdit = new JButton("Sửa");
         btnDelete = new JButton("Xóa");
@@ -67,13 +84,19 @@ public class NoiDungManagementPanel extends JPanel {
             List<NoiDung> list = noiDungService.getAllNoiDung();
             tableModel.setRowCount(0);
             for (NoiDung nd : list) {
+                String gt = Optional.ofNullable(nd.getGioiTinh()).orElse("").trim();
+
+                String genderText = "f".equalsIgnoreCase(gt) ? "Nữ" : "m".equalsIgnoreCase(gt) ? "Nam" : "Nam, Nữ";
+
+                String teamText = Boolean.TRUE.equals(nd.getTeam()) ? "Đôi" : "Đơn";
+
                 tableModel.addRow(new Object[] {
                         nd.getId(),
                         nd.getTenNoiDung(),
                         nd.getTuoiDuoi(),
                         nd.getTuoiTren(),
-                        nd.getGioiTinh(),
-                        nd.getTeam() ? "Đồng đội" : "Cá nhân"
+                        genderText,
+                        teamText
                 });
             }
         } catch (Exception e) {

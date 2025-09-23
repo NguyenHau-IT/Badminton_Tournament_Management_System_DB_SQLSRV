@@ -100,13 +100,6 @@
             <version>1.4</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <scope>runtime</scope>
-            <optional>true</optional>
-        </dependency>
-
     </dependencies>
 
     <build>
@@ -125,13 +118,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-
-                <!-- Áp dụng cho goal run: fork JVM để restart mượt hơn -->
-                <configuration>
-                    <fork>true</fork>
-                    <!-- Tuỳ chọn: giúp nạp lại resources khi chạy qua spring-boot:run -->
-                    <addResources>true</addResources>
-                </configuration>
 
                 <!-- Giữ repackage để build ra fat jar -->
                 <executions>
