@@ -110,6 +110,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     /* ===== Remote control (URL + QR) ===== */
     private final JLabel lblRemoteUrl = new JLabel("-");
     private final JLabel lblRemoteQr = new JLabel();
+    // Trạng thái hiển thị link điều khiển và giá trị URL hiện tại
+    private boolean remoteUrlVisible = false;
+    private String currentRemoteUrl = null;
+    private JButton btnToggleLinkVisible;
 
     /* ===== Live preview ===== */
     private MiniScorePanel mini;
@@ -650,17 +654,31 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         JPanel linkAndQr = new JPanel(new BorderLayout(12, 8));
         linkAndQr.setOpaque(false);
 
-        // Panel chứa link và nút copy
+        // Panel chứa link và nhóm nút (ẩn/hiện + copy)
         JPanel linkPanel = new JPanel(new BorderLayout(8, 0));
         linkPanel.setOpaque(false);
         lblRemoteUrl.setFont(FONT_VALUE);
         linkPanel.add(lblRemoteUrl, BorderLayout.CENTER);
 
-        // Nút copy link
+        // Nhóm nút bên phải: [Ẩn/Hiện] [Copy]
+        JPanel rightBtnBox = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+        rightBtnBox.setOpaque(false);
+        btnToggleLinkVisible = ButtonFactory.outlined(remoteUrlVisible ? "Ẩn link" : "Hiện link", COL_NEUTRAL,
+                new Dimension(90, 28), FONT_BTN);
+        btnToggleLinkVisible.setToolTipText("Ẩn/hiện đường link bấm điểm");
+        btnToggleLinkVisible.addActionListener(e -> {
+            remoteUrlVisible = !remoteUrlVisible;
+            updateRemoteUrlDisplay();
+            btnToggleLinkVisible.setText(remoteUrlVisible ? "Ẩn link" : "Hiện link");
+        });
+
         JButton btnCopyLink = ButtonFactory.outlined("📋 Copy", COL_PRIMARY, new Dimension(80, 28), FONT_BTN);
         btnCopyLink.setToolTipText("Copy link vào clipboard");
         btnCopyLink.addActionListener(e -> copyLinkToClipboard());
-        linkPanel.add(btnCopyLink, BorderLayout.EAST);
+
+        rightBtnBox.add(btnToggleLinkVisible);
+        rightBtnBox.add(btnCopyLink);
+        linkPanel.add(rightBtnBox, BorderLayout.EAST);
 
         // Thêm link /pin để nhập mã PIN
         JPanel pinLinkPanel = new JPanel(new BorderLayout(8, 0));
@@ -1489,8 +1507,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String url = "http://" + ip + ":" + port + "/scoreboard/" + pinCode;
 
             logger.logTs("Điều khiển trên điện thoại: %s (port %d, IP: %s)", url, port, ip);
-            lblRemoteUrl.setText("<html><b>" + url + "</b></html>");
-            var img = QRCodeUtil.generate(url, 200);
+            // Lưu URL và cập nhật hiển thị theo trạng thái ẩn/hiện
+            currentRemoteUrl = url;
+            updateRemoteUrlDisplay();
+            var img = QRCodeUtil.generate(url, 100);
             lblRemoteQr.setIcon(new ImageIcon(img));
 
             // Cập nhật link PIN entry nếu có
@@ -1515,29 +1535,27 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     private void copyLinkToClipboard() {
         try {
-            String ip = NetworkUtil.getLocalIpv4(selectedIf);
-            if (ip == null || ip.isEmpty()) {
-                JOptionPane.showMessageDialog(this,
-                        "Không thể copy link - Interface '" +
-                                (selectedIf != null ? selectedIf.getDisplayName() : "null") +
-                                "' không có IPv4 address.\nVui lòng chọn interface khác.",
-                        "Lỗi copy",
-                        JOptionPane.WARNING_MESSAGE);
-                return;
+            // Ưu tiên dùng URL hiện tại nếu đã có
+            String url = currentRemoteUrl;
+            if (url == null || url.isBlank()) {
+                String ip = NetworkUtil.getLocalIpv4(selectedIf);
+                if (ip == null || ip.isEmpty()) {
+                    JOptionPane.showMessageDialog(this,
+                            "Không thể copy link - Interface '" +
+                                    (selectedIf != null ? selectedIf.getDisplayName() : "null") +
+                                    "' không có IPv4 address.\nVui lòng chọn interface khác.",
+                            "Lỗi copy",
+                            JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                int port = (courtPort > 0) ? courtPort : 2345;
+                url = "http://" + ip + ":" + port + "/scoreboard/" + getCourtPinCode();
             }
-
-            // Sử dụng port của sân nếu đã set, nếu không thì dùng port mặc định
-            int port = (courtPort > 0) ? courtPort : 2345;
-            logger.logTs("copyLinkToClipboard: courtPort = %d, sử dụng port %d (%s)", courtPort, port,
-                    (courtPort > 0) ? "port của sân" : "port mặc định");
-            logger.logTs("copyLinkToClipboard: Logic: courtPort > 0? %s, courtPort = %d, port = %d",
-                    (courtPort > 0) ? "YES" : "NO", courtPort, port);
-            String url = "http://" + ip + ":" + port + "/scoreboard";
 
             java.awt.datatransfer.StringSelection stringSelection = new java.awt.datatransfer.StringSelection(url);
             java.awt.datatransfer.Clipboard clipboard = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
             clipboard.setContents(stringSelection, null);
-            logger.logTs("Đã copy link vào clipboard: %s (port %d, IP: %s)", url, port, ip);
+            logger.logTs("Đã copy link vào clipboard: %s", url);
 
             // Hiển thị thông báo ngắn
             JOptionPane.showMessageDialog(this,
@@ -1550,6 +1568,26 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     "Lỗi khi copy link: " + ex.getMessage(),
                     "Lỗi copy",
                     JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // Cập nhật phần hiển thị link theo trạng thái ẩn/hiện
+    private void updateRemoteUrlDisplay() {
+        try {
+            if (currentRemoteUrl == null || currentRemoteUrl.isBlank()) {
+                lblRemoteUrl.setText("-");
+                if (btnToggleLinkVisible != null)
+                    btnToggleLinkVisible.setEnabled(false);
+                return;
+            }
+            if (btnToggleLinkVisible != null)
+                btnToggleLinkVisible.setEnabled(true);
+            if (remoteUrlVisible) {
+                lblRemoteUrl.setText("<html><b>" + currentRemoteUrl + "</b></html>");
+            } else {
+                lblRemoteUrl.setText("<html><b>••••••••••</b></html>");
+            }
+        } catch (Exception ignore) {
         }
     }
 

@@ -45,6 +45,8 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
     private final CourtManagerService courtManager = CourtManagerService.getInstance();
     private final JTabbedPane courtTabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
     private final JPanel overviewPanel = new JPanel();
+    // Lưu trạng thái hiển/ẩn PIN cho từng sân
+    private final java.util.Map<String, Boolean> pinVisibleMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     // Controls
     private final JTextField txtNewCourtId = new JTextField(10);
@@ -391,13 +393,38 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         addInfoRow(infoPanel, gc, "Đội B:", status.names[1]);
         addInfoRow(infoPanel, gc, "Điểm:", status.score[0] + " - " + status.score[1]);
         addInfoRow(infoPanel, gc, "Ván:", status.games[0] + " - " + status.games[1]);
-        addInfoRow(infoPanel, gc, "Mã PIN:", status.pinCode);
+        // Hàng riêng cho Mã PIN để hỗ trợ ẩn/hiện
+        boolean pinVisible = Boolean.TRUE.equals(pinVisibleMap.get(status.courtId));
+        String pinText = pinVisible ? safePin(status.pinCode) : maskPin(status.pinCode);
+
+        JLabel lk = new JLabel("Mã PIN:");
+        lk.setFont(lk.getFont().deriveFont(Font.PLAIN, 12f));
+        JLabel lv = new JLabel(pinText);
+        lv.setFont(lv.getFont().deriveFont(Font.BOLD, 12f));
+
+        gc.gridx = 0;
+        gc.weightx = 0.0;
+        infoPanel.add(lk, gc);
+        gc.gridx = 1;
+        gc.weightx = 1.0;
+        infoPanel.add(lv, gc);
+        gc.gridy++;
 
         card.add(infoPanel, BorderLayout.CENTER);
 
         // Buttons (gọn)
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
         buttonPanel.setOpaque(false);
+        JButton btnTogglePin = new JButton(pinVisible ? "Ẩn PIN" : "Hiện PIN");
+        btnTogglePin.setMargin(new Insets(4, 12, 4, 12));
+        btnTogglePin.addActionListener(e -> {
+            boolean current = Boolean.TRUE.equals(pinVisibleMap.get(status.courtId));
+            boolean next = !current;
+            pinVisibleMap.put(status.courtId, next);
+            lv.setText(next ? safePin(status.pinCode) : maskPin(status.pinCode));
+            btnTogglePin.setText(next ? "Ẩn PIN" : "Hiện PIN");
+        });
+        buttonPanel.add(btnTogglePin);
         JButton btnRemove = new JButton("Đóng sân");
         btnRemove.setMargin(new Insets(4, 12, 4, 12));
         btnRemove.addActionListener(e -> removeCourt(status.courtId));
@@ -430,6 +457,19 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         panel.add(lv, gc);
 
         gc.gridy++;
+    }
+
+    /** Ẩn PIN bằng dấu chấm, giữ độ dài tương đương */
+    private static String maskPin(String pin) {
+        if (pin == null || pin.isBlank())
+            return "-";
+        int len = pin.trim().length();
+        return "•".repeat(Math.max(1, len));
+    }
+
+    /** Chuẩn hóa hiển thị PIN (tránh null/empty) */
+    private static String safePin(String pin) {
+        return (pin == null || pin.isBlank()) ? "-" : pin;
     }
 
     private void openCourtDisplay(String courtId) {
