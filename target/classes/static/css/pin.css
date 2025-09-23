@@ -1,0 +1,35 @@
+:root {
+  --bg-grad-start: #667eea;
+  --bg-grad-end: #764ba2;
+}
+
+body {
+  height: 80vh;
+  background: linear-gradient(135deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+main {
+  width: 80%;
+  padding: 1rem;
+  height: 80%;
+}
+
+/* Card & inputs */
+.pin-card { border: 0; border-radius: 1.25rem; box-shadow: 0 1rem 2rem rgba(0,0,0,.15); }
+.logo-emoji { font-size: clamp(2.5rem, 5vw, 3.25rem); }
+.pin-digit { width: 70px; height: 70px; text-align: center; font-weight: 700; font-size: 1.6rem; }
+.pin-digit.filled { background-color: var(--bs-primary); color: #fff; border-color: var(--bs-primary); }
+.qr-box { width: 120px; height: 120px; background:#fff; border:2px solid var(--bs-border-color); border-radius:.75rem; display:flex; align-items:center; justify-content:center; margin-inline:auto; }
+.current-url-box { background:#fff; border:2px solid var(--bs-border-color); border-radius:.75rem; }
+
+/* Bố cục 1 màn hình nằm ngang khi mở trên laptop */
+.screen-row { min-height: 98vh; align-items: stretch; }
+.screen-row > [class^="col-"] { display: flex; }
+.screen-row .card { flex: 1; }
+
+@media (min-width: 992px) {
+  .pin-digit { width: 80px; height: 80px; font-size: 1.8rem; }
+}
