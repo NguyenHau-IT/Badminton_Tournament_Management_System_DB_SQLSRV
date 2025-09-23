@@ -22,28 +22,32 @@ public class TeamAndPlayerRepository {
     }
 
     /** Lấy VĐV đơn theo KATNR (bảng NENNUNGENEINZEL). */
-    public Map<String, Integer> loadSinglesNamesByKatnr(int katnr, int vernr) {
+    public Map<String, Integer> loadSinglesNames(int idNoiDung, int idGiaiDau) {
         Map<String, Integer> nameToId = new LinkedHashMap<>();
-        final String sql = "SELECT DISTINCT e.NNR, COALESCE(n.NAME, CAST(e.NNR AS VARCHAR)) AS NM " +
-                "FROM PUBLIC.NENNUNGENEINZEL e " +
-                "LEFT JOIN PUBLIC.NAMES n ON n.NNR = e.NNR " +
-                "WHERE e.KATNR = ? AND e.VERNR = ?" +
-                "ORDER BY NM";
+        final String sql = "SELECT DISTINCT v.ID, COALESCE(v.HO_TEN, CAST(d.ID_VDV AS VARCHAR)) AS TEN " +
+                "FROM DANG_KI_CA_NHAN d " +
+                "LEFT JOIN VAN_DONG_VIEN v ON v.ID = d.ID_VDV " +
+                "WHERE d.ID_NOI_DUNG = ? AND d.ID_GIAI_DAU = ? " +
+                "ORDER BY TEN";
+
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, katnr);
-            ps.setInt(2, vernr);
+            ps.setInt(1, idNoiDung);
+            ps.setInt(2, idGiaiDau);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    int nnr = rs.getInt("NNR");
-                    String nm = rs.getString("NM");
-                    if (nm != null && !nm.isBlank()) {
-                        nameToId.put(nm, nnr);
+                    int vdvId = rs.getInt("ID");
+                    String ten = rs.getString("TEN");
+                    if (ten != null && !ten.isBlank()) {
+                        nameToId.put(ten, vdvId);
                     }
                 }
             }
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(null, "Tải VĐV (đơn) lỗi: " + ex.getMessage(),
-                    "Lỗi DB", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Lỗi tải VĐV đăng ký cá nhân: " + ex.getMessage(),
+                    "Lỗi DB",
+                    JOptionPane.ERROR_MESSAGE);
         }
         return nameToId;
     }
