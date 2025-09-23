@@ -334,9 +334,19 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         String sid = m.get("sid");
 
         if ("DELETE".equalsIgnoreCase(op)) {
-            Row removed = sessions.remove(sid);
-            if (removed != null)
-                closeViewer(removed.viewerKey());
+            // Xoá tất cả entries có cùng sid (có thể có nhiều sân dùng chung sid)
+            java.util.List<String> keysToRemove = new java.util.ArrayList<>();
+            for (var e : sessions.entrySet()) {
+                Row row = e.getValue();
+                if (row != null && java.util.Objects.equals(row.sid, sid)) {
+                    keysToRemove.add(e.getKey());
+                }
+            }
+            for (String k : keysToRemove) {
+                Row removed = sessions.remove(k);
+                if (removed != null)
+                    closeViewer(removed.viewerKey());
+            }
             return;
         }
         if (!"UPSERT".equalsIgnoreCase(op)) {
@@ -346,9 +356,15 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         // Lọc dữ liệu dựa trên mode
         String clientId = m.getOrDefault("client", "");
 
-        Row r = sessions.computeIfAbsent(sid, k -> {
+        // Dùng key kết hợp để tránh đè khi nhiều sân dùng chung sid
+        String courtIdFromMsg = m.getOrDefault("courtId", "");
+        String key = sid + "|" + (courtIdFromMsg == null ? "" : courtIdFromMsg);
+        Row r = sessions.computeIfAbsent(key, k -> {
             return new Row();
         });
+
+        // Gắn sid để đảm bảo identity duy nhất theo phiên
+        r.sid = sid;
 
         r.client = clientId;
         r.host = m.getOrDefault("host", "");
@@ -540,7 +556,19 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     private boolean isSameRowIdentity(Row r1, Row r2) {
         if (r1 == null || r2 == null)
             return false;
-        // So sánh identity để xác định có phải cùng một Row không
+        // Ưu tiên so sánh theo sid nếu có
+        if (r1.sid != null && r2.sid != null) {
+            return java.util.Objects.equals(r1.sid, r2.sid);
+        }
+        // Sau đó so sánh theo courtId nếu có, để phân biệt nhiều sân cùng
+        // client/host/header
+        if (r1.courtId != null && !r1.courtId.isEmpty() && r2.courtId != null && !r2.courtId.isEmpty()) {
+            return java.util.Objects.equals(r1.client, r2.client) &&
+                    java.util.Objects.equals(r1.host, r2.host) &&
+                    java.util.Objects.equals(r1.header, r2.header) &&
+                    java.util.Objects.equals(r1.courtId, r2.courtId);
+        }
+        // Fallback cũ
         return java.util.Objects.equals(r1.client, r2.client) &&
                 java.util.Objects.equals(r1.host, r2.host) &&
                 java.util.Objects.equals(r1.header, r2.header);
@@ -674,14 +702,18 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         long updated;
         boolean markedForRemoval = false; // Flag để đánh dấu Row cần xóa
         String gameScores = ""; // Điểm của các ván đã hoàn thành (format: "21:19,19:21")
+        String sid; // định danh phiên duy nhất để phân biệt nhiều sân
 
         String formatUpdated() {
             return new SimpleDateFormat("HH:mm:ss").format(new Date(updated));
         }
 
         String viewerKey() {
-            return (client == null ? "" : client) + "@" + (host == null ? "" : host) + ":"
-                    + (header == null ? "" : header);
+            // Bao gồm courtId và sid để đảm bảo key duy nhất cho mỗi sân/phiên
+            String cid = (courtId == null ? "" : courtId);
+            String s = (sid == null ? "" : sid);
+            return cid + "|" + s + "|" + (client == null ? "" : client) + "@" + (host == null ? "" : host)
+                    + ":" + (header == null ? "" : header);
         }
     }
 
