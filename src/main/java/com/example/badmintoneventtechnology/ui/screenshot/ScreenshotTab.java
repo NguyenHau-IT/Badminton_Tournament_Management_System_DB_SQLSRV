@@ -1,4 +1,4 @@
-package com.example.badmintoneventtechnology.ui.monitor;
+package com.example.badmintoneventtechnology.ui.screenshot;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
