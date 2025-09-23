@@ -3,15 +3,23 @@ package com.example.badmintoneventtechnology.ui.category;
 import java.awt.BorderLayout;
 import java.util.List;
 import java.util.Optional;
+import java.sql.SQLException;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JLabel;
 import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
+import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableRowSorter;
 import javax.swing.SwingConstants;
 
 import com.example.badmintoneventtechnology.model.category.NoiDung;
@@ -22,6 +30,10 @@ public class NoiDungManagementPanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
     private JButton btnAdd, btnEdit, btnDelete, btnRefresh;
+    private JComboBox<String> cmbColumn;
+    private JTextField txtFilter;
+    private TableRowSorter<DefaultTableModel> sorter;
+    private JLabel lblCount;
 
     public NoiDungManagementPanel(NoiDungService noiDungService) {
         this.noiDungService = noiDungService;
@@ -41,6 +53,10 @@ public class NoiDungManagementPanel extends JPanel {
         table = new JTable(tableModel);
         table.setRowSelectionAllowed(true);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        // Sorter for filtering
+        sorter = new TableRowSorter<>(tableModel);
+        table.setRowSorter(sorter);
 
         // Center align selected columns (ID, Tuổi dưới, Tuổi trên, Giới tính, Thể loại)
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
@@ -62,10 +78,43 @@ public class NoiDungManagementPanel extends JPanel {
         btnDelete = new JButton("Xóa");
         btnRefresh = new JButton("Làm mới");
 
+        // Filter controls: combo excludes ID column (index 0)
+        cmbColumn = new JComboBox<>();
+        for (int i = 1; i < tableModel.getColumnCount(); i++) {
+            cmbColumn.addItem(tableModel.getColumnName(i));
+        }
+        txtFilter = new JTextField(15);
+        lblCount = new JLabel("0/0");
+
         btnAdd.addActionListener(e -> showAddDialog());
         btnEdit.addActionListener(e -> showEditDialog());
         btnDelete.addActionListener(e -> deleteSelected());
         btnRefresh.addActionListener(e -> loadData());
+
+        // Only filter when text is entered; changing combo applies only if text exists
+        txtFilter.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+        });
+        cmbColumn.addActionListener(e -> {
+            if (!txtFilter.getText().trim().isEmpty()) {
+                updateFilter();
+            }
+            // even if no text, keep count accurate
+            updateCountLabel();
+        });
     }
 
     private void setupLayout() {
@@ -75,6 +124,10 @@ public class NoiDungManagementPanel extends JPanel {
         buttonPanel.add(btnEdit);
         buttonPanel.add(btnDelete);
         buttonPanel.add(btnRefresh);
+        buttonPanel.add(new JLabel("Lọc theo:"));
+        buttonPanel.add(cmbColumn);
+        buttonPanel.add(txtFilter);
+        buttonPanel.add(lblCount);
         add(buttonPanel, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);
     }
@@ -99,7 +152,8 @@ public class NoiDungManagementPanel extends JPanel {
                         teamText
                 });
             }
-        } catch (Exception e) {
+            updateCountLabel();
+        } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi tải dữ liệu: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -108,6 +162,7 @@ public class NoiDungManagementPanel extends JPanel {
         NoiDungDialog dialog = new NoiDungDialog(null, "Thêm nội dung", null, noiDungService);
         dialog.setVisible(true);
         loadData();
+        updateCountLabel();
     }
 
     private void showEditDialog() {
@@ -117,15 +172,17 @@ public class NoiDungManagementPanel extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-        Integer id = (Integer) tableModel.getValueAt(selectedRow, 0);
+        int modelRow = table.convertRowIndexToModel(selectedRow);
+        Integer id = (Integer) tableModel.getValueAt(modelRow, 0);
         try {
             Optional<NoiDung> ndOpt = noiDungService.getNoiDungById(id);
             if (ndOpt.isPresent()) {
                 NoiDungDialog dialog = new NoiDungDialog(null, "Sửa nội dung", ndOpt.get(), noiDungService);
                 dialog.setVisible(true);
                 loadData();
+                updateCountLabel();
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi lấy thông tin nội dung: " + e.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -138,7 +195,8 @@ public class NoiDungManagementPanel extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-        Integer id = (Integer) tableModel.getValueAt(selectedRow, 0);
+        int modelRow = table.convertRowIndexToModel(selectedRow);
+        Integer id = (Integer) tableModel.getValueAt(modelRow, 0);
         int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa nội dung này?", "Xác nhận xóa",
                 JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
@@ -148,13 +206,42 @@ public class NoiDungManagementPanel extends JPanel {
                     JOptionPane.showMessageDialog(this, "Xóa nội dung thành công!", "Thành công",
                             JOptionPane.INFORMATION_MESSAGE);
                     loadData();
+                    updateCountLabel();
                 } else {
                     JOptionPane.showMessageDialog(this, "Không thể xóa nội dung", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 }
-            } catch (Exception e) {
+            } catch (SQLException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi khi xóa nội dung: " + e.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    private void updateFilter() {
+        String text = txtFilter.getText();
+        if (text == null || text.trim().isEmpty()) {
+            sorter.setRowFilter(null);
+            return;
+        }
+        int selected = cmbColumn.getSelectedIndex();
+        if (selected < 0) {
+            sorter.setRowFilter(null);
+            return;
+        }
+        int modelColumn = selected + 1; // skip ID column
+        try {
+            String pattern = java.util.regex.Pattern.quote(text.trim());
+            RowFilter<DefaultTableModel, Integer> rf = RowFilter.regexFilter("(?i)" + pattern, modelColumn);
+            sorter.setRowFilter(rf);
+        } catch (Exception ex) {
+            sorter.setRowFilter(null);
+        }
+        updateCountLabel();
+    }
+
+    private void updateCountLabel() {
+        int visible = table.getRowCount(); // after sorter/filter applied
+        int total = tableModel.getRowCount();
+        lblCount.setText(visible + "/" + total + " nội dung");
     }
 }
