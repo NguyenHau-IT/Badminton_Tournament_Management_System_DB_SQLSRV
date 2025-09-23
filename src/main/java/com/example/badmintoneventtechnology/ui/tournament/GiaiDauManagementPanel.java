@@ -41,7 +41,8 @@ public class GiaiDauManagementPanel extends JPanel {
 
     private void initializeComponents() {
         // Table
-        String[] columnNames = { "Tên Giải", "Ngày Bắt Đầu", "Ngày Kết Thúc", "Trạng Thái" };
+        // Thêm cột ID ẩn để thao tác CRUD dễ dàng
+        String[] columnNames = { "ID", "Tên Giải", "Ngày Bắt Đầu", "Ngày Kết Thúc", "Trạng Thái" };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -51,6 +52,12 @@ public class GiaiDauManagementPanel extends JPanel {
         giaiDauTable = new JTable(tableModel);
         giaiDauTable.setRowSelectionAllowed(true);
         giaiDauTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        // Ẩn cột ID
+        if (giaiDauTable.getColumnModel().getColumnCount() > 0) {
+            giaiDauTable.getColumnModel().getColumn(0).setMinWidth(0);
+            giaiDauTable.getColumnModel().getColumn(0).setMaxWidth(0);
+            giaiDauTable.getColumnModel().getColumn(0).setPreferredWidth(0);
+        }
 
         // Search và Filter
         searchField = new JTextField(20);
@@ -148,6 +155,7 @@ public class GiaiDauManagementPanel extends JPanel {
                 ngayKtStr = formatter.format(date);
             }
             Object[] row = {
+                    giaiDau.getId(),
                     giaiDau.getTenGiai(),
                     ngayBdStr,
                     ngayKtStr,
@@ -182,8 +190,8 @@ public class GiaiDauManagementPanel extends JPanel {
                     "Thông báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
-
-        Object idObj = tableModel.getValueAt(selectedRow, 0);
+        int modelRow = giaiDauTable.convertRowIndexToModel(selectedRow);
+        Object idObj = tableModel.getValueAt(modelRow, 0);
         Integer id;
         if (idObj instanceof Integer) {
             id = (Integer) idObj;
@@ -214,8 +222,8 @@ public class GiaiDauManagementPanel extends JPanel {
                     "Thông báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
-
-        Object idObj = tableModel.getValueAt(selectedRow, 0);
+        int modelRow = giaiDauTable.convertRowIndexToModel(selectedRow);
+        Object idObj = tableModel.getValueAt(modelRow, 0);
         Integer id;
         if (idObj instanceof Integer) {
             id = (Integer) idObj;
@@ -224,7 +232,7 @@ public class GiaiDauManagementPanel extends JPanel {
         } else {
             throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
         }
-        String tenGiai = (String) tableModel.getValueAt(selectedRow, 1);
+        String tenGiai = (String) tableModel.getValueAt(modelRow, 1);
 
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc muốn xóa giải đấu \"" + tenGiai + "\"?",
@@ -305,8 +313,9 @@ public class GiaiDauManagementPanel extends JPanel {
         if (selectedRow == -1) {
             return null;
         }
-
-        Object idObj = tableModel.getValueAt(selectedRow, 0);
+        // Chuyển chỉ số dòng từ view sang model để đảm bảo đúng khi sort/filter
+        int modelRow = giaiDauTable.convertRowIndexToModel(selectedRow);
+        Object idObj = tableModel.getValueAt(modelRow, 0);
         Integer id;
         if (idObj instanceof Integer) {
             id = (Integer) idObj;

@@ -49,7 +49,7 @@ public class GiaiDauSelectPanel extends JPanel {
                     boolean cellHasFocus) {
                 Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof GiaiDau gd) {
-                    setText(gd.getTenGiai() + " (ID: " + gd.getId() + ")");
+                    setText(gd.getTenGiai());
                 }
                 return c;
             }
