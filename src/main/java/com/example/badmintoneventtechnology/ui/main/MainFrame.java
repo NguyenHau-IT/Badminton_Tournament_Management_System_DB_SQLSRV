@@ -68,6 +68,7 @@ public class MainFrame extends JFrame {
     private CauLacBoManagementPanel cauLacBoPanel;
     private DangKyNoiDungPanel dangKyNoiDungPanel;
     private VanDongVienManagementPanel vanDongVienPanel;
+    private com.example.badmintoneventtechnology.ui.team.DangKyDoiPanel dangKyDoiPanel;
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
@@ -148,6 +149,7 @@ public class MainFrame extends JFrame {
                 ensureTabPresent("Câu lạc bộ", cauLacBoPanel, null);
                 ensureTabPresent("Vận động viên", vanDongVienPanel, null);
                 ensureTabPresent("Đăng ký nội dung", dangKyNoiDungPanel, null);
+                ensureTabPresent("Đăng ký đội", dangKyDoiPanel, null);
                 ensureTabPresent("Thi đấu", multiCourtPanel, icMultiCourt);
                 ensureTabPresent("Giám sát", monitorTab, icMonitor);
                 ensureTabPresent("Kết quả đã thi đấu", screenshotTab, icScreenshot);
@@ -458,6 +460,8 @@ public class MainFrame extends JFrame {
                                 chiTietService,
                                 new com.example.badmintoneventtechnology.config.Prefs(),
                                 tournamentTabPanel.getGiaiDauService());
+                        // Đăng ký đội (đôi)
+                        dangKyDoiPanel = new com.example.badmintoneventtechnology.ui.team.DangKyDoiPanel(conn);
                         giaiDauSelectPanel = new GiaiDauSelectPanel(tournamentTabPanel.getGiaiDauService());
 
                         updateAuthService(conn);
