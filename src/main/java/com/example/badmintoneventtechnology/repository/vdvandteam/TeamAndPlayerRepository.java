@@ -55,7 +55,7 @@ public class TeamAndPlayerRepository {
     /** Tương thích ngược, nếu code cũ vẫn gọi bằng KNR. */
     @Deprecated
     public Map<String, Integer> loadSinglesNamesByKnr(int knrAsKatnr, int vernr) {
-        return loadSinglesNamesByKatnr(knrAsKatnr, vernr);
+        return loadSinglesNames(knrAsKatnr, vernr);
     }
 
     /** Danh sách đội theo KNR (bảng NENNUNGENTEAM). */
