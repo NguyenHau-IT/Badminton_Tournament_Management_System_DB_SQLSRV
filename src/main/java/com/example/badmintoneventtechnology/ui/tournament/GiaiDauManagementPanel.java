@@ -193,7 +193,7 @@ public class GiaiDauManagementPanel extends JPanel {
             throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
         }
         try {
-            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.longValue());
+            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.intValue());
             if (giaiDauOpt.isPresent()) {
                 java.awt.Window parent = javax.swing.SwingUtilities.getWindowAncestor(this);
                 GiaiDauDialog dialog = new GiaiDauDialog(parent,
@@ -316,7 +316,7 @@ public class GiaiDauManagementPanel extends JPanel {
             throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
         }
         try {
-            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.longValue());
+            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.intValue());
             return giaiDauOpt.orElse(null);
         } catch (Exception e) {
             return null;

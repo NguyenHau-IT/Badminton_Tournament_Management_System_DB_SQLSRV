@@ -79,11 +79,11 @@ public class GiaiDauRepository {
     }
 
     /** Lấy giải đấu theo ID (READ - By ID) */
-    public Optional<GiaiDau> findById(Long id) throws SQLException {
+    public Optional<GiaiDau> findById(Integer id) throws SQLException {
         String sql = "SELECT * FROM GIAI_DAU WHERE ID = ?";
 
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setLong(1, id);
+            pstmt.setInt(1, id);
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {

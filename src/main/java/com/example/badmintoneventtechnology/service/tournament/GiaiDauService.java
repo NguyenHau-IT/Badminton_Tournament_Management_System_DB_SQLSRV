@@ -80,7 +80,7 @@ public class GiaiDauService {
     /**
      * Lấy giải đấu theo ID
      */
-    public Optional<GiaiDau> getGiaiDauById(Long id) throws SQLException {
+    public Optional<GiaiDau> getGiaiDauById(Integer id) throws SQLException {
         ensureRepository();
         return repository.findById(id);
     }

@@ -128,6 +128,7 @@ public class GiaiDauSelectPanel extends JPanel {
         }
         Prefs prefs = new Prefs();
         prefs.putInt("selectedGiaiDauId", selectedGiaiDau.getId());
+        prefs.put("selectedGiaiDauName", selectedGiaiDau.getTenGiai());
         JOptionPane.showMessageDialog(this, "Đã chọn giải đấu: " + selectedGiaiDau.getTenGiai(), "Thông báo",
                 JOptionPane.INFORMATION_MESSAGE);
         return true;

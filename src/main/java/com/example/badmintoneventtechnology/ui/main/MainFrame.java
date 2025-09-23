@@ -31,14 +31,17 @@ import com.example.badmintoneventtechnology.config.ConnectionConfig;
 import com.example.badmintoneventtechnology.model.db.SQLSRVConnectionManager;
 import com.example.badmintoneventtechnology.repository.category.NoiDungRepository;
 import com.example.badmintoneventtechnology.repository.cateoftuornament.ChiTietGiaiDauRepository;
+import com.example.badmintoneventtechnology.repository.club.CauLacBoRepository;
 import com.example.badmintoneventtechnology.service.auth.AuthService;
 import com.example.badmintoneventtechnology.service.category.NoiDungService;
 import com.example.badmintoneventtechnology.service.cateoftuornament.ChiTietGiaiDauService;
+import com.example.badmintoneventtechnology.service.club.CauLacBoService;
 import com.example.badmintoneventtechnology.service.db.DatabaseService;
 import com.example.badmintoneventtechnology.ui.auth.LoginTab;
 import com.example.badmintoneventtechnology.ui.auth.LoginTab.Role;
 import com.example.badmintoneventtechnology.ui.category.NoiDungManagementPanel;
 import com.example.badmintoneventtechnology.ui.cateoftuornament.DangKyNoiDungPanel;
+import com.example.badmintoneventtechnology.ui.club.CauLacBoManagementPanel;
 import com.example.badmintoneventtechnology.ui.control.BadmintonControlPanel;
 import com.example.badmintoneventtechnology.ui.control.MultiCourtControlPanel;
 import com.example.badmintoneventtechnology.ui.log.LogTab;
@@ -59,6 +62,7 @@ public class MainFrame extends JFrame {
     // Tạo sau khi có Connection
     private NoiDungService noiDungService;
     private NoiDungManagementPanel noiDungPanel;
+    private CauLacBoManagementPanel cauLacBoPanel;
     private DangKyNoiDungPanel dangKyNoiDungPanel;
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
@@ -137,6 +141,7 @@ public class MainFrame extends JFrame {
                 ensureTabPresent("Chọn giải đấu", giaiDauSelectPanel, null);
                 ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
                 ensureTabPresent("Nội dung", noiDungPanel, null);
+                ensureTabPresent("Câu lạc bộ", cauLacBoPanel, null);
                 ensureTabPresent("Đăng ký nội dung", dangKyNoiDungPanel, null);
                 ensureTabPresent("Thi đấu", multiCourtPanel, icMultiCourt);
                 ensureTabPresent("Giám sát", monitorTab, icMonitor);
@@ -434,13 +439,17 @@ public class MainFrame extends JFrame {
 
                         noiDungService = new NoiDungService(new NoiDungRepository(conn));
                         noiDungPanel = new NoiDungManagementPanel(noiDungService);
+                        // CLB
+                        CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
+                        cauLacBoPanel = new CauLacBoManagementPanel(clbService);
                         // Panel đăng ký nội dung theo giải chọn trong Prefs
                         ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(
                                 new ChiTietGiaiDauRepository(conn));
                         dangKyNoiDungPanel = new DangKyNoiDungPanel(
                                 noiDungService,
                                 chiTietService,
-                                new com.example.badmintoneventtechnology.config.Prefs());
+                                new com.example.badmintoneventtechnology.config.Prefs(),
+                                tournamentTabPanel.getGiaiDauService());
                         giaiDauSelectPanel = new GiaiDauSelectPanel(tournamentTabPanel.getGiaiDauService());
 
                         updateAuthService(conn);
