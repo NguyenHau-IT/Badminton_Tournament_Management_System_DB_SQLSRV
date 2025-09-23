@@ -30,12 +30,15 @@ import javax.swing.border.EmptyBorder;
 import com.example.badmintoneventtechnology.config.ConnectionConfig;
 import com.example.badmintoneventtechnology.model.db.SQLSRVConnectionManager;
 import com.example.badmintoneventtechnology.repository.category.NoiDungRepository;
+import com.example.badmintoneventtechnology.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.badmintoneventtechnology.service.auth.AuthService;
 import com.example.badmintoneventtechnology.service.category.NoiDungService;
+import com.example.badmintoneventtechnology.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.badmintoneventtechnology.service.db.DatabaseService;
 import com.example.badmintoneventtechnology.ui.auth.LoginTab;
 import com.example.badmintoneventtechnology.ui.auth.LoginTab.Role;
 import com.example.badmintoneventtechnology.ui.category.NoiDungManagementPanel;
+import com.example.badmintoneventtechnology.ui.cateoftuornament.DangKyNoiDungPanel;
 import com.example.badmintoneventtechnology.ui.control.BadmintonControlPanel;
 import com.example.badmintoneventtechnology.ui.control.MultiCourtControlPanel;
 import com.example.badmintoneventtechnology.ui.log.LogTab;
@@ -56,6 +59,7 @@ public class MainFrame extends JFrame {
     // Tạo sau khi có Connection
     private NoiDungService noiDungService;
     private NoiDungManagementPanel noiDungPanel;
+    private DangKyNoiDungPanel dangKyNoiDungPanel;
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
@@ -84,7 +88,6 @@ public class MainFrame extends JFrame {
     private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
 
     // Icons
-    private final Icon icScore = loadIcon("/icons/scoreboard.svg", 20);
     private final Icon icMonitor = loadIcon("/icons/monitor.svg", 20);
     private final Icon icScreenshot = loadIcon("/icons/camera.svg", 20);
     private final Icon icLog = loadIcon("/icons/file-text.svg", 20);
@@ -134,6 +137,7 @@ public class MainFrame extends JFrame {
                 ensureTabPresent("Chọn giải đấu", giaiDauSelectPanel, null);
                 ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
                 ensureTabPresent("Nội dung", noiDungPanel, null);
+                ensureTabPresent("Đăng ký nội dung", dangKyNoiDungPanel, null);
                 ensureTabPresent("Thi đấu", multiCourtPanel, icMultiCourt);
                 ensureTabPresent("Giám sát", monitorTab, icMonitor);
                 ensureTabPresent("Kết quả đã thi đấu", screenshotTab, icScreenshot);
@@ -430,6 +434,13 @@ public class MainFrame extends JFrame {
 
                         noiDungService = new NoiDungService(new NoiDungRepository(conn));
                         noiDungPanel = new NoiDungManagementPanel(noiDungService);
+                        // Panel đăng ký nội dung theo giải chọn trong Prefs
+                        ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(
+                                new ChiTietGiaiDauRepository(conn));
+                        dangKyNoiDungPanel = new DangKyNoiDungPanel(
+                                noiDungService,
+                                chiTietService,
+                                new com.example.badmintoneventtechnology.config.Prefs());
                         giaiDauSelectPanel = new GiaiDauSelectPanel(tournamentTabPanel.getGiaiDauService());
 
                         updateAuthService(conn);

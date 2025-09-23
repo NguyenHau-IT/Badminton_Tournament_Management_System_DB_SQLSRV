@@ -25,7 +25,7 @@ public class CategoryRepository {
         if (conn == null)
             return new Map[] { singles, doubles };
 
-        int vernr = new Prefs().getInt("selectedTournamentVernr", -1);
+        int vernr = new Prefs().getInt("selectedGiaiDauId", -1);
         if (vernr < 0)
             return new Map[] { singles, doubles };
 
