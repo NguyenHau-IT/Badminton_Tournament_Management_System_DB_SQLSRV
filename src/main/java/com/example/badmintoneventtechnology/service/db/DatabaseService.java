@@ -4,7 +4,7 @@ package com.example.badmintoneventtechnology.service.db;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-import com.example.badmintoneventtechnology.model.db.ConnectionConfig;
+import com.example.badmintoneventtechnology.config.ConnectionConfig;
 import com.example.badmintoneventtechnology.model.db.SQLSRVConnectionManager;
 import com.example.badmintoneventtechnology.model.system.ServerInfo;
 import com.example.badmintoneventtechnology.model.system.SettingsDetector;

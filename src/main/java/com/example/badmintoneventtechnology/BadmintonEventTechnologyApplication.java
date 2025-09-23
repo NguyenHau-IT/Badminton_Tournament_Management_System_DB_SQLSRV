@@ -11,7 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
-import com.example.badmintoneventtechnology.config.DatabaseConfig;
+import com.example.badmintoneventtechnology.config.ConnectionConfig;
 import com.example.badmintoneventtechnology.ui.main.MainFrame;
 import com.example.badmintoneventtechnology.ui.net.NetworkChooserDialog;
 import com.example.badmintoneventtechnology.ui.net.NetworkConfig;
@@ -23,7 +23,7 @@ public class BadmintonEventTechnologyApplication {
 	private static final AtomicBoolean UI_STARTED = new AtomicBoolean(false);
 
 	@Autowired
-	private DatabaseConfig databaseConfig;
+	private ConnectionConfig dbCfg;
 
 	public static void main(String[] args) {
 		// Tắt headless để cho phép mở Swing UI
@@ -52,7 +52,7 @@ public class BadmintonEventTechnologyApplication {
 				// continues.
 				return;
 			}
-			MainFrame mf = new MainFrame(cfg, databaseConfig);
+			MainFrame mf = new MainFrame(cfg, dbCfg);
 			IconUtil.applyTo(mf);
 			mf.setVisible(true);
 		});
