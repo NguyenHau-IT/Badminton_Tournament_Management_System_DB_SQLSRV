@@ -33,7 +33,7 @@ public class VanDongVienDialog extends JDialog {
 
     private final JTextField hoTenField = new JTextField(28);
     private final JDateChooser ngaySinhChooser = new JDateChooser();
-    private final JComboBox<String> gioiTinhCombo = new JComboBox<>(new String[] { "M - Nam", "F - Nữ", "O - Khác" });
+    private final JComboBox<String> gioiTinhCombo = new JComboBox<>(new String[] { "m - Nam", "f - Nữ" });
     private final JComboBox<Object> clbCombo = new JComboBox<>(); // chứa item là CLB hoặc "— Không —"
 
     public VanDongVienDialog(Window parent, String title, VanDongVien vdv,
@@ -53,12 +53,27 @@ public class VanDongVienDialog extends JDialog {
         try {
             List<CauLacBo> clubs = clbService.findAll();
             for (CauLacBo c : clubs) {
-                clbCombo.addItem(c);
+                if (c != null) {
+                    clbCombo.addItem(c);
+                }
             }
         } catch (Exception ex) {
             // Không chặn UI; chỉ cảnh báo
             System.err.println("Không thể tải danh sách CLB: " + ex.getMessage());
         }
+        // Hiển thị tên CLB trong dropdown
+        clbCombo.setRenderer(new javax.swing.DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(javax.swing.JList<?> list, Object value, int index,
+                    boolean isSelected, boolean cellHasFocus) {
+                java.awt.Component comp = super.getListCellRendererComponent(list, value, index, isSelected,
+                        cellHasFocus);
+                if (value instanceof CauLacBo c) {
+                    setText(c.getTenClb() != null ? c.getTenClb() : "(Không tên)");
+                }
+                return comp;
+            }
+        });
 
         JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
         form.add(new JLabel("Họ tên:"));
@@ -90,10 +105,10 @@ public class VanDongVienDialog extends JDialog {
             // set gender selection
             String gt = original.getGioiTinh();
             if (gt != null) {
-                String up = gt.toUpperCase();
-                if (up.equals("M")) gioiTinhCombo.setSelectedIndex(0);
-                else if (up.equals("F")) gioiTinhCombo.setSelectedIndex(1);
-                else gioiTinhCombo.setSelectedIndex(2);
+                if (gt.equalsIgnoreCase("m"))
+                    gioiTinhCombo.setSelectedIndex(0);
+                else if (gt.equalsIgnoreCase("f"))
+                    gioiTinhCombo.setSelectedIndex(1);
             }
             // set club selection
             Integer clbId = original.getIdClb();
@@ -116,6 +131,12 @@ public class VanDongVienDialog extends JDialog {
 
     private void onSave() {
         String hoTen = hoTenField.getText() != null ? hoTenField.getText().trim() : "";
+        if (hoTen.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập họ tên.", "Thiếu thông tin",
+                    JOptionPane.WARNING_MESSAGE);
+            hoTenField.requestFocus();
+            return;
+        }
         Date utilDate = ngaySinhChooser.getDate();
         LocalDate ngaySinh = (utilDate != null)
                 ? utilDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
@@ -123,9 +144,9 @@ public class VanDongVienDialog extends JDialog {
         String gioiTinh;
         int idxGt = gioiTinhCombo.getSelectedIndex();
         gioiTinh = switch (idxGt) {
-            case 0 -> "M";
-            case 1 -> "F";
-            default -> "";
+            case 0 -> "m";
+            case 1 -> "f";
+            default -> null;
         };
         Integer idClb = null;
         Object clbSel = clbCombo.getSelectedItem();
