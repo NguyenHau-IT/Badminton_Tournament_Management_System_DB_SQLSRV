@@ -4,12 +4,18 @@ import java.awt.BorderLayout;
 import java.util.List;
 
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
+import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 
 import com.example.badmintoneventtechnology.model.club.CauLacBo;
 import com.example.badmintoneventtechnology.service.club.CauLacBoService;
@@ -20,6 +26,9 @@ public class CauLacBoManagementPanel extends JPanel {
     private JTable table;
     private DefaultTableModel model;
     private JButton btnAdd, btnEdit, btnDelete, btnRefresh;
+    private JTextField txtSearch;
+    private JLabel lblCount;
+    private TableRowSorter<DefaultTableModel> sorter;
 
     public CauLacBoManagementPanel(CauLacBoService service) {
         this.service = service;
@@ -39,20 +48,48 @@ public class CauLacBoManagementPanel extends JPanel {
         table.setRowSelectionAllowed(true);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        // Sorter + filter
+        sorter = new TableRowSorter<>(model);
+        table.setRowSorter(sorter);
+
         btnAdd = new JButton("Thêm mới");
         btnEdit = new JButton("Sửa");
         btnDelete = new JButton("Xóa");
         btnRefresh = new JButton("Làm mới");
 
+        txtSearch = new JTextField(15);
+        lblCount = new JLabel("0/0");
+
         btnAdd.addActionListener(e -> onAdd());
         btnEdit.addActionListener(e -> onEdit());
         btnDelete.addActionListener(e -> onDelete());
         btnRefresh.addActionListener(e -> reload());
+
+        // Filter as you type across Tên CLB (col 1) and Tên ngắn (col 2)
+        txtSearch.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+        });
     }
 
     private void layoutUi() {
         setLayout(new BorderLayout(10, 10));
         JPanel top = new JPanel();
+        top.add(new JLabel("Tìm:"));
+        top.add(txtSearch);
+        top.add(lblCount);
         top.add(btnAdd);
         top.add(btnEdit);
         top.add(btnDelete);
@@ -68,6 +105,8 @@ public class CauLacBoManagementPanel extends JPanel {
             for (CauLacBo c : list) {
                 model.addRow(new Object[] { c.getId(), c.getTenClb(), c.getTenNgan() });
             }
+            // re-apply filter and update counts after reload
+            updateFilter();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải danh sách: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -78,6 +117,7 @@ public class CauLacBoManagementPanel extends JPanel {
         CauLacBoDialog dialog = new CauLacBoDialog(null, "Thêm CLB", null, service);
         dialog.setVisible(true);
         reload();
+        updateCountLabel();
     }
 
     private void onEdit() {
@@ -87,13 +127,15 @@ public class CauLacBoManagementPanel extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-        Integer id = (Integer) model.getValueAt(row, 0);
+        int modelRow = table.convertRowIndexToModel(row);
+        Integer id = (Integer) model.getValueAt(modelRow, 0);
         try {
             CauLacBo current = service.findOne(id);
             CauLacBoDialog dialog = new CauLacBoDialog(null, "Sửa CLB", current, service);
             dialog.setVisible(true);
             reload();
-        } catch (Exception ex) {
+            updateCountLabel();
+        } catch (IllegalArgumentException | IllegalStateException | java.util.NoSuchElementException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi lấy thông tin: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -106,7 +148,8 @@ public class CauLacBoManagementPanel extends JPanel {
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
-        Integer id = (Integer) model.getValueAt(row, 0);
+        int modelRow = table.convertRowIndexToModel(row);
+        Integer id = (Integer) model.getValueAt(modelRow, 0);
         int confirm = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa CLB này?", "Xác nhận",
                 JOptionPane.YES_NO_OPTION);
         if (confirm != JOptionPane.YES_OPTION)
@@ -116,9 +159,30 @@ public class CauLacBoManagementPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Đã xóa CLB", "Thành công",
                     JOptionPane.INFORMATION_MESSAGE);
             reload();
+            updateCountLabel();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Xóa thất bại: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void updateFilter() {
+        String q = txtSearch.getText();
+        if (q == null || q.trim().isEmpty()) {
+            sorter.setRowFilter(null);
+            updateCountLabel();
+            return;
+        }
+        String pattern = java.util.regex.Pattern.quote(q.trim());
+        RowFilter<DefaultTableModel, Integer> f1 = RowFilter.regexFilter("(?i)" + pattern, 1);
+        RowFilter<DefaultTableModel, Integer> f2 = RowFilter.regexFilter("(?i)" + pattern, 2);
+        sorter.setRowFilter(RowFilter.orFilter(java.util.List.of(f1, f2)));
+        updateCountLabel();
+    }
+
+    private void updateCountLabel() {
+        int visible = table.getRowCount();
+        int total = model.getRowCount();
+        lblCount.setText(visible + "/" + total + " câu lạc bộ");
     }
 }

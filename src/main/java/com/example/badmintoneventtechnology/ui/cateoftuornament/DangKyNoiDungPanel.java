@@ -87,15 +87,22 @@ public class DangKyNoiDungPanel extends JPanel {
 
         setLayout(new BorderLayout(8, 8));
 
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        top.add(lblGiaiInfo);
-        top.add(btnRefresh);
-        top.add(new JLabel("Tìm kiếm:"));
-        top.add(txtSearch);
-        top.add(lblCount);
-        top.add(btnShowAll);
-        top.add(btnAdd);
-        top.add(btnEdit);
+        // Khu vực tiêu đề và điều khiển: tách thành 2 hàng
+        JPanel top = new JPanel(new BorderLayout(0, 4));
+        JPanel infoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        infoRow.add(lblGiaiInfo); // Hàng riêng cho thông tin giải
+
+        JPanel controlRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        controlRow.add(btnRefresh);
+        controlRow.add(new JLabel("Tìm kiếm:"));
+        controlRow.add(txtSearch);
+        controlRow.add(lblCount);
+        controlRow.add(btnShowAll);
+        controlRow.add(btnAdd);
+        controlRow.add(btnEdit);
+
+        top.add(infoRow, BorderLayout.NORTH);
+        top.add(controlRow, BorderLayout.CENTER);
         add(top, BorderLayout.NORTH);
 
         add(new JScrollPane(table), BorderLayout.CENTER);

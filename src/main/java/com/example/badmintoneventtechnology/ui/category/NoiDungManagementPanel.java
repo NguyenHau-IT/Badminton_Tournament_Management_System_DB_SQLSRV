@@ -120,14 +120,14 @@ public class NoiDungManagementPanel extends JPanel {
     private void setupLayout() {
         setLayout(new BorderLayout(10, 10));
         JPanel buttonPanel = new JPanel();
-        buttonPanel.add(btnAdd);
-        buttonPanel.add(btnEdit);
-        buttonPanel.add(btnDelete);
-        buttonPanel.add(btnRefresh);
         buttonPanel.add(new JLabel("Lọc theo:"));
         buttonPanel.add(cmbColumn);
         buttonPanel.add(txtFilter);
         buttonPanel.add(lblCount);
+        buttonPanel.add(btnAdd);
+        buttonPanel.add(btnEdit);
+        buttonPanel.add(btnDelete);
+        buttonPanel.add(btnRefresh);
         add(buttonPanel, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);
     }
