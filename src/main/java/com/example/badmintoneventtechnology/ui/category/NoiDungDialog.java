@@ -15,6 +15,10 @@ public class NoiDungDialog extends JDialog {
     private JCheckBox teamCheckBox;
     private JButton btnSave, btnCancel;
 
+    // Lưu trạng thái sau khi bấm lưu để caller có thể xử lý tiếp
+    private boolean saved = false;
+    private NoiDung resultNoiDung = null;
+
     public NoiDungDialog(Window parent, String title, NoiDung noiDung, NoiDungService noiDungService) {
         super(parent, title, ModalityType.APPLICATION_MODAL);
         this.noiDungService = noiDungService;
@@ -129,6 +133,8 @@ public class NoiDungDialog extends JDialog {
                 originalNoiDung.setTeam(team);
                 boolean updated = noiDungService.updateNoiDung(originalNoiDung);
                 if (updated) {
+                    saved = true;
+                    resultNoiDung = originalNoiDung;
                     JOptionPane.showMessageDialog(this, "Cập nhật nội dung thành công!", "Thành công",
                             JOptionPane.INFORMATION_MESSAGE);
                     dispose();
@@ -138,7 +144,11 @@ public class NoiDungDialog extends JDialog {
                 }
             } else {
                 NoiDung newNoiDung = new NoiDung(null, tenNoiDung, tuoiDuoi, tuoiTren, gioiTinh, team);
-                noiDungService.createNoiDung(newNoiDung);
+                NoiDung created = noiDungService.createNoiDung(newNoiDung);
+                if (created != null) {
+                    saved = true;
+                    resultNoiDung = created;
+                }
                 JOptionPane.showMessageDialog(this, "Thêm nội dung thành công!", "Thành công",
                         JOptionPane.INFORMATION_MESSAGE);
                 dispose();
@@ -146,5 +156,13 @@ public class NoiDungDialog extends JDialog {
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Lỗi: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public boolean isSaved() {
+        return saved;
+    }
+
+    public NoiDung getResultNoiDung() {
+        return resultNoiDung;
     }
 }
