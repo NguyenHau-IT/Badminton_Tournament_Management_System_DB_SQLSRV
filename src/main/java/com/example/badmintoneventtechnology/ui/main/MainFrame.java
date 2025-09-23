@@ -33,6 +33,9 @@ import com.example.badmintoneventtechnology.repository.category.NoiDungRepositor
 import com.example.badmintoneventtechnology.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.badmintoneventtechnology.repository.club.CauLacBoRepository;
 import com.example.badmintoneventtechnology.service.auth.AuthService;
+import com.example.badmintoneventtechnology.repository.player.VanDongVienRepository;
+import com.example.badmintoneventtechnology.service.player.VanDongVienService;
+import com.example.badmintoneventtechnology.ui.player.VanDongVienManagementPanel;
 import com.example.badmintoneventtechnology.service.category.NoiDungService;
 import com.example.badmintoneventtechnology.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.badmintoneventtechnology.service.club.CauLacBoService;
@@ -64,6 +67,7 @@ public class MainFrame extends JFrame {
     private NoiDungManagementPanel noiDungPanel;
     private CauLacBoManagementPanel cauLacBoPanel;
     private DangKyNoiDungPanel dangKyNoiDungPanel;
+    private VanDongVienManagementPanel vanDongVienPanel;
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
@@ -142,6 +146,7 @@ public class MainFrame extends JFrame {
                 ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
                 ensureTabPresent("Nội dung", noiDungPanel, null);
                 ensureTabPresent("Câu lạc bộ", cauLacBoPanel, null);
+                ensureTabPresent("Vận động viên", vanDongVienPanel, null);
                 ensureTabPresent("Đăng ký nội dung", dangKyNoiDungPanel, null);
                 ensureTabPresent("Thi đấu", multiCourtPanel, icMultiCourt);
                 ensureTabPresent("Giám sát", monitorTab, icMonitor);
@@ -442,6 +447,9 @@ public class MainFrame extends JFrame {
                         // CLB
                         CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
                         cauLacBoPanel = new CauLacBoManagementPanel(clbService);
+                        // Vận động viên
+                        VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
+                        vanDongVienPanel = new VanDongVienManagementPanel(vdvService, clbService);
                         // Panel đăng ký nội dung theo giải chọn trong Prefs
                         ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(
                                 new ChiTietGiaiDauRepository(conn));
