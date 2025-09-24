@@ -11,114 +11,94 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 
-import javax.swing.BoxLayout;
-import javax.swing.DefaultListModel;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.ListCellRenderer;
-import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
-/** Panel chọn Network Interface – hiện đại & gọn. */
+/**
+ * Panel chọn Network Interface – phiên bản gọn: dùng JComboBox thay vì JList
+ */
 public class NetworkChooserPanel extends JPanel {
 
-    private final DefaultListModel<NifItem> model = new DefaultListModel<>();
-    private final JList<NifItem> list = new JList<>(model);
-    private final JTextField search = new JTextField(16);
+    private final DefaultComboBoxModel<NifItem> model = new DefaultComboBoxModel<>();
+    private final JComboBox<NifItem> combo = new JComboBox<>(model);
+    private final JTextField search = new JTextField(14);
     private final List<NifItem> allItems = new ArrayList<>();
 
     public NetworkChooserPanel() {
-        super(new BorderLayout(12, 12));
+        super(new BorderLayout(10, 10));
         setOpaque(true);
-        setBorder(new EmptyBorder(12, 12, 12, 12));
+        setBorder(new EmptyBorder(10, 10, 10, 10));
         putClientProperty("FlatLaf.style", "background:@background");
 
-        // ===== Header =====
-        JPanel header = new JPanel(new BorderLayout(10, 0));
+        // ===== Header gọn =====
+        JPanel header = new JPanel(new BorderLayout(6, 0));
         header.setOpaque(false);
-
-        JLabel title = new JLabel("Network Interfaces");
-        title.putClientProperty("FlatLaf.style", "font:+2; font.bold:true");
-
-        // icon tiêu đề (tùy: có thể bỏ)
+        JLabel title = new JLabel("Network Interface");
+        title.putClientProperty("FlatLaf.style", "font: bold +1");
         try {
-            title.setIcon(new FlatSVGIcon("icons/monitor.svg", 22, 22));
-        } catch (Exception ignored) {
+            title.setIcon(new FlatSVGIcon("icons/monitor.svg", 20, 20));
+        } catch (Exception ignore) {
         }
+        header.add(title, BorderLayout.WEST);
 
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         right.setOpaque(false);
-
-        search.putClientProperty("JTextField.placeholderText", "Tìm theo tên…");
-        search.putClientProperty("FlatLaf.style", "arc:12; margin:4,8,4,8; minimumWidth:220");
+        search.putClientProperty("JTextField.placeholderText", "Lọc…");
         search.addCaretListener(e -> applyFilter(search.getText().trim()));
-
         JButton btnClear = new JButton();
         btnClear.putClientProperty("JButton.buttonType", "toolBar");
-        btnClear.putClientProperty("FlatLaf.style", "arc:12; margin:4,8,4,8;");
-        btnClear.setToolTipText("Xóa ô tìm");
+        btnClear.setToolTipText("Xóa lọc");
         try {
-            btnClear.setIcon(new FlatSVGIcon("icons/x.svg", 18, 18));
-        } catch (Exception ignored) {
+            btnClear.setIcon(new FlatSVGIcon("icons/x.svg", 16, 16));
+        } catch (Exception ignore) {
         }
         btnClear.addActionListener(e -> {
             search.setText("");
             applyFilter("");
         });
-
-        JButton btnRefresh = new JButton("Làm mới");
+        JButton btnRefresh = new JButton();
         btnRefresh.putClientProperty("JButton.buttonType", "toolBar");
-        btnRefresh.putClientProperty("FlatLaf.style", "arc:12; margin:4,12,4,12;");
+        btnRefresh.setToolTipText("Tải lại");
         try {
-            btnRefresh.setIcon(new FlatSVGIcon("icons/refresh.svg", 18, 18));
-        } catch (Exception ignored) {
+            btnRefresh.setIcon(new FlatSVGIcon("icons/refresh.svg", 16, 16));
+        } catch (Exception ignore) {
         }
         btnRefresh.addActionListener(e -> refreshInterfaces());
-
         right.add(search);
         right.add(btnClear);
         right.add(btnRefresh);
-
-        header.add(title, BorderLayout.WEST);
         header.add(right, BorderLayout.EAST);
-
         add(header, BorderLayout.NORTH);
 
-        // ===== List (renderer 2 dòng + badge) =====
-        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setVisibleRowCount(12);
-        list.setCellRenderer(new NifItemRenderer());
-        JScrollPane sc = new JScrollPane(list);
-        sc.putClientProperty("FlatLaf.style",
-                "arc:16; borderWidth:1; borderColor:@Component.borderColor; background:derive(@background,3%);");
-        add(sc, BorderLayout.CENTER);
+        // ===== ComboBox =====
+        combo.setRenderer(new ComboRenderer());
+        combo.setMaximumRowCount(14);
+        add(combo, BorderLayout.CENTER);
 
-        // data
         refreshInterfaces();
-        if (!model.isEmpty())
-            list.setSelectedIndex(0);
+        if (model.getSize() > 0)
+            combo.setSelectedIndex(0);
     }
 
-    /** Trả về cấu hình chỉ với tên interface (name). */
     public NetworkConfig getSelectedConfig() {
-        NifItem it = list.getSelectedValue();
-        return (it == null) ? null : new NetworkConfig(it.name);
+        Object sel = combo.getSelectedItem();
+        return (sel instanceof NifItem ni) ? new NetworkConfig(ni.name) : null;
     }
-
-    /* ---------------- load/filter ---------------- */
 
     private void refreshInterfaces() {
         allItems.clear();
-        model.clear();
+        model.removeAllElements();
         try {
             Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces();
             if (en != null) {
@@ -126,14 +106,13 @@ public class NetworkChooserPanel extends JPanel {
                     NetworkInterface nif = en.nextElement();
                     if (!nif.isUp() || nif.isLoopback() || nif.isVirtual())
                         continue;
-                    NifItem item = new NifItem(nif);
-                    allItems.add(item);
+                    allItems.add(new NifItem(nif));
                 }
             }
             Collections.sort(allItems, (a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
             for (NifItem i : allItems)
                 model.addElement(i);
-        } catch (Exception ex) {
+        } catch (SocketException | SecurityException ex) {
             JOptionPane.showMessageDialog(this,
                     "Không đọc được danh sách interface: " + ex.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -142,27 +121,25 @@ public class NetworkChooserPanel extends JPanel {
     }
 
     private void applyFilter(String q) {
-        model.clear();
+        model.removeAllElements();
         if (q == null || q.isBlank()) {
             for (NifItem i : allItems)
                 model.addElement(i);
         } else {
             String s = q.toLowerCase();
             for (NifItem i : allItems) {
-                if (i.displayName.toLowerCase().contains(s) || i.name.toLowerCase().contains(s)) {
+                if (i.displayName.toLowerCase().contains(s) || i.name.toLowerCase().contains(s))
                     model.addElement(i);
-                }
             }
         }
-        if (!model.isEmpty())
-            list.setSelectedIndex(0);
+        if (model.getSize() > 0)
+            combo.setSelectedIndex(0);
     }
 
-    /* ---------------- model ---------------- */
-
+    /* ================= Model ================= */
     private static class NifItem {
-        final String displayName; // tên dễ đọc
-        final String name; // tên hệ thống (eth0, wlan0, ...)
+        final String displayName;
+        final String name;
         final int ipv4Count;
         final int ipv6Count;
         final String tooltip;
@@ -184,71 +161,57 @@ public class NetworkChooserPanel extends JPanel {
                 tip.append(ip).append("<br/>");
             }
             tip.append("</html>");
-            this.ipv4Count = v4;
-            this.ipv6Count = v6;
-            this.tooltip = tip.toString();
-        }
-
-        @Override
-        public String toString() {
-            return displayName;
+            ipv4Count = v4;
+            ipv6Count = v6;
+            tooltip = tip.toString();
         }
 
         boolean isWifi() {
             String n = name.toLowerCase();
             return n.contains("wlan") || n.contains("wifi") || n.contains("wi-fi");
         }
+
+        @Override
+        public String toString() {
+            return displayName;
+        }
     }
 
-    /* ---------------- renderer ---------------- */
-
-    private static class NifItemRenderer extends JPanel implements ListCellRenderer<NifItem> {
+    /* ============== Renderer cho JComboBox ============== */
+    private static class ComboRenderer extends JPanel implements ListCellRenderer<NifItem> {
         private final JLabel lbIcon = new JLabel();
         private final JLabel lbTitle = new JLabel();
         private final JLabel lbSub = new JLabel();
-        private final JLabel badge4 = new JLabel();
-        private final JLabel badge6 = new JLabel();
-
+        private final JLabel badge = new JLabel();
         private final Icon icWifi;
         private final Icon icLan;
 
-        NifItemRenderer() {
-            super(new BorderLayout(10, 0));
+        ComboRenderer() {
+            super(new BorderLayout(8, 0));
             setOpaque(true);
-            setBorder(new EmptyBorder(8, 10, 8, 10));
+            setBorder(new EmptyBorder(6, 8, 6, 8));
             putClientProperty("FlatLaf.style", "arc:14;");
-
-            // preload icon
             Icon wifi = null, lan = null;
             try {
-                wifi = new FlatSVGIcon("icons/wifi.svg", 20, 20);
-            } catch (Exception ignored) {
+                wifi = new FlatSVGIcon("icons/wifi.svg", 18, 18);
+            } catch (Exception ignore) {
             }
             try {
-                lan = new FlatSVGIcon("icons/ethernet.svg", 20, 20);
-            } catch (Exception ignored) {
+                lan = new FlatSVGIcon("icons/ethernet.svg", 18, 18);
+            } catch (Exception ignore) {
             }
             icWifi = wifi;
             icLan = lan;
-
             JPanel center = new JPanel();
             center.setOpaque(false);
-            center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
-            lbTitle.putClientProperty("FlatLaf.style", "font:+1; font.bold:true");
-            lbSub.putClientProperty("FlatLaf.style", "foreground:@disabledText");
-
+            center.setLayout(new javax.swing.BoxLayout(center, javax.swing.BoxLayout.Y_AXIS));
+            lbTitle.putClientProperty("FlatLaf.style", "font: bold +0");
             center.add(lbTitle);
             center.add(lbSub);
-
-            JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+            JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
             right.setOpaque(false);
-
-            styleBadge(badge4);
-            styleBadge(badge6);
-
-            right.add(badge4);
-            right.add(badge6);
-
+            styleBadge(badge);
+            right.add(badge);
             add(lbIcon, BorderLayout.WEST);
             add(center, BorderLayout.CENTER);
             add(right, BorderLayout.EAST);
@@ -256,39 +219,29 @@ public class NetworkChooserPanel extends JPanel {
 
         private void styleBadge(JLabel b) {
             b.setOpaque(true);
-            b.setBorder(new EmptyBorder(2, 8, 2, 8));
-            b.putClientProperty("FlatLaf.style",
-                    "arc:10; background:derive(@selectionBackground, -8%); foreground:@selectionForeground; font:-1;");
+            b.setBorder(new EmptyBorder(2, 6, 2, 6));
+            b.putClientProperty("JComponent.roundRect", Boolean.TRUE);
+            b.setBackground(UIManager.getColor("Component.accentColor"));
+            if (b.getBackground() == null)
+                b.setBackground(UIManager.getColor("List.selectionBackground"));
+            b.setForeground(UIManager.getColor("Label.foreground"));
+            b.setFont(b.getFont().deriveFont(b.getFont().getSize2D() - 1f));
         }
 
         @Override
-        public Component getListCellRendererComponent(JList<? extends NifItem> list, NifItem value,
+        public Component getListCellRendererComponent(javax.swing.JList<? extends NifItem> list, NifItem value,
                 int index, boolean isSelected, boolean cellHasFocus) {
             if (value == null)
                 return this;
-
-            // icon
             lbIcon.setIcon(value.isWifi() ? icWifi : icLan);
-
-            // text
             lbTitle.setText(value.displayName);
             lbSub.setText(value.name);
-
-            // badges
-            badge4.setText("IPv4 " + value.ipv4Count);
-            badge6.setText("IPv6 " + value.ipv6Count);
-
-            // tooltip
+            badge.setText("IPv4 " + value.ipv4Count + "/v6 " + value.ipv6Count);
             setToolTipText(value.tooltip);
-
-            // selection styles
-            if (isSelected) {
-                setBackground(UIManager.getColor("List.selectionBackground"));
-                setForeground(UIManager.getColor("List.selectionForeground"));
-            } else {
-                setBackground(UIManager.getColor("List.background"));
-                setForeground(UIManager.getColor("List.foreground"));
-            }
+            java.awt.Color bgSel = UIManager.getColor("List.selectionBackground");
+            java.awt.Color fgSel = UIManager.getColor("List.selectionForeground");
+            setBackground(isSelected ? bgSel : UIManager.getColor("List.background"));
+            setForeground(isSelected ? fgSel : UIManager.getColor("List.foreground"));
             return this;
         }
     }

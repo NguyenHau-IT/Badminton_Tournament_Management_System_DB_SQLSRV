@@ -16,6 +16,7 @@ import com.example.badmintoneventtechnology.ui.main.MainFrame;
 import com.example.badmintoneventtechnology.ui.net.NetworkChooserDialog;
 import com.example.badmintoneventtechnology.ui.net.NetworkConfig;
 import com.example.badmintoneventtechnology.util.ui.IconUtil;
+import com.example.badmintoneventtechnology.ui.theme.UITheme;
 
 @SpringBootApplication
 public class BadmintonEventTechnologyApplication {
@@ -44,6 +45,8 @@ public class BadmintonEventTechnologyApplication {
 		}
 
 		SwingUtilities.invokeLater(() -> {
+			// Áp dụng theme (bo góc + FlatLaf) trước khi tạo bất kỳ frame/dialog nào
+			UITheme.init();
 			NetworkChooserDialog dlg = new NetworkChooserDialog(null);
 			dlg.setVisible(true);
 			NetworkConfig cfg = dlg.getSelected();

@@ -49,10 +49,11 @@ public class NetworkChooserDialog extends JDialog {
         NetworkChooserPanel panel = new NetworkChooserPanel();
 
         JPanel centerCard = new JPanel(new BorderLayout());
-        centerCard.setBorder(new EmptyBorder(8, 8, 8, 8)); // 12 -> 8
-        centerCard.putClientProperty(FlatClientProperties.STYLE,
-                "arc:12; borderWidth:1; borderColor:@Component.borderColor; " +
-                        "background: derive(@background,3%);");
+        // Thay vì style arc/borderWidth (gây lỗi trên một số component) dùng LineBorder
+        // bo tròn
+        centerCard.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                new javax.swing.border.LineBorder(UIManager.getColor("Component.borderColor"), 1, true),
+                new javax.swing.border.EmptyBorder(8, 8, 8, 8)));
         centerCard.add(panel, BorderLayout.CENTER);
 
         root.add(centerCard, BorderLayout.CENTER);
@@ -115,10 +116,11 @@ public class NetworkChooserDialog extends JDialog {
 
         JLabel title = new JLabel("Chọn Network Interface");
         // font nhỏ hơn 1 nấc so với trước
-        title.putClientProperty(FlatClientProperties.STYLE, "font: +2; font.bold: true"); // +3 -> +2
+        title.putClientProperty(FlatClientProperties.STYLE, "font: bold +2"); // dùng cú pháp hợp lệ
 
         JLabel subtitle = new JLabel("Chọn card mạng ứng dụng sẽ dùng để giao tiếp.");
-        subtitle.putClientProperty(FlatClientProperties.STYLE, "foreground: @disabledText");
+        // foreground phụ: dùng color mặc định thay vì biến có thể thiếu
+        // subtitle.setForeground(UIManager.getColor("Label.disabledForeground"));
 
         text.add(title);
         text.add(Box.createVerticalStrut(2));
@@ -127,8 +129,7 @@ public class NetworkChooserDialog extends JDialog {
         wrap.add(text, BorderLayout.CENTER);
 
         // Separator mảnh, margin nhỏ
-        JSeparator sep = new JSeparator();
-        sep.putClientProperty(FlatClientProperties.STYLE, "thickness:1; margin:6,0,0,0;"); // 8 -> 6
+        JSeparator sep = new JSeparator(); // Không áp style margin để tránh lỗi UnknownStyleException
         wrap.add(sep, BorderLayout.SOUTH);
 
         return wrap;
@@ -137,8 +138,7 @@ public class NetworkChooserDialog extends JDialog {
     private JPanel buildFooter() {
         JPanel footer = new JPanel(new BorderLayout());
 
-        JSeparator sep = new JSeparator();
-        sep.putClientProperty(FlatClientProperties.STYLE, "thickness:1; margin:4,0,4,0;"); // 8 -> 4
+        JSeparator sep = new JSeparator(); // Bỏ style margin
         footer.add(sep, BorderLayout.NORTH);
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0)); // 8 -> 6
