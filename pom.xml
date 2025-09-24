@@ -4,10 +4,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>h2client</artifactId>
+    <artifactId>btms</artifactId>
     <version>2.0.0</version>
     <packaging>jar</packaging>
-    <name>BT - Badminton Tech</name>
+    <name>Badminton Tournament Management System (BTMS)</name>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -18,12 +18,12 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <app.name>BT - Badminton Tech</app.name>
+        <app.name>Badminton Tournament Management System (BTMS)</app.name>
         <maven.compiler.release>17</maven.compiler.release>
-        <main.class>com.example.badmintoneventtechnology.BadmintonEventTechnologyApplication</main.class>
+        <main.class>com.example.btms.BadmintonTournamentManagementSystemApplication</main.class>
 
         <!-- Mặc định (sẽ bị profiles override tùy theo có ổ D hay không) -->
-        <install.dir>C:\Program Files\BT-OVR</install.dir>
+        <install.dir>C:\Program Files\BTMS</install.dir>
         <dist.dir>${project.build.directory}/dist</dist.dir>
     </properties>
 
@@ -153,7 +153,7 @@
                             <appVersion>${project.version}</appVersion>
                             <vendor>NGUYEN VIET HAU</vendor>
                             <description>
-                                Offline badminton tournament manager: handle players, scheduling, scoring, and statistics.
+                                Badminton Tournament Management System: handle players, scheduling, scoring, and statistics.
                             </description>
 
                             <type>MSI</type>
@@ -196,11 +196,11 @@
                 </file>
             </activation>
             <properties>
-                <install.dir>D:\BT-OVR</install.dir>
+                <install.dir>D:\BTMS</install.dir>
             </properties>
         </profile>
 
-        <!-- Nếu KHÔNG có ổ D: fallback C:\Program Files\BET -->
+        <!-- Nếu KHÔNG có ổ D: fallback C:\Program Files\BTMS -->
         <profile>
             <id>fallback-c</id>
             <activation>
@@ -209,7 +209,7 @@
                 </file>
             </activation>
             <properties>
-                <install.dir>C:\Program Files\BT-OVR</install.dir>
+                <install.dir>C:\Program Files\BTMS</install.dir>
             </properties>
         </profile>
     </profiles>
