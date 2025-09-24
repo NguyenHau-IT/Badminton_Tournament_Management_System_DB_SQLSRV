@@ -14,11 +14,12 @@ import java.net.SocketException;
 import java.sql.Connection;
 import java.text.DecimalFormat;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JToggleButton;
+// import javax.swing.JToggleButton; // removed direct toggle from header
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
@@ -90,7 +91,7 @@ public class MainFrame extends JFrame {
     // UI fields
     private final JLabel lblAppTitle = new JLabel("Badminton Event Technology");
     private final JLabel lblVersion = new JLabel();
-    private final JToggleButton themeToggle = new JToggleButton("Dark");
+    // Bỏ toggle ở header; chuyển qua menu. (Giữ method switchTheme)
     private final JLabel statusConn = new JLabel("Chưa kết nối");
     private final JLabel statusHost = new JLabel("-");
     private final JLabel statusMem = new JLabel();
@@ -246,33 +247,28 @@ public class MainFrame extends JFrame {
 
     private JPanel buildHeaderBar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setBorder(new EmptyBorder(8, 8, 8, 8));
+        bar.setBorder(new EmptyBorder(6, 10, 6, 10));
         JLabel avatar = new JLabel(IconUtil.loadRoundAvatar(36));
 
         lblAppTitle.setFont(lblAppTitle.getFont().deriveFont(Font.BOLD, 18f));
         lblVersion.setFont(lblAppTitle.getFont().deriveFont(Font.PLAIN, 12f));
         lblVersion.setForeground(new Color(110, 110, 110));
+        lblAppTitle.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, lblAppTitle.getPreferredSize().height));
 
         JPanel titleBox = new JPanel(new GridLayout(2, 1, 0, 0));
         titleBox.setOpaque(false);
         titleBox.add(lblAppTitle);
         titleBox.add(lblVersion);
 
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        left.setOpaque(false);
-        left.add(avatar);
-        left.add(titleBox);
+        JPanel center = new JPanel();
+        center.setOpaque(false);
+        center.setLayout(new javax.swing.BoxLayout(center, javax.swing.BoxLayout.X_AXIS));
+        center.add(avatar);
+        center.add(javax.swing.Box.createHorizontalStrut(10));
+        center.add(titleBox);
+        center.add(javax.swing.Box.createHorizontalGlue());
 
-        themeToggle.setFocusable(false);
-        themeToggle.setSelected(UIManager.getLookAndFeel() instanceof FlatDarkLaf);
-        themeToggle.addActionListener(e -> switchTheme(themeToggle.isSelected()));
-
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        right.setOpaque(false);
-        right.add(themeToggle);
-
-        bar.add(left, BorderLayout.WEST);
-        bar.add(right, BorderLayout.EAST);
+        bar.add(center, BorderLayout.CENTER);
         return bar;
     }
 
@@ -532,6 +528,14 @@ public class MainFrame extends JFrame {
             if (currentRole == Role.ADMIN)
                 mPlay.add(menuItem("Kết quả đã thi đấu"));
             mb.add(mPlay);
+
+            // Menu giao diện luôn hiển thị để đổi theme cả khi chưa đăng nhập
+            JMenu mTheme = new JMenu("Giao diện");
+            JCheckBoxMenuItem miDark = new JCheckBoxMenuItem("Chế độ tối");
+            miDark.setSelected(UIManager.getLookAndFeel() instanceof FlatDarkLaf);
+            miDark.addActionListener(e -> switchTheme(miDark.isSelected()));
+            mTheme.add(miDark);
+            mb.add(mTheme);
 
             JMenu mOther = new JMenu("Khác");
             if (currentRole == Role.ADMIN)
