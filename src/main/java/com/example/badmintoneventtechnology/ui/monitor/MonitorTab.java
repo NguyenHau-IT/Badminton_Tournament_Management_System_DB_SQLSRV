@@ -25,6 +25,7 @@ import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -67,13 +68,20 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     // Debounce timer để tránh refresh quá nhiều
     private Timer debounceTimer;
 
-    // === Field phục vụ tách/ghim tab ===
-    private JFrame floatFrame;
-    private JTabbedPane dockTabs;
-    private int dockIndex = -1;
-    private String dockTitle;
-    private Icon dockIcon;
-    private boolean shuttingDown = false; // tránh tự-đính lại khi app đang đóng
+    // === Field phục vụ tách/ghim (tab hoặc card) ===
+    private JFrame floatFrame; // cửa sổ nổi
+    private JTabbedPane dockTabs; // nếu môi trường cũ dùng JTabbedPane
+    private int dockIndex = -1; // vị trí tab cũ
+    private String dockTitle; // tiêu đề tab cũ
+    private Icon dockIcon; // icon tab cũ
+    private boolean shuttingDown = false; // tránh gắn lại khi app đóng
+    // Hỗ trợ CardLayout (phiên bản mới không còn JTabbedPane)
+    private java.awt.Container originalParent; // parent sử dụng CardLayout
+    private String originalCardName; // tên card (được gắn qua clientProperty "cardName")
+    private JPanel floatingPlaceholder; // placeholder khi panel đang được tách ra (CardLayout)
+    // Tạm thời luôn dùng mirror-mode (không reparent) để tránh lỗi cửa sổ trắng
+    // trên một số máy
+    private boolean forceMirrorMode = true; // Set false nếu muốn thử lại cơ chế tách thực sự
 
     // Setting: số cột hiển thị
     private int columns = 3;
@@ -88,6 +96,16 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     public MonitorTab(boolean adminMode, String clientId) {
         super(new BorderLayout(8, 8));
         setBorder(new EmptyBorder(8, 8, 8, 8));
+        // Đặt background rõ ràng để tránh trắng toàn bộ khi tách ra frame mới
+        try {
+            Color bg = UIManager.getColor("Panel.background");
+            if (bg != null)
+                setBackground(bg);
+            else
+                setBackground(Color.DARK_GRAY);
+        } catch (Exception ignore) {
+            setBackground(Color.DARK_GRAY);
+        }
 
         this.isAdminMode = adminMode;
         this.localClientId = clientId;
@@ -623,8 +641,38 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
     // === Bật/tắt cửa sổ nổi ===
     private void toggleFloat(JButton sourceBtn) {
+        // Bọc trong EDT (an toàn khi sau này gọi từ thread khác)
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> toggleFloat(sourceBtn));
+            return;
+        }
+
+        // --- Workaround: luôn dùng chế độ mirror thay vì reparent ---
+        if (forceMirrorMode) {
+            if (floatFrame == null) {
+                Dimension sz = getSize();
+                if (sz == null || sz.width < 200 || sz.height < 150) {
+                    sz = new Dimension(900, 600);
+                }
+                createMirrorFloating(sourceBtn, sz);
+                System.out.println("[MonitorTab] Opened mirror floating window (forceMirrorMode=true)");
+            } else {
+                try {
+                    floatFrame.dispose();
+                } catch (Exception ignore) {
+                }
+                floatFrame = null;
+                sourceBtn.setText("Mở cửa sổ");
+                System.out.println("[MonitorTab] Closed mirror floating window");
+            }
+            return; // Bỏ qua logic reparent phía dưới
+        }
+
         if (floatFrame == null) {
-            // Đang ở trong tab -> tách ra cửa sổ
+            // Lưu lại kích thước để dùng lại nếu người dùng đã resize trước đó
+            final Dimension initialSize = getSize();
+
+            // Thử môi trường JTabbedPane trước (tương thích cũ)
             JTabbedPane tabs = (JTabbedPane) SwingUtilities.getAncestorOfClass(JTabbedPane.class, this);
             if (tabs != null) {
                 dockTabs = tabs;
@@ -634,50 +682,210 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                     dockIcon = tabs.getIconAt(dockIndex);
                     tabs.remove(this);
                 }
+            } else {
+                // CardLayout path
+                originalParent = getParent();
+                if (originalParent != null) {
+                    Object cn = null;
+                    try {
+                        cn = ((JComponent) this).getClientProperty("cardName");
+                    } catch (Exception ignore) {
+                    }
+                    originalCardName = (cn != null) ? cn.toString() : ("Monitor-" + System.identityHashCode(this));
+                    try {
+                        // Thêm placeholder để tránh khoảng trắng trên MainFrame khi panel bị remove
+                        if (floatingPlaceholder == null) {
+                            floatingPlaceholder = new JPanel(new BorderLayout());
+                            floatingPlaceholder.add(new JLabel(
+                                    "Giám sát đang mở ở cửa sổ riêng - bấm 'Thu về' để quay lại", JLabel.CENTER),
+                                    BorderLayout.CENTER);
+                            floatingPlaceholder.putClientProperty("cardName", originalCardName);
+                        }
+                        originalParent.remove(this); // tách ra
+                        try {
+                            originalParent.add(floatingPlaceholder, originalCardName);
+                        } catch (Exception ex2) {
+                            ex2.printStackTrace();
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                    originalParent.revalidate();
+                    originalParent.repaint();
+                }
             }
 
-            floatFrame = new JFrame(dockTitle != null ? dockTitle : "Monitor");
+            // Khởi tạo frame nổi
+            floatFrame = new JFrame(
+                    dockTitle != null ? dockTitle : (originalCardName != null ? originalCardName : "Monitor"));
             floatFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             floatFrame.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosed(WindowEvent e) {
-                    // Khi user đóng cửa sổ, tự đính ngược về tab (nếu app chưa tắt)
                     if (!shuttingDown) {
-                        reattachToTab();
+                        reattachToContainer();
                         sourceBtn.setText("Mở cửa sổ");
                     }
                 }
             });
 
-            floatFrame.getContentPane().add(this);
-            floatFrame.setMinimumSize(new Dimension(640, 480));
-            floatFrame.setSize(900, 600);
+            // Đảm bảo contentPane có BorderLayout
+            if (!(floatFrame.getContentPane().getLayout() instanceof BorderLayout)) {
+                floatFrame.getContentPane().setLayout(new BorderLayout());
+            }
+
+            floatFrame.getContentPane().add(this, BorderLayout.CENTER);
+            // Ép layout & vẽ lại để tránh trắng; không dùng pack để giữ layout hiện tại
+            floatFrame.getContentPane().revalidate();
+            floatFrame.getContentPane().repaint();
+            this.revalidate();
+            this.repaint();
+
+            // Gán kích thước trực tiếp (tránh 0x0 rồi bị trắng do chưa layout xong)
+            Dimension effectiveSize = initialSize;
+            if (effectiveSize == null || effectiveSize.width < 300 || effectiveSize.height < 200) {
+                effectiveSize = new Dimension(900, 600);
+            }
+            floatFrame.setMinimumSize(
+                    new Dimension(Math.max(640, effectiveSize.width), Math.max(480, effectiveSize.height)));
+            floatFrame.setSize(Math.max(900, effectiveSize.width), Math.max(600, effectiveSize.height));
+
+            final Dimension mirrorSize = effectiveSize;
+            SwingUtilities.invokeLater(() -> {
+                updateCellWidthForColumns(); // cập nhật lại width cell sau khi tách
+                list.repaint();
+            });
+
             floatFrame.setLocationRelativeTo(null);
             floatFrame.setVisible(true);
+            floatFrame.toFront();
+            floatFrame.requestFocus();
+            sourceBtn.setText("Thu về");
 
-            sourceBtn.setText("Thu về tab");
+            System.out.println("[MonitorTab] Đã tách ra cửa sổ nổi. Root children=" + getComponentCount() +
+                    ", listModel=" + listModel.getSize());
+
+            // Fallback: nếu vì lý do nào đó không có component con -> tạo dummy label để
+            // người dùng thấy
+            if (getComponentCount() == 0) {
+                add(new JLabel("(MonitorTab rỗng - fallback)"), BorderLayout.CENTER);
+                revalidate();
+                repaint();
+                System.out.println("[MonitorTab] Fallback label added vì componentCount==0");
+            }
+
+            // Fallback mới: nếu cửa sổ trắng dù listModel > 0 thì tạo mirror frame không
+            // reparent
+            SwingUtilities.invokeLater(() -> {
+                boolean blank = isFloatingBlank();
+                if (blank && listModel.getSize() > 0) {
+                    System.out.println("[MonitorTab] Phát hiện cửa sổ nổi trắng -> dùng chế độ mirror.");
+                    // Khôi phục panel về parent cũ (nếu placeholder tồn tại sẽ bị thay)
+                    reattachToContainer();
+                    // Tạo mirror frame dùng model chung nhưng JList khác
+                    createMirrorFloating(sourceBtn, mirrorSize);
+                }
+            });
         } else {
-            // Đang nổi -> quay về tab
-            floatFrame.dispose(); // sẽ kích hoạt windowClosed -> reattachToTab()
-            sourceBtn.setText("Mở cửa sổ");
+            // Đang nổi -> quay về
+            floatFrame.dispose(); // windowClosed sẽ reattach
         }
     }
 
-    private void reattachToTab() {
+    // Kiểm tra xem trong frame nổi hiện tại có JList hoặc ScrollPane hợp lệ không
+    private boolean isFloatingBlank() {
+        if (floatFrame == null)
+            return false;
+        java.util.List<Component> stack = new java.util.ArrayList<>();
+        stack.add(floatFrame.getContentPane());
+        boolean hasList = false;
+        while (!stack.isEmpty()) {
+            Component c = stack.remove(stack.size() - 1);
+            if (c instanceof JList) {
+                hasList = true;
+                break;
+            }
+            if (c instanceof java.awt.Container cont) {
+                for (Component ch : cont.getComponents())
+                    stack.add(ch);
+            }
+        }
+        if (!hasList)
+            return true;
+        return false;
+    }
+
+    // Tạo frame mirror: không remove MonitorTab; build UI nhẹ để hiển thị danh sách
+    private void createMirrorFloating(JButton sourceBtn, Dimension preferred) {
+        JFrame mirror = new JFrame(originalCardName != null ? originalCardName : "Monitor");
+        mirror.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        JPanel root = new JPanel(new BorderLayout(8, 8));
+        JLabel title = new JLabel(isAdminMode ? "Giám sát (Admin) - Mirror" : "Giám sát - Mirror");
+        title.setFont(title.getFont().deriveFont(Font.BOLD));
+        JButton btnClose = new JButton("Đóng");
+        btnClose.addActionListener(e -> mirror.dispose());
+        JPanel top = new JPanel(new BorderLayout());
+        top.add(title, BorderLayout.WEST);
+        top.add(btnClose, BorderLayout.EAST);
+        root.add(top, BorderLayout.NORTH);
+        // JList mirror chia sẻ model
+        JList<Row> mirrorList = new JList<>(listModel);
+        mirrorList.setCellRenderer(new CardRenderer());
+        mirrorList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+        mirrorList.setVisibleRowCount(-1);
+        mirrorList.setFixedCellWidth(list.getFixedCellWidth());
+        mirrorList.setFixedCellHeight(list.getFixedCellHeight());
+        root.add(new JScrollPane(mirrorList), BorderLayout.CENTER);
+        mirror.setContentPane(root);
+        if (preferred == null)
+            preferred = new Dimension(900, 600);
+        mirror.setSize(Math.max(900, preferred.width), Math.max(600, preferred.height));
+        mirror.setLocationRelativeTo(null);
+        mirror.setVisible(true);
+        mirror.toFront();
+        mirror.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                sourceBtn.setText("Mở cửa sổ");
+            }
+        });
+        // Gán floatFrame sang mirror để logic đóng vẫn dùng
+        this.floatFrame = mirror;
+        sourceBtn.setText("Thu về");
+    }
+
+    private void reattachToContainer() {
         if (floatFrame != null) {
-            floatFrame.getContentPane().remove(this);
+            try {
+                floatFrame.getContentPane().remove(this);
+            } catch (Exception ignore) {
+            }
             floatFrame = null;
         }
-        if (dockTabs != null) {
+        if (dockTabs != null) { // legacy JTabbedPane
             int idx = dockIndex >= 0 ? Math.min(dockIndex, dockTabs.getTabCount()) : dockTabs.getTabCount();
             dockTabs.insertTab(dockTitle != null ? dockTitle : "Monitor", dockIcon, this, null, idx);
             dockTabs.setSelectedComponent(this);
+        } else if (originalParent != null) { // CardLayout
+            try {
+                // Loại bỏ placeholder nếu có
+                if (floatingPlaceholder != null) {
+                    try {
+                        originalParent.remove(floatingPlaceholder);
+                    } catch (Exception ignore) {
+                    }
+                }
+                originalParent.add(this, originalCardName);
+                originalParent.revalidate();
+                originalParent.repaint();
+            } catch (Exception ignore) {
+            }
         }
     }
 
     @Override
     public void close() {
-        shuttingDown = true; // để windowClosed không tự gắn lại vào tab
+        shuttingDown = true; // để windowClosed không tự gắn lại khi đóng app
         stopRx();
         if (uiTimer != null) {
             uiTimer.stop();

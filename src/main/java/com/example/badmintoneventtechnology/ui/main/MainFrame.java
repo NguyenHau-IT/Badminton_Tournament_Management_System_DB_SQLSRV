@@ -3,11 +3,10 @@ package com.example.badmintoneventtechnology.ui.main;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
+import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
-import java.awt.Image;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.NetworkInterface;
@@ -15,17 +14,20 @@ import java.net.SocketException;
 import java.sql.Connection;
 import java.text.DecimalFormat;
 
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JTabbedPane;
 import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
+import javax.swing.JMenuBar;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import com.example.badmintoneventtechnology.config.ConnectionConfig;
 import com.example.badmintoneventtechnology.model.db.SQLSRVConnectionManager;
@@ -58,7 +60,7 @@ import com.example.badmintoneventtechnology.util.ui.Ui;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
-import com.formdev.flatlaf.extras.FlatSVGIcon;
+// import com.formdev.flatlaf.extras.FlatSVGIcon; // (no longer used after removing icons)
 
 public class MainFrame extends JFrame {
 
@@ -94,15 +96,15 @@ public class MainFrame extends JFrame {
     private final JLabel statusMem = new JLabel();
 
     private final DecimalFormat df = new DecimalFormat("#,##0");
-    private final JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+    // (Removed old JTabbedPane navigation)
+    // New navigation components
+    private final JPanel cardPanel = new JPanel(new CardLayout());
+    private final Map<String, Component> views = new LinkedHashMap<>();
+    private Role currentRole = null;
+    private JMenuBar appMenuBar; // keep reference if needed
 
     // Icons
-    private final Icon icMonitor = loadIcon("/icons/monitor.svg", 20);
-    private final Icon icScreenshot = loadIcon("/icons/camera.svg", 20);
-    private final Icon icLog = loadIcon("/icons/file-text.svg", 20);
-    private final Icon icLogin = loadIcon("/icons/login.svg", 20);
-    private final Icon icMultiCourt = loadIcon("/icons/management.svg", 20);
-    private final Icon icTournament = loadIcon("/icons/trophy.svg", 20);
+    // (Icons kept if later needed for menu entries – currently omitted to simplify)
 
     private javax.swing.Timer ramTimer;
     private GiaiDauSelectPanel giaiDauSelectPanel;
@@ -126,56 +128,49 @@ public class MainFrame extends JFrame {
         JPanel header = buildHeaderBar();
         JPanel status = buildStatusBar();
 
-        tabs.putClientProperty("JTabbedPane.tabType", "card");
-        tabs.putClientProperty("JTabbedPane.showTabSeparators", true);
-        tabs.putClientProperty("JTabbedPane.minimumTabWidth", 120);
-        tabs.putClientProperty("JTabbedPane.tabWidthMode", "equal");
-        tabs.putClientProperty("JTabbedPane.tabAreaAlignment", "leading");
-        tabs.putClientProperty("JTabbedPane.tabsPopupPolicy", "asNeeded");
-        tabs.putClientProperty("JTabbedPane.tabSelectionHeight", 3);
-        tabs.putClientProperty("JTabbedPane.tabClosable", false);
-        tabs.setPreferredSize(new Dimension(1200, 800));
+        // (Old tab configuration removed)
 
         // Listener login -> mở các tab phù hợp sau khi đăng nhập
         loginTab.setListener((username, role) -> SwingUtilities.invokeLater(() -> {
-            ensureTabAbsent(loginTab);
-
+            currentRole = role;
             if (role == Role.ADMIN) {
                 monitorTab.setAdminMode(true, null);
                 controlPanel.setClientName("ADMIN-" + username);
-                ensureTabPresent("Chọn giải đấu", giaiDauSelectPanel, null);
-                ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
-                ensureTabPresent("Nội dung", noiDungPanel, null);
-                ensureTabPresent("Câu lạc bộ", cauLacBoPanel, null);
-                ensureTabPresent("Vận động viên", vanDongVienPanel, null);
-                ensureTabPresent("Đăng ký nội dung", dangKyNoiDungPanel, null);
-                ensureTabPresent("Đăng ký đội", dangKyDoiPanel, null);
-                ensureTabPresent("Thi đấu", multiCourtPanel, icMultiCourt);
-                ensureTabPresent("Giám sát", monitorTab, icMonitor);
-                ensureTabPresent("Kết quả đã thi đấu", screenshotTab, icScreenshot);
-                ensureTabPresent("Logs", logTab, icLog);
+                ensureViewPresent("Chọn giải đấu", giaiDauSelectPanel);
+                ensureViewPresent("Giải đấu", tournamentTabPanel);
+                ensureViewPresent("Nội dung", noiDungPanel);
+                ensureViewPresent("Câu lạc bộ", cauLacBoPanel);
+                ensureViewPresent("Vận động viên", vanDongVienPanel);
+                ensureViewPresent("Đăng ký nội dung", dangKyNoiDungPanel);
+                ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
+                ensureViewPresent("Thi đấu", multiCourtPanel);
+                ensureViewPresent("Giám sát", monitorTab);
+                ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
+                ensureViewPresent("Logs", logTab);
                 if (giaiDauSelectPanel != null)
-                    tabs.setSelectedComponent(giaiDauSelectPanel);
+                    showView("Chọn giải đấu");
             } else {
                 monitorTab.setAdminMode(false, username);
                 controlPanel.setClientName("CLIENT-" + username);
-                ensureTabPresent("Giải đấu", tournamentTabPanel, icTournament);
-                ensureTabPresent("Nhiều sân", multiCourtPanel, icMultiCourt);
-                ensureTabPresent("Giám sát", monitorTab, icMonitor);
-                tabs.setSelectedComponent(tournamentTabPanel);
+                ensureViewPresent("Giải đấu", tournamentTabPanel);
+                ensureViewPresent("Nhiều sân", multiCourtPanel);
+                ensureViewPresent("Giám sát", monitorTab);
+                showView("Giải đấu");
             }
-
+            buildMenuBar();
             try {
                 tournamentTabPanel.unlockSelection();
             } catch (Exception ignored) {
             }
         }));
 
-        // Ban đầu chỉ có Login
-        ensureTabPresent("Login", loginTab, icLogin);
+        // Ban đầu chỉ có Login (CardLayout)
+        ensureViewPresent("Login", loginTab);
+        ((CardLayout) cardPanel.getLayout()).show(cardPanel, "Login");
 
         root.add(header, BorderLayout.NORTH);
-        root.add(wrapCard(tabs), BorderLayout.CENTER);
+        // Use cardPanel instead of tabs in CENTER (tabs kept temporarily for reference)
+        root.add(wrapCard(cardPanel), BorderLayout.CENTER);
         root.add(status, BorderLayout.SOUTH);
 
         if (netCfg != null && netCfg.ifName() != null && !netCfg.ifName().isBlank()) {
@@ -303,32 +298,7 @@ public class MainFrame extends JFrame {
         return bar;
     }
 
-    /* -------------------- Tab helpers -------------------- */
-
-    private void ensureTabPresent(String title, Component comp, Icon icon) {
-        if (comp == null)
-            return; // NULL-SAFE
-        int idx = indexOf(comp);
-        if (idx == -1)
-            tabs.addTab(title, icon, comp);
-        else {
-            tabs.setTitleAt(idx, title);
-            tabs.setIconAt(idx, icon);
-        }
-    }
-
-    private void ensureTabAbsent(Component comp) {
-        int idx = indexOf(comp);
-        if (idx != -1)
-            tabs.removeTabAt(idx);
-    }
-
-    private int indexOf(Component comp) {
-        for (int i = 0; i < tabs.getTabCount(); i++)
-            if (tabs.getComponentAt(i) == comp)
-                return i;
-        return -1;
-    }
+    /* (Legacy tab helper methods removed after migration to CardLayout) */
 
     /* -------------------- Helpers -------------------- */
 
@@ -361,21 +331,7 @@ public class MainFrame extends JFrame {
         statusMem.setText(df.format(used) + " / " + df.format(max) + " MB");
     }
 
-    private Icon loadIcon(String path, int size) {
-        String cp = path.startsWith("/") ? path.substring(1) : path;
-        try {
-            return new FlatSVGIcon(cp, size, size);
-        } catch (Exception ex) {
-            String pngPath = cp.replace(".svg", ".png");
-            var url = getClass().getClassLoader().getResource(pngPath);
-            if (url != null) {
-                Image img = new ImageIcon(url).getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
-                return new ImageIcon(img);
-            }
-            System.err.println("Icon not found on classpath: " + cp + " or " + pngPath);
-            return null;
-        }
-    }
+    // (Removed loadIcon method – not needed for text-only menu navigation)
 
     public DatabaseService service() {
         return service;
@@ -469,9 +425,10 @@ public class MainFrame extends JFrame {
                         statusConn.setText("Đã kết nối");
                         statusConn.setForeground(new Color(46, 204, 113));
 
-                        // Sau khi có connection, bạn có thể mở sẵn vài tab:
-                        ensureTabPresent("Login", loginTab, icLogin); // vẫn để tab login cho flow hiện tại
-                        tabs.setSelectedComponent(loginTab);
+                        // Sau khi có connection đảm bảo Login view tồn tại
+                        ensureViewPresent("Login", loginTab);
+                        showView("Login");
+                        buildMenuBar();
 
                         System.out.println("✓ Tự động kết nối SQL Server thành công!");
                     } catch (Exception e) {
@@ -508,5 +465,100 @@ public class MainFrame extends JFrame {
                 });
             }
         }).start();
+    }
+
+    /*
+     * -------------------- CardLayout View Helpers (new navigation)
+     * --------------------
+     */
+    private void ensureViewPresent(String name, Component comp) {
+        if (name == null || comp == null)
+            return;
+        if (!views.containsKey(name)) {
+            try { // gắn tên card để component tự biết khi floating
+                if (comp instanceof JComponent jc)
+                    jc.putClientProperty("cardName", name);
+            } catch (Exception ignore) {
+            }
+            cardPanel.add(comp, name);
+            views.put(name, comp);
+        }
+    }
+
+    private void showView(String name) {
+        if (!views.containsKey(name))
+            return;
+        ((CardLayout) cardPanel.getLayout()).show(cardPanel, name);
+        setTitle("Badminton Event Technology - " + name);
+    }
+
+    private void buildMenuBar() {
+        JMenuBar mb = new JMenuBar();
+        JMenu mSystem = new JMenu("Hệ thống");
+        JMenuItem miLogin = new JMenuItem("Đăng nhập");
+        miLogin.addActionListener(e -> showView("Login"));
+        mSystem.add(miLogin);
+        if (currentRole != null) {
+            JMenuItem miLogout = new JMenuItem("Đăng xuất");
+            miLogout.addActionListener(e -> doLogout());
+            mSystem.add(miLogout);
+        }
+        mSystem.addSeparator();
+        JMenuItem miExit = new JMenuItem("Thoát");
+        miExit.addActionListener(e -> dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING)));
+        mSystem.add(miExit);
+        mb.add(mSystem);
+
+        if (currentRole != null) {
+            JMenu mManage = new JMenu("Quản lý");
+            if (currentRole == Role.ADMIN && giaiDauSelectPanel != null)
+                mManage.add(menuItem("Chọn giải đấu"));
+            mManage.add(menuItem("Giải đấu"));
+            if (currentRole == Role.ADMIN) {
+                mManage.add(menuItem("Nội dung"));
+                mManage.add(menuItem("Câu lạc bộ"));
+                mManage.add(menuItem("Vận động viên"));
+                mManage.add(menuItem("Đăng ký nội dung"));
+                mManage.add(menuItem("Đăng ký đội"));
+            }
+            mb.add(mManage);
+
+            JMenu mPlay = new JMenu("Thi đấu");
+            if (currentRole == Role.ADMIN)
+                mPlay.add(menuItem("Thi đấu"));
+            else
+                mPlay.add(menuItem("Nhiều sân"));
+            mPlay.add(menuItem("Giám sát"));
+            if (currentRole == Role.ADMIN)
+                mPlay.add(menuItem("Kết quả đã thi đấu"));
+            mb.add(mPlay);
+
+            JMenu mOther = new JMenu("Khác");
+            if (currentRole == Role.ADMIN)
+                mOther.add(menuItem("Logs"));
+            mb.add(mOther);
+        }
+
+        setJMenuBar(mb);
+        this.appMenuBar = mb;
+        revalidate();
+        repaint();
+    }
+
+    private JMenuItem menuItem(String viewName) {
+        JMenuItem mi = new JMenuItem(viewName);
+        mi.addActionListener(e -> showView(viewName));
+        if (!views.containsKey(viewName))
+            mi.setEnabled(false);
+        return mi;
+    }
+
+    private void doLogout() {
+        int confirm = JOptionPane.showConfirmDialog(this, "Đăng xuất?", "Xác nhận", JOptionPane.YES_NO_OPTION);
+        if (confirm != JOptionPane.YES_OPTION)
+            return;
+        currentRole = null;
+        showView("Login");
+        buildMenuBar();
     }
 }
