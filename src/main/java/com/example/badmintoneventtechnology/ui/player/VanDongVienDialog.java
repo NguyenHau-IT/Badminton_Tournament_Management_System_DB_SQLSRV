@@ -157,8 +157,12 @@ public class VanDongVienDialog extends JDialog {
         try {
             if (editMode) {
                 vdvService.update(original.getId(), hoTen, ngaySinh, idClb, gioiTinh);
+                JOptionPane.showMessageDialog(this, "Cập nhật VĐV thành công.", "Thành công",
+                        JOptionPane.INFORMATION_MESSAGE);
             } else {
                 vdvService.create(hoTen, ngaySinh, idClb, gioiTinh);
+                JOptionPane.showMessageDialog(this, "Thêm VĐV thành công.", "Thành công",
+                        JOptionPane.INFORMATION_MESSAGE);
             }
             dispose();
         } catch (Exception ex) {

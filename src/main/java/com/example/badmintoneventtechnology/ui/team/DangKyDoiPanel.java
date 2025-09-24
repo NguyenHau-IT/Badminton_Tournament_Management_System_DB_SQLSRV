@@ -31,6 +31,7 @@ import com.example.badmintoneventtechnology.repository.team.DangKiDoiRepository;
 import com.example.badmintoneventtechnology.service.category.NoiDungService;
 import com.example.badmintoneventtechnology.service.club.CauLacBoService;
 import com.example.badmintoneventtechnology.service.player.VanDongVienService;
+import com.example.badmintoneventtechnology.service.team.ChiTietDoiService;
 import com.example.badmintoneventtechnology.service.team.DangKiDoiService;
 
 /**
@@ -40,11 +41,14 @@ public class DangKyDoiPanel extends JPanel {
     private final Prefs prefs;
     private final NoiDungService noiDungService;
     private final DangKiDoiService teamService;
+    private final ChiTietDoiService detailService;
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
 
     private final DefaultTableModel model = new DefaultTableModel(
-            new Object[] { "ID_TEAM", "Tên đội", "CLB", "ID_Nội dung" }, 0) {
+            // Giữ cột ID_TEAM & ID_Nội dung trong model để thao tác, nhưng sẽ ẩn khỏi
+            // JTable
+            new Object[] { "ID_TEAM", "Tên đội", "CLB", "ID_Nội dung", "Nội dung" }, 0) {
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -53,7 +57,7 @@ public class DangKyDoiPanel extends JPanel {
         @Override
         public Class<?> getColumnClass(int columnIndex) {
             return switch (columnIndex) {
-                case 0, 3 -> Integer.class;
+                case 0, 3 -> Integer.class; // ID ẩn
                 default -> String.class;
             };
         }
@@ -72,7 +76,8 @@ public class DangKyDoiPanel extends JPanel {
     public DangKyDoiPanel(Connection conn) {
         this.prefs = new Prefs();
         this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
-        this.teamService = new DangKiDoiService(conn, new DangKiDoiRepository(conn), new ChiTietDoiRepository(conn));
+        this.teamService = new DangKiDoiService(new DangKiDoiRepository(conn));
+        this.detailService = new ChiTietDoiService(conn, new DangKiDoiRepository(conn), new ChiTietDoiRepository(conn));
         this.vdvService = new VanDongVienService(new VanDongVienRepository(conn));
         this.clbService = new CauLacBoService(new CauLacBoRepository(conn));
 
@@ -96,6 +101,9 @@ public class DangKyDoiPanel extends JPanel {
 
         add(top, BorderLayout.NORTH);
         add(new JScrollPane(table), BorderLayout.CENTER);
+
+        // Ẩn hai cột ID khỏi giao diện (nhưng vẫn tồn tại trong model)
+        hideIdColumns();
 
         btnRefresh.addActionListener(e -> reload());
         btnAdd.addActionListener(e -> onAdd());
@@ -159,7 +167,8 @@ public class DangKyDoiPanel extends JPanel {
                         } catch (Exception ignored) {
                         }
                     }
-                    model.addRow(new Object[] { t.getIdTeam(), t.getTenTeam(), clbName, nd.getId() });
+                    model.addRow(
+                            new Object[] { t.getIdTeam(), t.getTenTeam(), clbName, nd.getId(), nd.getTenNoiDung() });
                 }
             }
             lblCount.setText(model.getRowCount() + " đội");
@@ -194,7 +203,7 @@ public class DangKyDoiPanel extends JPanel {
         DangKyDoiDialog dlg = new DangKyDoiDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
                 "Thêm đội",
-                teamService, vdvService, clbService,
+                teamService, detailService, vdvService, clbService,
                 idGiai, nd,
                 null, null, null, null, null);
         dlg.setVisible(true);
@@ -209,7 +218,7 @@ public class DangKyDoiPanel extends JPanel {
         }
         int modelRow = table.convertRowIndexToModel(row);
         Integer idTeam = (Integer) model.getValueAt(modelRow, 0);
-        Integer idNoiDung = (Integer) model.getValueAt(modelRow, 3);
+        Integer idNoiDung = (Integer) model.getValueAt(modelRow, 3); // vẫn lấy từ cột ẩn
 
         // Lấy nội dung theo id
         Optional<NoiDung> nd = Optional.empty();
@@ -222,18 +231,39 @@ public class DangKyDoiPanel extends JPanel {
             return;
         }
 
-        // Chưa có API để lấy info chi tiết đội + members dễ dàng (service có
-        // getTeamWithMembers)
-        // Ở đây mở dialog với thông tin tên đội hiện tại từ bảng, còn thành viên cần
-        // người dùng chọn lại khi sửa.
+        // Lấy thông tin đội (CLB) và thành viên để prefill dialog
         String tenTeam = (String) model.getValueAt(modelRow, 1);
+        Integer idClbInit = null;
+        Integer idVdv1Init = null;
+        Integer idVdv2Init = null;
+        try {
+            // Lấy đội để biết CLB
+            com.example.badmintoneventtechnology.model.team.DangKiDoi team = teamService.getTeam(idTeam);
+            idClbInit = team.getIdCauLacBo();
+        } catch (RuntimeException ex) {
+            // Không chặn sửa nếu lỗi, chỉ log
+            System.err.println("Không lấy được đội: " + ex.getMessage());
+        }
+        try {
+            java.util.List<com.example.badmintoneventtechnology.model.team.ChiTietDoi> members = detailService
+                    .listMembers(idTeam);
+            // Sắp xếp để ổn định (theo ID_VDV tăng dần)
+            members.sort(java.util.Comparator
+                    .comparing(com.example.badmintoneventtechnology.model.team.ChiTietDoi::getIdVdv));
+            if (!members.isEmpty())
+                idVdv1Init = members.get(0).getIdVdv();
+            if (members.size() > 1)
+                idVdv2Init = members.get(1).getIdVdv();
+        } catch (RuntimeException ex) {
+            System.err.println("Không lấy được thành viên đội: " + ex.getMessage());
+        }
 
         DangKyDoiDialog dlg = new DangKyDoiDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
                 "Sửa đội",
-                teamService, vdvService, clbService,
+                teamService, detailService, vdvService, clbService,
                 prefs.getInt("selectedGiaiDauId", -1), nd.get(),
-                idTeam, tenTeam, null, null, null);
+                idTeam, tenTeam, idClbInit, idVdv1Init, idVdv2Init);
         dlg.setVisible(true);
         reload();
     }
@@ -251,7 +281,10 @@ public class DangKyDoiPanel extends JPanel {
         if (confirm != JOptionPane.YES_OPTION)
             return;
         try {
+            detailService.removeAll(idTeam); // xóa thành viên đội trước
             teamService.deleteTeam(idTeam);
+            JOptionPane.showMessageDialog(this, "Đã xóa đội thành công.", "Thành công",
+                    JOptionPane.INFORMATION_MESSAGE);
             reload();
         } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Xóa thất bại: " + ex.getMessage(), "Lỗi",
@@ -284,6 +317,27 @@ public class DangKyDoiPanel extends JPanel {
         } catch (java.sql.SQLException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
             return null;
+        }
+    }
+
+    /** Ẩn cột ID_TEAM và ID_Nội dung khỏi JTable (giữ trong model để thao tác) */
+    private void hideIdColumns() {
+        try {
+            javax.swing.table.TableColumnModel columnModel = table.getColumnModel();
+            java.util.List<String> hide = java.util.List.of("ID_TEAM", "ID_Nội dung");
+            for (String h : hide) {
+                int modelIndex = model.findColumn(h);
+                if (modelIndex < 0)
+                    continue;
+                int viewIndex = table.convertColumnIndexToView(modelIndex);
+                if (viewIndex < 0)
+                    continue; // already hidden or not found
+                javax.swing.table.TableColumn col = columnModel.getColumn(viewIndex);
+                col.setMinWidth(0);
+                col.setMaxWidth(0);
+                col.setPreferredWidth(0);
+            }
+        } catch (Exception ignored) {
         }
     }
 }

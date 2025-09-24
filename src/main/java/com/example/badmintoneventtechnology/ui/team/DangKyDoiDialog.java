@@ -1,6 +1,7 @@
 package com.example.badmintoneventtechnology.ui.team;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Window;
 import java.time.LocalDate;
@@ -9,24 +10,29 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.ListCellRenderer;
 
 import com.example.badmintoneventtechnology.model.category.NoiDung;
 import com.example.badmintoneventtechnology.model.club.CauLacBo;
 import com.example.badmintoneventtechnology.model.player.VanDongVien;
 import com.example.badmintoneventtechnology.service.club.CauLacBoService;
 import com.example.badmintoneventtechnology.service.player.VanDongVienService;
+import com.example.badmintoneventtechnology.service.team.ChiTietDoiService;
 import com.example.badmintoneventtechnology.service.team.DangKiDoiService;
 
 /** Dialog tạo/sửa đội cho một nội dung (đôi) của giải. */
 public class DangKyDoiDialog extends JDialog {
     private final DangKiDoiService teamService;
+    private final ChiTietDoiService detailService;
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
     private final int idGiai;
@@ -42,6 +48,7 @@ public class DangKyDoiDialog extends JDialog {
     public DangKyDoiDialog(Window parent,
             String title,
             DangKiDoiService teamService,
+            ChiTietDoiService detailService,
             VanDongVienService vdvService,
             CauLacBoService clbService,
             int idGiai,
@@ -53,6 +60,7 @@ public class DangKyDoiDialog extends JDialog {
             Integer idVdv2Init) {
         super(parent, title, ModalityType.APPLICATION_MODAL);
         this.teamService = Objects.requireNonNull(teamService);
+        this.detailService = Objects.requireNonNull(detailService);
         this.vdvService = Objects.requireNonNull(vdvService);
         this.clbService = Objects.requireNonNull(clbService);
         this.idGiai = idGiai;
@@ -95,11 +103,11 @@ public class DangKyDoiDialog extends JDialog {
             System.err.println("Không thể tải CLB: " + ex.getMessage());
         }
         // renderer
-        cboClb.setRenderer(new javax.swing.DefaultListCellRenderer() {
+        cboClb.setRenderer(new DefaultListCellRenderer() {
             @Override
-            public java.awt.Component getListCellRendererComponent(javax.swing.JList<?> list, Object value, int index,
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                     boolean isSelected, boolean cellHasFocus) {
-                java.awt.Component comp = super.getListCellRendererComponent(list, value, index, isSelected,
+                Component comp = super.getListCellRendererComponent(list, value, index, isSelected,
                         cellHasFocus);
                 if (value instanceof CauLacBo c)
                     setText(c.getTenClb());
@@ -108,11 +116,11 @@ public class DangKyDoiDialog extends JDialog {
         });
 
         // Renderer cho VĐV
-        javax.swing.ListCellRenderer<Object> vRenderer = new javax.swing.DefaultListCellRenderer() {
+        ListCellRenderer<Object> vRenderer = new DefaultListCellRenderer() {
             @Override
-            public java.awt.Component getListCellRendererComponent(javax.swing.JList<?> list, Object value, int index,
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                     boolean isSelected, boolean cellHasFocus) {
-                java.awt.Component comp = super.getListCellRendererComponent(list, value, index, isSelected,
+                Component comp = super.getListCellRendererComponent(list, value, index, isSelected,
                         cellHasFocus);
                 if (value instanceof VanDongVien v)
                     setText(v.getHoTen());
@@ -141,7 +149,6 @@ public class DangKyDoiDialog extends JDialog {
         updateVdvCombos(idVdv1Init, idVdv2Init);
         // Thay đổi CLB => cập nhật lại danh sách VĐV
         cboClb.addActionListener(e -> updateVdvCombos(null, null));
-
         btnSave.addActionListener(e -> onSave());
         btnCancel.addActionListener(e -> dispose());
 
@@ -260,10 +267,15 @@ public class DangKyDoiDialog extends JDialog {
 
         try {
             if (editingTeamId == null) {
-                teamService.createTeam(idGiai, noiDung.getId(), idClb, ten, List.of(id1, id2));
+                detailService.replaceMembers(teamService.createTeam(idGiai, noiDung.getId(), idClb, ten),
+                        List.of(id1, id2));
+                JOptionPane.showMessageDialog(this, "Thêm đội thành công.", "Thành công",
+                        JOptionPane.INFORMATION_MESSAGE);
             } else {
                 teamService.updateTeamInfo(editingTeamId, idClb, ten);
-                teamService.replaceMembers(editingTeamId, List.of(id1, id2));
+                detailService.replaceMembers(editingTeamId, List.of(id1, id2));
+                JOptionPane.showMessageDialog(this, "Cập nhật đội thành công.", "Thành công",
+                        JOptionPane.INFORMATION_MESSAGE);
             }
             dispose();
         } catch (RuntimeException ex) {
