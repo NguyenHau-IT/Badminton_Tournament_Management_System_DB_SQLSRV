@@ -89,7 +89,7 @@ public class MainFrame extends JFrame {
     private AuthService authService;
 
     // UI fields
-    private final JLabel lblAppTitle = new JLabel("Badminton Event Technology");
+    private final JLabel lblAppTitle = new JLabel("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
     private final JLabel lblVersion = new JLabel();
     // Bỏ toggle ở header; chuyển qua menu. (Giữ method switchTheme)
     private final JLabel statusConn = new JLabel("Chưa kết nối");
@@ -115,7 +115,7 @@ public class MainFrame extends JFrame {
     }
 
     public MainFrame(NetworkConfig cfg, ConnectionConfig dbCfg) {
-        super("Badminton Event Technology");
+        super("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
         this.netCfg = cfg;
         this.dbCfg = dbCfg;
 

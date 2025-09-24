@@ -56,13 +56,13 @@ import javax.swing.border.EmptyBorder;
 import com.example.btms.config.Prefs;
 import com.example.btms.controller.ScoreboardPinController;
 import com.example.btms.model.match.BadmintonMatch;
-import com.example.btms.model.team.DangKiDoi;
-import com.example.btms.service.team.DoiService;
 import com.example.btms.model.player.VanDongVien;
+import com.example.btms.model.team.DangKiDoi;
 import com.example.btms.repository.category.CategoryRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
 import com.example.btms.service.scoreboard.ScoreboardService;
+import com.example.btms.service.team.DoiService;
 import com.example.btms.ui.scoreboard.MiniScorePanel;
 import com.example.btms.util.log.Log;
 import com.example.btms.util.net.NetworkUtil;
@@ -113,8 +113,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private final JLabel lblRemoteQr = new JLabel();
     // Trạng thái hiển thị link điều khiển và giá trị URL hiện tại
     private boolean remoteUrlVisible = false;
+    private boolean qrCodeVisible = false; // Mặc định hiển thị QR code
     private String currentRemoteUrl = null;
     private JButton btnToggleLinkVisible;
+    private JButton btnToggleQrVisible;
 
     /* ===== Live preview ===== */
     private MiniScorePanel mini;
@@ -662,11 +664,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         lblRemoteUrl.setFont(FONT_VALUE);
         linkPanel.add(lblRemoteUrl, BorderLayout.CENTER);
 
-        // Nhóm nút bên phải: [Ẩn/Hiện] [Copy]
-        JPanel rightBtnBox = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+        // Nhóm nút ở giữa: [Ẩn/Hiện QR] [Ẩn/Hiện Link] [Copy]
+        JPanel rightBtnBox = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 6, 0));
         rightBtnBox.setOpaque(false);
         btnToggleLinkVisible = ButtonFactory.outlined(remoteUrlVisible ? "Ẩn link" : "Hiện link", COL_NEUTRAL,
-                new Dimension(90, 28), FONT_BTN);
+                new Dimension(110, 30), FONT_BTN);
         btnToggleLinkVisible.setToolTipText("Ẩn/hiện đường link bấm điểm");
         btnToggleLinkVisible.addActionListener(e -> {
             remoteUrlVisible = !remoteUrlVisible;
@@ -674,10 +676,20 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             btnToggleLinkVisible.setText(remoteUrlVisible ? "Ẩn link" : "Hiện link");
         });
 
-        JButton btnCopyLink = ButtonFactory.outlined("📋 Copy", COL_PRIMARY, new Dimension(80, 28), FONT_BTN);
+        JButton btnCopyLink = ButtonFactory.outlined("Copy", COL_PRIMARY, new Dimension(100, 30), FONT_BTN);
         btnCopyLink.setToolTipText("Copy link vào clipboard");
         btnCopyLink.addActionListener(e -> copyLinkToClipboard());
 
+        btnToggleQrVisible = ButtonFactory.outlined(qrCodeVisible ? "Ẩn QR" : "Hiện QR", COL_NEUTRAL,
+                new Dimension(100, 30), FONT_BTN);
+        btnToggleQrVisible.setToolTipText("Ẩn/hiện mã QR code");
+        btnToggleQrVisible.addActionListener(e -> {
+            qrCodeVisible = !qrCodeVisible;
+            updateQrCodeDisplay();
+            btnToggleQrVisible.setText(qrCodeVisible ? "Ẩn QR" : "Hiện QR");
+        });
+
+        rightBtnBox.add(btnToggleQrVisible);
         rightBtnBox.add(btnToggleLinkVisible);
         rightBtnBox.add(btnCopyLink);
         linkPanel.add(rightBtnBox, BorderLayout.EAST);
@@ -691,7 +703,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         pinLinkPanel.add(pinLinkLabel, BorderLayout.CENTER);
 
         // Nút copy link PIN
-        JButton btnCopyPinLink = ButtonFactory.outlined("📋 Copy PIN", COL_PRIMARY, new Dimension(90, 28), FONT_BTN);
+        JButton btnCopyPinLink = ButtonFactory.outlined("📋 Copy PIN", COL_PRIMARY, new Dimension(110, 30), FONT_BTN);
         btnCopyPinLink.setToolTipText("Copy link nhập PIN vào clipboard");
         btnCopyPinLink.addActionListener(e -> copyPinLinkToClipboard());
         pinLinkPanel.add(btnCopyPinLink, BorderLayout.EAST);
@@ -1510,8 +1522,15 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             // Lưu URL và cập nhật hiển thị theo trạng thái ẩn/hiện
             currentRemoteUrl = url;
             updateRemoteUrlDisplay();
-            var img = QRCodeUtil.generate(url, 100);
-            lblRemoteQr.setIcon(new ImageIcon(img));
+
+            // Chỉ tạo và hiển thị QR code khi qrCodeVisible = true
+            if (qrCodeVisible) {
+                var img = QRCodeUtil.generate(url, 100);
+                lblRemoteQr.setIcon(new ImageIcon(img));
+            } else {
+                lblRemoteQr.setIcon(null);
+                lblRemoteQr.setText("");
+            }
 
             // Cập nhật link PIN entry nếu có
             SwingUtilities.invokeLater(() -> {
@@ -1529,6 +1548,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         } catch (Exception ex) {
             lblRemoteUrl.setText("<html><b style='color:red;'>LỖI: " + ex.getMessage() + "</b></html>");
             lblRemoteQr.setIcon(null);
+            lblRemoteQr.setText("");
             logger.logTs("Lỗi khi cập nhật remote link UI: %s", ex.getMessage());
         }
     }
@@ -1586,6 +1606,23 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 lblRemoteUrl.setText("<html><b>" + currentRemoteUrl + "</b></html>");
             } else {
                 lblRemoteUrl.setText("<html><b>••••••••••</b></html>");
+            }
+        } catch (Exception ignore) {
+        }
+    }
+
+    /**
+     * Cập nhật hiển thị QR code theo trạng thái ẩn/hiện
+     */
+    private void updateQrCodeDisplay() {
+        try {
+            if (qrCodeVisible) {
+                // Hiển thị QR code bình thường
+                updateRemoteLinkUi(); // Gọi lại để tạo QR code
+            } else {
+                // Ẩn QR code bằng cách xóa nội dung
+                lblRemoteQr.setIcon(null);
+                lblRemoteQr.setText("");
             }
         } catch (Exception ignore) {
         }
