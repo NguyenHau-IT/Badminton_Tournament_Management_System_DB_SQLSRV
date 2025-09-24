@@ -79,4 +79,10 @@ public class DangKiDoi {
     public int hashCode() {
         return Objects.hash(idTeam);
     }
+
+    @Override
+    public String toString() {
+        // Dùng tên đội nếu có, fallback hiển thị #ID để tránh null
+        return (tenTeam != null && !tenTeam.isBlank()) ? tenTeam : (idTeam != null ? ("#" + idTeam) : "(đội)");
+    }
 }

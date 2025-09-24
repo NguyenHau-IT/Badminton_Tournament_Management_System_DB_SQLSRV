@@ -56,10 +56,11 @@ import javax.swing.border.EmptyBorder;
 import com.example.badmintoneventtechnology.config.Prefs;
 import com.example.badmintoneventtechnology.controller.ScoreboardPinController;
 import com.example.badmintoneventtechnology.model.match.BadmintonMatch;
-import com.example.badmintoneventtechnology.model.match.Player;
-import com.example.badmintoneventtechnology.model.match.TeamItem;
+import com.example.badmintoneventtechnology.model.team.DangKiDoi;
+import com.example.badmintoneventtechnology.service.team.DoiService;
+import com.example.badmintoneventtechnology.model.player.VanDongVien;
 import com.example.badmintoneventtechnology.repository.category.CategoryRepository;
-import com.example.badmintoneventtechnology.repository.vdvandteam.TeamAndPlayerRepository;
+import com.example.badmintoneventtechnology.repository.player.VanDongVienRepository;
 import com.example.badmintoneventtechnology.service.scoreboard.ScoreboardRemote;
 import com.example.badmintoneventtechnology.service.scoreboard.ScoreboardService;
 import com.example.badmintoneventtechnology.ui.scoreboard.MiniScorePanel;
@@ -84,8 +85,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private final JComboBox<String> cboHeaderDoubles = new JComboBox<>();
     private final JComboBox<String> cboNameA = new JComboBox<>();
     private final JComboBox<String> cboNameB = new JComboBox<>();
-    private final JComboBox<TeamItem> cboTeamA = new JComboBox<>();
-    private final JComboBox<TeamItem> cboTeamB = new JComboBox<>();
+    private final JComboBox<DangKiDoi> cboTeamA = new JComboBox<>();
+    private final JComboBox<DangKiDoi> cboTeamB = new JComboBox<>();
     private final JComboBox<String> bestOf = new JComboBox<>(new String[] { "Bo 1", "Bo 3" });
     private final JCheckBox doubles = new JCheckBox("Đánh đôi");
     private final JComboBox<String> initialServer = new JComboBox<>(
@@ -149,7 +150,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private static final Font FONT_VALUE = new Font("SansSerif", Font.BOLD, 13);
     private static final Font FONT_SECTION = new Font("SansSerif", Font.BOLD, 15);
     private static final Font FONT_BTN = new Font("SansSerif", Font.BOLD, 14);
-    private static final Font FONT_BTN_BIG = new Font("SansSerif", Font.BOLD, 15);
+    // private static final Font FONT_BTN_BIG = new Font("SansSerif", Font.BOLD,
+    // 15); // (unused)
 
     private static final Color COL_PRIMARY = new Color(30, 136, 229);
     private static final Color COL_SUCCESS = new Color(46, 204, 113);
@@ -900,16 +902,20 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         });
     }
 
-    private void setTeamPlaceholder(JComboBox<TeamItem> combo) {
+    private void setTeamPlaceholder(JComboBox<DangKiDoi> combo) {
         combo.removeAllItems();
-        combo.addItem(new TeamItem(-1, PH_TEAM));
+        // tạo đối tượng giả làm placeholder
+        DangKiDoi ph = new DangKiDoi();
+        ph.setIdTeam(-1);
+        ph.setTenTeam(PH_TEAM);
+        combo.addItem(ph);
         combo.setSelectedIndex(0);
         combo.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                     boolean isSelected, boolean cellHasFocus) {
                 Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof TeamItem ti && PH_TEAM.equals(ti.label))
+                if (value instanceof DangKiDoi dk && PH_TEAM.equals(dk.getTenTeam()))
                     setForeground(Color.GRAY);
                 return c;
             }
@@ -1005,13 +1011,15 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             return;
         }
         Integer knr = headerKnrSingles.get(header);
-        Integer vernr = new Prefs().getInt("selectedTournamentVernr", -1);
+        // ID giải lưu trong Prefs dưới key 'selectedGiaiDauId' (đồng bộ với
+        // CategoryRepository)
+        Integer vernr = new Prefs().getInt("selectedGiaiDauId", -1);
         if (knr == null || vernr == null)
             return;
 
-        var repo = new TeamAndPlayerRepository(conn);
+        var repo = new VanDongVienRepository(conn);
         singlesNameToId.clear();
-        singlesNameToId.putAll(repo.loadSinglesNamesByKnr(knr, vernr));
+        singlesNameToId.putAll(repo.loadSinglesNames(knr, vernr));
 
         guard.runSilently(() -> {
             cboNameA.removeAllItems();
@@ -1055,18 +1063,18 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             return;
         }
         Integer knr = headerKnrDoubles.get(header);
-        Integer vernr = new Prefs().getInt("selectedTournamentVernr", -1);
+        Integer vernr = new Prefs().getInt("selectedGiaiDauId", -1);
         if (knr == null || vernr == null)
             return;
 
-        var repo = new TeamAndPlayerRepository(conn);
-        List<TeamItem> teams = repo.fetchTeamsByKnr(knr, vernr);
+        // Dùng DoiService mới thay vì TeamAndPlayerRepository cũ
+        DoiService doiService = new DoiService(conn);
+        List<DangKiDoi> teams = doiService.getTeamsByNoiDungVaGiai(knr, vernr);
 
         guard.runSilently(() -> {
             setTeamPlaceholder(cboTeamA);
             setTeamPlaceholder(cboTeamB);
-            for (TeamItem t : teams) {
-                // Giữ nguyên tên đội gốc trong combobox
+            for (DangKiDoi t : teams) {
                 cboTeamA.addItem(t);
                 cboTeamB.addItem(t);
             }
@@ -1086,13 +1094,14 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private void updateFromTeams() {
         if (!doubles.isSelected())
             return;
-        TeamItem ta = (TeamItem) cboTeamA.getSelectedItem();
-        TeamItem tb = (TeamItem) cboTeamB.getSelectedItem();
-        if (ta == null || tb == null || ta.teamId < 0 || tb.teamId < 0)
+        DangKiDoi ta = (DangKiDoi) cboTeamA.getSelectedItem();
+        DangKiDoi tb = (DangKiDoi) cboTeamB.getSelectedItem();
+        if (ta == null || tb == null || ta.getIdTeam() == null || tb.getIdTeam() == null || ta.getIdTeam() < 0
+                || tb.getIdTeam() < 0)
             return;
-        match.setNames(ta.label, tb.label);
-        logger.chooseTeamA(ta.label, ta.teamId);
-        logger.chooseTeamB(tb.label, tb.teamId);
+        match.setNames(ta.getTenTeam(), tb.getTenTeam());
+        logger.chooseTeamA(ta.getTenTeam(), ta.getIdTeam());
+        logger.chooseTeamB(tb.getTenTeam(), tb.getIdTeam());
     }
 
     /** cập nhật tên khi đấu đơn, dùng String + map id */
@@ -1113,9 +1122,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private void ensureDifferentTeamsAndUpdate() {
         if (!doubles.isSelected() || guard.isSuppressed())
             return;
-        TeamItem ta = (TeamItem) cboTeamA.getSelectedItem();
-        TeamItem tb = (TeamItem) cboTeamB.getSelectedItem();
-        if (ta != null && tb != null && ta.teamId >= 0 && tb.teamId >= 0 && ta.teamId == tb.teamId) {
+        DangKiDoi ta = (DangKiDoi) cboTeamA.getSelectedItem();
+        DangKiDoi tb = (DangKiDoi) cboTeamB.getSelectedItem();
+        if (ta != null && tb != null && ta.getIdTeam() != null && tb.getIdTeam() != null
+                && ta.getIdTeam() >= 0 && tb.getIdTeam() >= 0 && ta.getIdTeam().equals(tb.getIdTeam())) {
             guard.runSilently(() -> {
                 if (cboTeamB.getItemCount() > 2) {
                     int alt = (cboTeamA.getSelectedIndex() == 1) ? 2 : 1;
@@ -1194,41 +1204,32 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         String hostShown = "";
 
         if (doubles.isSelected()) {
-            TeamItem ta = (TeamItem) cboTeamA.getSelectedItem();
-            TeamItem tb = (TeamItem) cboTeamB.getSelectedItem();
-            if (ta == null || tb == null || ta.teamId < 0 || tb.teamId < 0) {
+            DangKiDoi ta = (DangKiDoi) cboTeamA.getSelectedItem();
+            DangKiDoi tb = (DangKiDoi) cboTeamB.getSelectedItem();
+            if (ta == null || tb == null || ta.getIdTeam() == null || tb.getIdTeam() == null || ta.getIdTeam() < 0
+                    || tb.getIdTeam() < 0) {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn Đội A/B.", "Thiếu đội", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            var repo = new TeamAndPlayerRepository(conn);
-            var pa = repo.fetchTeamPlayersDetailed(ta.teamId);
-            var pb = repo.fetchTeamPlayersDetailed(tb.teamId);
-            if (pa.length == 0 || pb.length == 0) {
+            DoiService doiService = new DoiService(conn);
+            VanDongVien[] pa = doiService.getTeamPlayers(ta.getIdTeam());
+            VanDongVien[] pb = doiService.getTeamPlayers(tb.getIdTeam());
+            if (pa == null || pa.length == 0 || pb == null || pb.length == 0) {
                 JOptionPane.showMessageDialog(this, "Đội chưa có đủ VĐV.", "Thiếu dữ liệu đội",
                         JOptionPane.WARNING_MESSAGE);
                 return;
             }
-
-            // Tạo tên hiển thị từ tên 2 VĐV thay vì tên đội
-            String displayNameA = createPlayerDisplayName(pa);
-            String displayNameB = createPlayerDisplayName(pb);
-
-            // Tạo tên đầy đủ cho mỗi đội (mỗi VĐV 1 hàng)
             String fullNameA = buildFullTeamName(pa);
             String fullNameB = buildFullTeamName(pb);
-
             match.setDoubles(true);
-            match.setNames(fullNameA, fullNameB); // Set tên đầy đủ cho mỗi đội
+            match.setNames(fullNameA, fullNameB);
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
-
             hasStarted = true;
             afterStartUi();
-            // openDisplayAuto();
             scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
                     header, true, fullNameA, fullNameB, courtId);
-            // Gắn match lên HTTP server theo port của sân
-            logger.startDoubles(header, ta.label, ta.teamId, tb.label, tb.teamId, bo);
+            logger.startDoubles(header, ta.getTenTeam(), ta.getIdTeam(), tb.getTenTeam(), tb.getIdTeam(), bo);
             updateRemoteLinkUi();
         } else {
             String nameA = sel(cboNameA);
@@ -1390,38 +1391,37 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         String hostShown = "";
 
         if (doubles.isSelected()) {
-            TeamItem ta = (TeamItem) cboTeamA.getSelectedItem();
-            TeamItem tb = (TeamItem) cboTeamB.getSelectedItem();
-            if (ta == null || tb == null || ta.teamId < 0 || tb.teamId < 0) {
+            DangKiDoi ta = (DangKiDoi) cboTeamA.getSelectedItem();
+            DangKiDoi tb = (DangKiDoi) cboTeamB.getSelectedItem();
+            if (ta == null || tb == null || ta.getIdTeam() == null || tb.getIdTeam() == null || ta.getIdTeam() < 0
+                    || tb.getIdTeam() < 0) {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn Đội A/B.", "Thiếu đội",
                         JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            var repo = new TeamAndPlayerRepository(conn);
-            var pa = repo.fetchTeamPlayersDetailed(ta.teamId);
-            var pb = repo.fetchTeamPlayersDetailed(tb.teamId);
-            if (pa.length == 0 || pb.length == 0) {
+            DoiService doiService = new DoiService(conn);
+            VanDongVien[] pa = doiService.getTeamPlayers(ta.getIdTeam());
+            VanDongVien[] pb = doiService.getTeamPlayers(tb.getIdTeam());
+            if (pa == null || pa.length == 0 || pb == null || pb.length == 0) {
                 JOptionPane.showMessageDialog(this, "Đội chưa có đủ VĐV.", "Thiếu dữ liệu đội",
                         JOptionPane.WARNING_MESSAGE);
                 return;
             }
-
+            String fullNameA = buildFullTeamName(pa);
+            String fullNameB = buildFullTeamName(pb);
             match.setDoubles(true);
-            match.setNames(ta.label, tb.label);
+            match.setNames(fullNameA, fullNameB);
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
-
             hasStarted = true;
             afterStartUi();
             openDisplayAuto();
             scoreboardSvc.startBroadcast(
                     match, selectedIf, clientName, hostShown, displayKind,
-                    header, true, ta.label, tb.label, courtId);
-
+                    header, true, fullNameA, fullNameB, courtId);
             logger.logTs("ĐẶT LẠI ĐÔI: TEAM A=%s (TEAMID=%d) vs TEAM B=%s (TEAMID=%d)",
-                    ta.label, ta.teamId, tb.label, tb.teamId);
+                    ta.getTenTeam(), ta.getIdTeam(), tb.getTenTeam(), tb.getIdTeam());
             updateRemoteLinkUi();
-
         } else {
             String nameA = sel(cboNameA);
             String nameB = sel(cboNameB);
@@ -1950,28 +1950,25 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      * Tạo tên hiển thị từ danh sách VĐV của đội
      * Chỉ trả về tên VĐV đầu tiên vì bảng điểm sẽ hiển thị mỗi tên 1 hàng
      */
-    private String createPlayerDisplayName(Player[] players) {
-        if (players == null || players.length == 0) {
-            return "VĐV chưa có";
-        }
-        // Chỉ trả về tên VĐV đầu tiên, bảng điểm sẽ hiển thị mỗi tên 1 hàng
-        return players[0].name;
-    }
+    // (Đã bỏ createPlayerDisplayName vì không còn cần riêng hiển thị VĐV đầu tiên)
 
     /**
      * Tạo tên đầy đủ cho mỗi đội (mỗi VĐV 1 hàng)
      */
-    private String buildFullTeamName(Player[] players) {
+    private String buildFullTeamName(VanDongVien[] players) {
         if (players == null || players.length == 0) {
-            return "Đội chưa có VĐV";
+            return "";
         }
         StringBuilder fullName = new StringBuilder();
         for (int i = 0; i < players.length; i++) {
-            fullName.append(players[i].name);
+            VanDongVien v = players[i];
+            fullName.append(v != null && v.getHoTen() != null ? v.getHoTen() : ("#" + i));
             if (i < players.length - 1) {
                 fullName.append(" - ");
             }
         }
         return fullName.toString();
     }
+
+    // Không cần convert nữa: dùng trực tiếp VanDongVien[]
 }

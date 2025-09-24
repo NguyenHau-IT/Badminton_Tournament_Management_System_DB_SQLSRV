@@ -1,10 +1,20 @@
 package com.example.badmintoneventtechnology.repository.player;
 
-import com.example.badmintoneventtechnology.model.player.VanDongVien;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+
+import javax.swing.JOptionPane;
+
+import com.example.badmintoneventtechnology.model.player.VanDongVien;
 
 public class VanDongVienRepository {
     private final Connection conn;
@@ -98,5 +108,35 @@ public class VanDongVienRepository {
                 rs.getDate("NGAY_SINH") != null ? rs.getDate("NGAY_SINH").toLocalDate() : null,
                 rs.getObject("ID_CLB") != null ? rs.getInt("ID_CLB") : null,
                 rs.getString("GIOI_TINH"));
+    }
+
+    public Map<String, Integer> loadSinglesNames(int idNoiDung, int idGiaiDau) {
+        Map<String, Integer> nameToId = new LinkedHashMap<>();
+        final String sql = "SELECT DISTINCT v.ID, COALESCE(v.HO_TEN, CAST(d.ID_VDV AS VARCHAR)) AS TEN " +
+                "FROM DANG_KI_CA_NHAN d " +
+                "LEFT JOIN VAN_DONG_VIEN v ON v.ID = d.ID_VDV " +
+                "WHERE d.ID_NOI_DUNG = ? AND d.ID_GIAI = ? " +
+                "ORDER BY TEN";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idNoiDung);
+            ps.setInt(2, idGiaiDau);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int vdvId = rs.getInt("ID");
+                    String ten = rs.getString("TEN");
+                    if (ten != null && !ten.isBlank()) {
+                        nameToId.put(ten, vdvId);
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Lỗi tải VĐV đăng ký cá nhân: " + ex.getMessage(),
+                    "Lỗi DB",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+        return nameToId;
     }
 }

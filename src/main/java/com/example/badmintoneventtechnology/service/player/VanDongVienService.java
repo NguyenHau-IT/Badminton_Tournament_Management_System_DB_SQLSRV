@@ -5,6 +5,7 @@ import com.example.badmintoneventtechnology.repository.player.VanDongVienReposit
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 
@@ -49,6 +50,10 @@ public class VanDongVienService {
     public void delete(int id) {
         findOne(id); // đảm bảo tồn tại
         repo.delete(id);
+    }
+
+    public Map<String, Integer> loadSinglesNames(int idNoiDung, int idGiaiDau) {
+        return repo.loadSinglesNames(idNoiDung, idGiaiDau);
     }
 
     /* ========== private helpers ========== */
