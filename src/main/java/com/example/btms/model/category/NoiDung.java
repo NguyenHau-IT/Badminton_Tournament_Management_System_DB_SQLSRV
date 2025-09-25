@@ -70,13 +70,10 @@ public class NoiDung {
 
     @Override
     public String toString() {
-        return "NoiDung{" +
-                "id=" + id +
-                ", tenNoiDung='" + tenNoiDung + '\'' +
-                ", tuoiDuoi=" + tuoiDuoi +
-                ", tuoiTren=" + tuoiTren +
-                ", gioiTinh='" + gioiTinh + '\'' +
-                ", team=" + team +
-                '}';
+        // Hiển thị tên nội dung để phù hợp với các combobox/JOptionPane lựa chọn
+        // Nếu thiếu tên, fallback về "ND #id"
+        return (tenNoiDung != null && !tenNoiDung.isBlank())
+                ? tenNoiDung
+                : (id != null ? ("ND #" + id) : "Nội dung");
     }
 }

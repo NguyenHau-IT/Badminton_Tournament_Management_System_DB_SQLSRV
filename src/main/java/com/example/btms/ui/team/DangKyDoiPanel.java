@@ -195,16 +195,30 @@ public class DangKyDoiPanel extends JPanel {
             return;
         }
 
-        // Chọn nội dung đôi để thêm đội
-        NoiDung nd = chooseDoublesCategory();
-        if (nd == null)
+        // Lấy danh sách nội dung ĐÔI và gợi ý chọn ban đầu (nếu có thể)
+        List<NoiDung> doubles;
+        NoiDung initial;
+        try {
+            List<NoiDung> all = noiDungService.getAllNoiDung();
+            doubles = new java.util.ArrayList<>();
+            for (NoiDung x : all)
+                if (Boolean.TRUE.equals(x.getTeam()))
+                    doubles.add(x);
+            if (doubles.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI.");
+                return;
+            }
+            initial = doubles.get(0);
+        } catch (java.sql.SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
             return;
+        }
 
         DangKyDoiDialog dlg = new DangKyDoiDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
                 "Thêm đội",
                 teamService, detailService, vdvService, clbService,
-                idGiai, nd,
+                idGiai, doubles, initial,
                 null, null, null, null, null);
         dlg.setVisible(true);
         reload();
@@ -258,11 +272,28 @@ public class DangKyDoiPanel extends JPanel {
             System.err.println("Không lấy được thành viên đội: " + ex.getMessage());
         }
 
+        // Lấy tất cả ND đôi để đưa vào dialog (chế độ sửa sẽ disable đổi ND)
+        List<NoiDung> doubles;
+        try {
+            List<NoiDung> all = noiDungService.getAllNoiDung();
+            doubles = new java.util.ArrayList<>();
+            for (NoiDung x : all)
+                if (Boolean.TRUE.equals(x.getTeam()))
+                    doubles.add(x);
+            if (doubles.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI.");
+                return;
+            }
+        } catch (java.sql.SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
+            return;
+        }
+
         DangKyDoiDialog dlg = new DangKyDoiDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
                 "Sửa đội",
                 teamService, detailService, vdvService, clbService,
-                prefs.getInt("selectedGiaiDauId", -1), nd.get(),
+                prefs.getInt("selectedGiaiDauId", -1), doubles, nd.get(),
                 idTeam, tenTeam, idClbInit, idVdv1Init, idVdv2Init);
         dlg.setVisible(true);
         reload();

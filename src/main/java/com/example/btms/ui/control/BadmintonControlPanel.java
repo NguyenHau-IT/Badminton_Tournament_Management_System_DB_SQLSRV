@@ -664,8 +664,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         lblRemoteUrl.setFont(FONT_VALUE);
         linkPanel.add(lblRemoteUrl, BorderLayout.CENTER);
 
-        // Nhóm nút ở giữa: [Ẩn/Hiện QR] [Ẩn/Hiện Link] [Copy]
-        JPanel rightBtnBox = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 6, 0));
+        // Nhóm nút 2 cột, căn sát phải: [Ẩn/Hiện QR] [Ẩn/Hiện Link]
+        // [ trống ] [Copy]
+        JPanel rightBtnBox = new JPanel(new GridLayout(0, 2, 6, 4));
         rightBtnBox.setOpaque(false);
         btnToggleLinkVisible = ButtonFactory.outlined(remoteUrlVisible ? "Ẩn link" : "Hiện link", COL_NEUTRAL,
                 new Dimension(110, 30), FONT_BTN);
@@ -691,6 +692,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
         rightBtnBox.add(btnToggleQrVisible);
         rightBtnBox.add(btnToggleLinkVisible);
+        rightBtnBox.add(Box.createHorizontalStrut(0)); // filler để Copy nằm cột phải hàng dưới
         rightBtnBox.add(btnCopyLink);
         linkPanel.add(rightBtnBox, BorderLayout.EAST);
 
@@ -1237,6 +1239,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             match.setNames(fullNameA, fullNameB);
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
+            com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
             hasStarted = true;
             afterStartUi();
             scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
@@ -1255,6 +1258,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             match.setNames(nameA, nameB);
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
+            com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
 
             hasStarted = true;
             afterStartUi();
@@ -1736,6 +1740,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
                 // Chụp ảnh bảng điểm mini khi trận đấu kết thúc
                 SwingUtilities.invokeLater(() -> captureMiniScoreboard());
+
+                // Phát âm kết thúc (1 lần)
+                com.example.btms.util.sound.SoundPlayer.playEndIfEnabled();
 
                 cancelFinishTimer();
                 finishTimer = new javax.swing.Timer(3000, e -> {

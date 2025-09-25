@@ -83,10 +83,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     // trên một số máy
     private boolean forceMirrorMode = true; // Set false nếu muốn thử lại cơ chế tách thực sự
 
-    // Setting: số cột hiển thị
-    private int columns = 3;
-    private final javax.swing.JComboBox<String> cboColumns = new javax.swing.JComboBox<>(
-            new String[] { "1", "2", "3" });
+    // Setting: số cột hiển thị (mặc định 3, cho phép 1..4) – cấu hình qua
+    // SettingsPanel chung
+    private int columns = 3; // (Đã bỏ combo nội bộ)
     private final Preferences prefs = Preferences.userNodeForPackage(MonitorTab.class);
 
     public MonitorTab() {
@@ -149,26 +148,13 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         list.putClientProperty("JComponent.roundRect", true); // hint FlatLaf
 
         JScrollPane scroll = new JScrollPane(list);
-        // Tabs bên trong: Danh sách | Cài đặt
-        JTabbedPane innerTabs = new JTabbedPane();
-
-        JPanel listPanel = new JPanel(new BorderLayout());
-        listPanel.add(scroll, BorderLayout.CENTER);
-        innerTabs.addTab("Danh sách", listPanel);
-
-        JPanel settingsPanel = buildSettingsPanel();
-        innerTabs.addTab("Cài đặt", settingsPanel);
-
-        add(innerTabs, BorderLayout.CENTER);
+        add(scroll, BorderLayout.CENTER); // chỉ còn danh sách; cài đặt chuyển sang trang Settings
 
         // Tải số cột đã lưu
         try {
-            int savedCols = Math.max(1, Math.min(3, prefs.getInt("monitor.columns", columns)));
+            int savedCols = Math.max(1, Math.min(4, prefs.getInt("monitor.columns", columns)));
             columns = savedCols;
-            try {
-                cboColumns.setSelectedItem(String.valueOf(columns));
-            } catch (Exception ignore) {
-            }
+            // không còn combo nội bộ để setSelected
         } catch (Exception ignore) {
         }
 
@@ -285,32 +271,21 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         }
     }
 
-    /** Panel cài đặt số cột */
-    private JPanel buildSettingsPanel() {
-        JPanel p = new JPanel(new BorderLayout(8, 8));
-        p.setBorder(new EmptyBorder(8, 8, 8, 8));
-
-        JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
-        row.add(new JLabel("Số cột:"));
-        cboColumns.setSelectedItem(String.valueOf(columns));
-        row.add(cboColumns);
-        p.add(row, BorderLayout.NORTH);
-
-        cboColumns.addActionListener(e -> {
-            try {
-                String sel = (String) cboColumns.getSelectedItem();
-                int col = Integer.parseInt(sel);
-                columns = Math.max(1, Math.min(3, col));
-                updateCellWidthForColumns();
-                try {
-                    prefs.putInt("monitor.columns", columns);
-                } catch (Exception ignore) {
-                }
-            } catch (Exception ignore) {
-            }
+    /** Cho phép trang Cài đặt chỉnh số cột. */
+    public void setColumns(int cols) {
+        int newCols = Math.max(1, Math.min(4, cols));
+        if (newCols == this.columns)
+            return;
+        this.columns = newCols;
+        try {
+            prefs.putInt("monitor.columns", newCols);
+        } catch (Exception ignore) {
+        }
+        SwingUtilities.invokeLater(() -> {
+            updateCellWidthForColumns();
+            list.revalidate();
+            list.repaint();
         });
-
-        return p;
     }
 
     private void rxLoop() {
@@ -320,10 +295,63 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             InetAddress group = InetAddress.getByName(GROUP);
 
             if (nif != null) {
+                // Dùng interface do MainFrame cung cấp (ưu tiên cấu hình người dùng)
                 ms.setNetworkInterface(nif);
                 ms.joinGroup(new InetSocketAddress(group, PORT), nif);
             } else {
-                ms.joinGroup(group);
+                // Tự tìm một network interface multicast thay vì gọi API cũ (deprecated)
+                NetworkInterface chosen = null;
+                try {
+                    chosen = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+                } catch (Exception ignore) {
+                }
+                try {
+                    if (chosen == null || !chosen.isUp() || chosen.isLoopback() || !chosen.supportsMulticast()) {
+                        var en = NetworkInterface.getNetworkInterfaces();
+                        while (en.hasMoreElements()) {
+                            NetworkInterface ni = en.nextElement();
+                            if (ni != null && ni.isUp() && !ni.isLoopback() && ni.supportsMulticast()) {
+                                chosen = ni;
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception ignore) {
+                }
+                if (chosen != null) {
+                    try {
+                        ms.setNetworkInterface(chosen);
+                        ms.joinGroup(new InetSocketAddress(group, PORT), chosen);
+                    } catch (Exception ex) {
+                        // Fallback cuối cùng – thử API cũ (đã deprecated) nếu tất cả đều thất bại
+                        try {
+                            @SuppressWarnings("deprecation")
+                            var __unused = 0; // chỉ để gắn suppress trong block
+                            ms.joinGroup(group);
+                        } catch (Exception ignore2) {
+                        }
+                    }
+                } else {
+                    // Không tìm được interface phù hợp – thử loopback hoặc fallback deprecated
+                    try {
+                        NetworkInterface loop = NetworkInterface.getByInetAddress(InetAddress.getLoopbackAddress());
+                        if (loop != null) {
+                            ms.setNetworkInterface(loop);
+                            ms.joinGroup(new InetSocketAddress(group, PORT), loop);
+                        } else {
+                            @SuppressWarnings("deprecation")
+                            var __unused = 0;
+                            ms.joinGroup(group);
+                        }
+                    } catch (Exception ex) {
+                        try {
+                            @SuppressWarnings("deprecation")
+                            var __unused = 0;
+                            ms.joinGroup(group);
+                        } catch (Exception ignore3) {
+                        }
+                    }
+                }
             }
 
             byte[] buf = new byte[2048];
@@ -410,6 +438,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         // Sử dụng debounce timer để tránh refresh quá nhiều
         debouncedRefresh();
 
+        // Nếu viewer đang mở cho phiên này, cập nhật ngay nội dung
+        SwingUtilities.invokeLater(() -> updateViewerIfOpen(r));
+
         if (autoOpen.isSelected())
             openViewerFor(r);
     }
@@ -460,6 +491,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                 if (sessionRow != null) {
                     // Cập nhật dữ liệu mà không tạo object mới
                     updateRowData(currentRow, sessionRow);
+                    // Phát sự kiện thay đổi để tất cả JList (bao gồm cửa sổ mirror) vẽ lại
+                    // Ngay cả khi object tham chiếu không đổi, set() sẽ fire contentsChanged
+                    listModel.set(i, currentRow);
                 } else {
                     // Row này không còn trong sessions (phiên đã kết thúc)
                     // Đánh dấu để xóa sau
@@ -502,9 +536,27 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         for (int i = listModel.size() - 1; i >= 0; i--) {
             Row row = listModel.get(i);
             if (row != null && row.markedForRemoval) {
+                // Đóng viewer nếu đang mở cho row này
+                try {
+                    closeViewer(row.viewerKey());
+                } catch (Exception ignore) {
+                }
                 listModel.removeElementAt(i);
                 System.out.println("Đã xóa card: " + row.client + " - " + row.header);
             }
+        }
+    }
+
+    /**
+     * Cập nhật nội dung của cửa sổ viewer nếu đang mở ứng với Row r
+     */
+    private void updateViewerIfOpen(Row r) {
+        try {
+            MonitorWindow w = viewers.get(r.viewerKey());
+            if (w != null) {
+                w.update(r);
+            }
+        } catch (Exception ignore) {
         }
     }
 
@@ -555,20 +607,6 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         target.courtId = source.courtId; // Cập nhật courtId
         target.gameScores = source.gameScores; // Cập nhật điểm các ván đã hoàn thành
         target.updated = source.updated;
-    }
-
-    private boolean isSameRow(Row r1, Row r2) {
-        if (r1 == null || r2 == null)
-            return false;
-        // Chỉ so sánh những gì thực sự quan trọng để tránh nhảy liên tục
-        // Không so sánh client, host, header vì chúng ít thay đổi
-        return r1.scoreA == r2.scoreA &&
-                r1.scoreB == r2.scoreB &&
-                r1.game == r2.game &&
-                r1.gamesA == r2.gamesA &&
-                r1.gamesB == r2.gamesB &&
-                r1.bestOf == r2.bestOf &&
-                r1.doubles == r2.doubles;
     }
 
     private boolean isSameRowIdentity(Row r1, Row r2) {
@@ -1247,21 +1285,6 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             return s.trim();
         }
 
-        private static Color cardBg(boolean selected) {
-            Color sel = UIManager.getColor("List.selectionBackground");
-            Color bg = UIManager.getColor("Panel.background");
-            return selected && sel != null ? sel : bg != null ? bg : Color.WHITE;
-        }
-
-        private static Color cardStroke(boolean selected) {
-            if (selected) {
-                Color c = UIManager.getColor("List.selectionForeground");
-                return c != null ? c : new Color(60, 120, 240);
-            }
-            Color c = UIManager.getColor("Component.borderColor");
-            return c != null ? c : new Color(210, 210, 210);
-        }
-
         private JLabel createScoreLabel(int index, Row r, boolean isTeamA) {
             JLabel label = new JLabel();
             label.setFont(label.getFont().deriveFont(Font.BOLD, 22f)); // Tăng font size từ 20f lên 22f để to hơn
@@ -1424,10 +1447,58 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                     safe(r.client), safe(r.host));
             w = new MonitorWindow(key, title);
             viewers.put(key, w);
+            applyViewerPreferences(w); // áp dụng cài đặt ngay khi tạo
         }
         w.update(r);
         if (!w.isVisible())
             w.setVisible(true);
+    }
+
+    /** Áp dụng các cài đặt (always-on-top, font scale) cho cửa sổ viewer. */
+    private void applyViewerPreferences(MonitorWindow w) {
+        try {
+            java.util.prefs.Preferences p = java.util.prefs.Preferences.userRoot().node("demo.h2client");
+            boolean onTop = p.getBoolean("ui.alwaysOnTop", false);
+            int scalePct = p.getInt("ui.fontScalePercent", 100);
+            w.setAlwaysOnTop(onTop);
+            if (scalePct != 100) {
+                float mul = scalePct / 100f;
+                java.awt.Font f = w.getFont();
+                if (f != null) {
+                    java.awt.Font nf = f.deriveFont(f.getSize2D() * mul);
+                    w.setFont(nf);
+                }
+                // scale text area if exists
+                for (java.awt.Component c : w.getContentPane().getComponents()) {
+                    scaleFontsRecursively(c, mul);
+                }
+            }
+        } catch (Exception ignore) {
+        }
+    }
+
+    /**
+     * Được gọi từ MainFrame nếu cần cập nhật tất cả viewer sau khi đổi setting
+     * runtime.
+     */
+    public void refreshAllViewerSettings() {
+        for (MonitorWindow w : viewers.values()) {
+            applyViewerPreferences(w);
+        }
+    }
+
+    private void scaleFontsRecursively(java.awt.Component c, float mul) {
+        try {
+            java.awt.Font f = c.getFont();
+            if (f != null)
+                c.setFont(f.deriveFont(f.getSize2D() * mul));
+        } catch (Exception ignore) {
+        }
+        if (c instanceof java.awt.Container cont) {
+            for (java.awt.Component ch : cont.getComponents()) {
+                scaleFontsRecursively(ch, mul);
+            }
+        }
     }
 
     // Helper to avoid null strings

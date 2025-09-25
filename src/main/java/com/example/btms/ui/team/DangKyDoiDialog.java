@@ -3,6 +3,9 @@ package com.example.btms.ui.team;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.Window;
 import java.time.LocalDate;
 import java.time.Period;
@@ -20,6 +23,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.ListCellRenderer;
+import javax.swing.SwingUtilities;
 
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
@@ -36,11 +40,13 @@ public class DangKyDoiDialog extends JDialog {
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
     private final int idGiai;
-    private final NoiDung noiDung; // đã đảm bảo là nội dung đôi
+    private final List<NoiDung> noiDungOptions; // danh sách ND (chỉ ĐÔI)
+    private final NoiDung initialNoiDung; // ND ban đầu (prefill)
 
     private final Integer editingTeamId; // null nếu tạo mới
 
     private final JTextField txtTenTeam = new JTextField(24);
+    private final JComboBox<Object> cboNoiDung = new JComboBox<>();
     private final JComboBox<Object> cboClb = new JComboBox<>();
     private final JComboBox<Object> cboVdv1 = new JComboBox<>();
     private final JComboBox<Object> cboVdv2 = new JComboBox<>();
@@ -52,6 +58,7 @@ public class DangKyDoiDialog extends JDialog {
             VanDongVienService vdvService,
             CauLacBoService clbService,
             int idGiai,
+            List<NoiDung> noiDungOptions,
             NoiDung noiDung,
             Integer editingTeamId,
             String tenTeamInit,
@@ -64,25 +71,93 @@ public class DangKyDoiDialog extends JDialog {
         this.vdvService = Objects.requireNonNull(vdvService);
         this.clbService = Objects.requireNonNull(clbService);
         this.idGiai = idGiai;
-        this.noiDung = Objects.requireNonNull(noiDung);
+        this.noiDungOptions = Objects.requireNonNull(noiDungOptions);
+        this.initialNoiDung = Objects.requireNonNull(noiDung);
         this.editingTeamId = editingTeamId;
 
         setLayout(new BorderLayout(8, 8));
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-        // Top form
-        JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
-        form.add(new JLabel("Nội dung:"));
-        form.add(new JLabel(noiDung.getTenNoiDung()));
-        form.add(new JLabel("Tên đội:"));
-        form.add(txtTenTeam);
-        form.add(new JLabel("Câu lạc bộ:"));
-        form.add(cboClb);
-        form.add(new JLabel("VĐV 1:"));
-        form.add(cboVdv1);
-        form.add(new JLabel("VĐV 2:"));
-        form.add(cboVdv2);
+        // Top form (5 hàng)
+        JPanel form = new JPanel(new GridBagLayout());
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.gridx = 0;
+        gc.gridy = 0;
+        gc.anchor = GridBagConstraints.WEST;
+        gc.insets = new Insets(6, 8, 6, 8);
+        form.add(new JLabel("Nội dung:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 0;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        form.add(cboNoiDung, gc);
+
+        gc.gridx = 0;
+        gc.gridy = 1;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Tên đội:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 1;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        form.add(txtTenTeam, gc);
+
+        gc.gridx = 0;
+        gc.gridy = 2;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Câu lạc bộ:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 2;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        form.add(cboClb, gc);
+
+        gc.gridx = 0;
+        gc.gridy = 3;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("VĐV 1:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 3;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        form.add(cboVdv1, gc);
+
+        gc.gridx = 0;
+        gc.gridy = 4;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("VĐV 2:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 4;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        form.add(cboVdv2, gc);
         add(form, BorderLayout.CENTER);
+        // Nội dung options
+        for (NoiDung nd : this.noiDungOptions) {
+            if (nd != null)
+                cboNoiDung.addItem(nd);
+        }
+        // Renderer để hiển thị tên nội dung
+        cboNoiDung.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
+                    boolean cellHasFocus) {
+                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof NoiDung nd)
+                    setText(nd.getTenNoiDung());
+                return c;
+            }
+        });
+        // Chọn ND ban đầu
+        selectNoiDung(initialNoiDung);
+        // Edit mode: không cho đổi ND
+        if (editingTeamId != null) {
+            cboNoiDung.setEnabled(false);
+        }
 
         // Buttons
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
@@ -144,16 +219,35 @@ public class DangKyDoiDialog extends JDialog {
         } else {
             cboClb.setSelectedIndex(0);
         }
-        // Nạp danh sách VĐV theo CLB đang chọn + điều kiện nội dung, rồi chọn sẵn nếu
-        // có
-        updateVdvCombos(idVdv1Init, idVdv2Init);
+        // Nạp danh sách VĐV sau khi UI đã khởi tạo xong (tránh timing khi combobox chưa
+        // set selection)
+        SwingUtilities.invokeLater(() -> updateVdvCombos(idVdv1Init, idVdv2Init));
         // Thay đổi CLB => cập nhật lại danh sách VĐV
         cboClb.addActionListener(e -> updateVdvCombos(null, null));
+        // Thay đổi nội dung => cập nhật lại danh sách VĐV (lọc theo tuổi/giới tính)
+        cboNoiDung.addActionListener(e -> updateVdvCombos(null, null));
         btnSave.addActionListener(e -> onSave());
         btnCancel.addActionListener(e -> dispose());
 
         pack();
         setLocationRelativeTo(parent);
+    }
+
+    private void selectNoiDung(NoiDung nd) {
+        if (nd == null)
+            return;
+        for (int i = 0; i < cboNoiDung.getItemCount(); i++) {
+            Object it = cboNoiDung.getItemAt(i);
+            if (it instanceof NoiDung x && x.getId() != null && x.getId().equals(nd.getId())) {
+                cboNoiDung.setSelectedIndex(i);
+                break;
+            }
+        }
+    }
+
+    private NoiDung getSelectedNoiDung() {
+        Object sel = cboNoiDung.getSelectedItem();
+        return (sel instanceof NoiDung nd) ? nd : initialNoiDung;
     }
 
     private Integer getSelectedClbId() {
@@ -165,19 +259,28 @@ public class DangKyDoiDialog extends JDialog {
 
     private void updateVdvCombos(Integer keepVdv1Id, Integer keepVdv2Id) {
         Integer clbId = getSelectedClbId();
+        NoiDung ndSel = getSelectedNoiDung();
         List<VanDongVien> eligible = new ArrayList<>();
+
+        // Nếu chưa chọn CLB ("— Không —") thì không load danh sách VĐV
+        if (clbId == null) {
+            cboVdv1.removeAllItems();
+            cboVdv2.removeAllItems();
+            cboVdv1.addItem("— Chọn —");
+            cboVdv2.addItem("— Chọn —");
+            // Không giữ lựa chọn cũ khi không có CLB
+            return;
+        }
         try {
             List<VanDongVien> all = vdvService.findAll();
             for (VanDongVien v : all) {
                 if (v == null)
                     continue;
-                // lọc theo CLB nếu đã chọn CLB (không lọc nếu CLB null)
-                if (clbId != null) {
-                    Integer vidClb = v.getIdClb();
-                    if (vidClb == null || !clbId.equals(vidClb))
-                        continue;
-                }
-                if (!isEligible(v, noiDung))
+                // Lọc theo CLB đã chọn (bắt buộc)
+                Integer vidClb = v.getIdClb();
+                if (vidClb == null || !clbId.equals(vidClb))
+                    continue;
+                if (!isEligible(v, ndSel))
                     continue;
                 eligible.add(v);
             }
@@ -266,8 +369,9 @@ public class DangKyDoiDialog extends JDialog {
         }
 
         try {
+            NoiDung ndSel = getSelectedNoiDung();
             if (editingTeamId == null) {
-                detailService.replaceMembers(teamService.createTeam(idGiai, noiDung.getId(), idClb, ten),
+                detailService.replaceMembers(teamService.createTeam(idGiai, ndSel.getId(), idClb, ten),
                         List.of(id1, id2));
                 JOptionPane.showMessageDialog(this, "Thêm đội thành công.", "Thành công",
                         JOptionPane.INFORMATION_MESSAGE);

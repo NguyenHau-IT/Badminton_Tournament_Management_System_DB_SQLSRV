@@ -1,9 +1,9 @@
 package com.example.btms.ui.main;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
@@ -13,36 +13,33 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.sql.Connection;
 import java.text.DecimalFormat;
+import java.util.LinkedHashMap; // still used earlier? (kept for backward compatibility but theme menu removed)
+import java.util.Map;
 
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-// import javax.swing.JToggleButton; // removed direct toggle from header
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
-import javax.swing.JMenuBar;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import com.example.btms.config.ConnectionConfig;
 import com.example.btms.model.db.SQLSRVConnectionManager;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
-import com.example.btms.service.auth.AuthService;
 import com.example.btms.repository.player.VanDongVienRepository;
-import com.example.btms.service.player.VanDongVienService;
-import com.example.btms.ui.player.VanDongVienManagementPanel;
+import com.example.btms.service.auth.AuthService;
 import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.db.DatabaseService;
+import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.ui.auth.LoginTab;
 import com.example.btms.ui.auth.LoginTab.Role;
 import com.example.btms.ui.category.NoiDungManagementPanel;
@@ -53,7 +50,9 @@ import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.net.NetworkConfig;
+import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
+import com.example.btms.ui.settings.SettingsPanel;
 import com.example.btms.ui.tournament.GiaiDauSelectPanel;
 import com.example.btms.ui.tournament.TournamentTabPanel;
 import com.example.btms.util.ui.IconUtil;
@@ -64,6 +63,8 @@ import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 // import com.formdev.flatlaf.extras.FlatSVGIcon; // (no longer used after removing icons)
 
 public class MainFrame extends JFrame {
+    // Lưu map font gốc để tránh nhân đôi khi đổi scale nhiều lần
+    private static java.util.Map<Object, Font> baseUIFontMap;
 
     // Tạo sau khi có Connection
     private NoiDungService noiDungService;
@@ -102,7 +103,7 @@ public class MainFrame extends JFrame {
     private final JPanel cardPanel = new JPanel(new CardLayout());
     private final Map<String, Component> views = new LinkedHashMap<>();
     private Role currentRole = null;
-    private JMenuBar appMenuBar; // keep reference if needed
+    private SettingsPanel settingsPanel; // trang cài đặt
 
     // Icons
     // (Icons kept if later needed for menu entries – currently omitted to simplify)
@@ -120,6 +121,20 @@ public class MainFrame extends JFrame {
         this.dbCfg = dbCfg;
 
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+
+        // Áp dụng theme từ Prefs trước khi build UI để tránh nháy
+        boolean darkPref = new com.example.btms.config.Prefs().getBool("ui.darkTheme", false);
+        if (darkPref) {
+            try {
+                UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatDarkLaf());
+            } catch (Exception ignored) {
+            }
+        } else {
+            try {
+                UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatLightLaf());
+            } catch (Exception ignored) {
+            }
+        }
         Ui.installModernUi();
 
         JComponent root = (JComponent) getContentPane();
@@ -157,6 +172,8 @@ public class MainFrame extends JFrame {
                 ensureViewPresent("Nhiều sân", multiCourtPanel);
                 ensureViewPresent("Giám sát", monitorTab);
                 showView("Giải đấu");
+                if (giaiDauSelectPanel != null)
+                    showView("Chọn giải đấu");
             }
             buildMenuBar();
             try {
@@ -167,6 +184,9 @@ public class MainFrame extends JFrame {
 
         // Ban đầu chỉ có Login (CardLayout)
         ensureViewPresent("Login", loginTab);
+        // Khởi tạo trang cài đặt sớm để luôn truy cập được
+        settingsPanel = new SettingsPanel(this);
+        ensureViewPresent("Cài đặt", settingsPanel);
         ((CardLayout) cardPanel.getLayout()).show(cardPanel, "Login");
 
         root.add(header, BorderLayout.NORTH);
@@ -241,6 +261,12 @@ public class MainFrame extends JFrame {
         ramTimer.start();
 
         autoConnectDatabase();
+
+        // Áp dụng font scale nếu người dùng đã lưu khác 100%
+        int pct = new com.example.btms.config.Prefs().getInt("ui.fontScalePercent", 100);
+        if (pct != 100) {
+            SwingUtilities.invokeLater(this::applyGlobalFontScale);
+        }
     }
 
     /* -------------------- UI Builders -------------------- */
@@ -530,21 +556,22 @@ public class MainFrame extends JFrame {
             mb.add(mPlay);
 
             // Menu giao diện luôn hiển thị để đổi theme cả khi chưa đăng nhập
-            JMenu mTheme = new JMenu("Giao diện");
-            JCheckBoxMenuItem miDark = new JCheckBoxMenuItem("Chế độ tối");
-            miDark.setSelected(UIManager.getLookAndFeel() instanceof FlatDarkLaf);
-            miDark.addActionListener(e -> switchTheme(miDark.isSelected()));
-            mTheme.add(miDark);
-            mb.add(mTheme);
+            // Bỏ menu Giao diện – chuyển sang trang "Cài đặt"
 
             JMenu mOther = new JMenu("Khác");
             if (currentRole == Role.ADMIN)
                 mOther.add(menuItem("Logs"));
+            mOther.add(menuItem("Cài đặt"));
+            mb.add(mOther);
+        }
+        // Nếu chưa đăng nhập vẫn có truy cập Cài đặt (ví dụ đổi theme trước khi login)
+        if (currentRole == null) {
+            JMenu mOther = new JMenu("Khác");
+            mOther.add(menuItem("Cài đặt"));
             mb.add(mOther);
         }
 
         setJMenuBar(mb);
-        this.appMenuBar = mb;
         revalidate();
         repaint();
     }
@@ -564,5 +591,83 @@ public class MainFrame extends JFrame {
         currentRole = null;
         showView("Login");
         buildMenuBar();
+    }
+
+    /** Public wrapper cho SettingsPanel gọi đổi theme và lưu Prefs. */
+    public void applyTheme(boolean dark) {
+        // lưu Prefs ở SettingsPanel rồi, đây chỉ thực thi
+        switchTheme(dark);
+        try {
+            monitorTab.refreshAllViewerSettings();
+        } catch (Exception ignore) {
+        }
+    }
+
+    /** Được SettingsPanel gọi để đổi số cột monitor. */
+    public void updateMonitorColumns(int cols) {
+        try {
+            java.lang.reflect.Method m = monitorTab.getClass().getMethod("setColumns", int.class);
+            m.invoke(monitorTab, cols);
+        } catch (Exception ignore) {
+        }
+    }
+
+    /**
+     * Được SettingsPanel gọi để áp dụng always-on-top cho các viewer nổi (monitor).
+     */
+    public void applyAlwaysOnTopFloating(boolean onTop) {
+        try {
+            // MonitorTab hiện tạo các MonitorWindow (JFrame). Ta thử gọi method công khai
+            // nếu có trong tương lai.
+            // Tạm thời: set alwaysOnTop cho frame chính (giới hạn) – có thể cải tiến nếu
+            // expose danh sách windows.
+            setAlwaysOnTop(onTop);
+            try {
+                monitorTab.refreshAllViewerSettings();
+            } catch (Exception ignore) {
+            }
+        } catch (Exception ignore) {
+        }
+    }
+
+    /**
+     * Áp dụng font scale toàn cục (gọi sau khi đổi ui.fontScalePercent nếu muốn
+     * realtime).
+     */
+    public void applyGlobalFontScale() {
+        int pct = new com.example.btms.config.Prefs().getInt("ui.fontScalePercent", 100);
+        float mul = Math.max(0.5f, pct / 100f);
+        javax.swing.UIDefaults defs = UIManager.getDefaults();
+        if (baseUIFontMap == null) {
+            baseUIFontMap = new java.util.HashMap<>();
+            for (java.util.Enumeration<Object> e = defs.keys(); e.hasMoreElements();) {
+                Object key = e.nextElement();
+                Object val = defs.get(key);
+                if (val instanceof Font f) {
+                    baseUIFontMap.put(key, f); // lưu bản gốc
+                }
+            }
+        }
+        for (var entry : baseUIFontMap.entrySet()) {
+            Font base = entry.getValue();
+            if (base != null) {
+                float newSize = Math.max(9f, base.getSize2D() * mul);
+                Font scaled = base.deriveFont(newSize);
+                defs.put(entry.getKey(), new javax.swing.plaf.FontUIResource(scaled));
+            }
+        }
+        // Cập nhật toàn bộ cây UI cho tất cả cửa sổ hiện có
+        for (java.awt.Window w : java.awt.Window.getWindows()) {
+            try {
+                SwingUtilities.updateComponentTreeUI(w);
+            } catch (Exception ignore) {
+            }
+        }
+        // Refresh monitor viewer settings (always-on-top, etc.) – font đã được update
+        // qua UIManager
+        try {
+            monitorTab.refreshAllViewerSettings();
+        } catch (Exception ignore) {
+        }
     }
 }
