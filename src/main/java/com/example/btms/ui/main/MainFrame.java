@@ -76,6 +76,7 @@ public class MainFrame extends JFrame {
     private com.example.btms.ui.player.DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
     private com.example.btms.ui.category.ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
     private com.example.btms.ui.draw.BocThamDoiPanel bocThamDoiPanel; // bốc thăm thứ tự đội (0-based)
+    private com.example.btms.ui.draw.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
@@ -165,6 +166,7 @@ public class MainFrame extends JFrame {
                 ensureViewPresent("Đăng ký cá nhân", dangKyCaNhanPanel);
                 ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
                 ensureViewPresent("Bốc thăm đội", bocThamDoiPanel);
+                ensureViewPresent("Sơ đồ thi đấu", soDoThiDauPanel);
                 ensureViewPresent("Thi đấu", multiCourtPanel);
                 ensureViewPresent("Giám sát", monitorTab);
                 ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
@@ -452,6 +454,7 @@ public class MainFrame extends JFrame {
                         contentParticipantsPanel = new com.example.btms.ui.category.ContentParticipantsPanel(conn);
                         // Bốc thăm đội 0-based
                         bocThamDoiPanel = new com.example.btms.ui.draw.BocThamDoiPanel(conn);
+                        soDoThiDauPanel = new com.example.btms.ui.draw.SoDoThiDauPanel(conn);
                         giaiDauSelectPanel = new GiaiDauSelectPanel(tournamentTabPanel.getGiaiDauService());
 
                         updateAuthService(conn);
@@ -557,6 +560,7 @@ public class MainFrame extends JFrame {
                 mManage.add(menuItem("Đăng ký cá nhân"));
                 mManage.add(menuItem("Danh sách đăng kí"));
                 mManage.add(menuItem("Bốc thăm đội"));
+                mManage.add(menuItem("Sơ đồ thi đấu"));
             }
             mb.add(mManage);
 
