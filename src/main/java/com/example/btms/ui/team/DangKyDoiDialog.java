@@ -7,6 +7,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
 import com.example.btms.model.player.VanDongVien;
 import com.example.btms.service.club.CauLacBoService;
+import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.team.ChiTietDoiService;
 import com.example.btms.service.team.DangKiDoiService;
@@ -38,7 +40,7 @@ public class DangKyDoiDialog extends JDialog {
     private final DangKiDoiService teamService;
     private final ChiTietDoiService detailService;
     private final VanDongVienService vdvService;
-    private final CauLacBoService clbService;
+    private final CauLacBoService clbService; // vẫn dùng ở onSave()
     private final int idGiai;
     private final List<NoiDung> noiDungOptions; // danh sách ND (chỉ ĐÔI)
     private final NoiDung initialNoiDung; // ND ban đầu (prefill)
@@ -52,6 +54,7 @@ public class DangKyDoiDialog extends JDialog {
     private final JComboBox<Object> cboVdv2 = new JComboBox<>();
 
     public DangKyDoiDialog(Window parent,
+            Connection conn,
             String title,
             DangKiDoiService teamService,
             ChiTietDoiService detailService,
@@ -136,10 +139,39 @@ public class DangKyDoiDialog extends JDialog {
         gc.fill = GridBagConstraints.HORIZONTAL;
         form.add(cboVdv2, gc);
         add(form, BorderLayout.CENTER);
-        // Nội dung options
+        // Nội dung options (lọc chỉ nội dung ĐÔI đã đăng ký cho giải bằng
+        // loadCategories)
+        java.util.Set<Integer> allowedDoubleIds = new java.util.LinkedHashSet<>();
+        if (conn != null) {
+            try {
+                java.util.Map<String, Integer>[] maps = new NoiDungRepository(conn).loadCategories(); // [1]=doubles
+                allowedDoubleIds.addAll(maps[1].values());
+            } catch (Exception ex) {
+                System.err.println("Không thể load danh sách nội dung đã đăng ký: " + ex.getMessage());
+            }
+        }
         for (NoiDung nd : this.noiDungOptions) {
-            if (nd != null)
-                cboNoiDung.addItem(nd);
+            if (nd == null)
+                continue;
+            if (!Boolean.TRUE.equals(nd.getTeam()))
+                continue; // chỉ nội dung đôi
+            // Nếu có danh sách allowed (không rỗng) thì phải thuộc danh sách này
+            if (!allowedDoubleIds.isEmpty() && (nd.getId() == null || !allowedDoubleIds.contains(nd.getId())))
+                continue;
+            cboNoiDung.addItem(nd);
+        }
+        // Nếu đang sửa mà ND ban đầu không nằm trong danh sách đã đăng ký (trường hợp
+        // lệch DB) -> thêm vào
+        boolean found = false;
+        for (int i = 0; i < cboNoiDung.getItemCount(); i++) {
+            Object it = cboNoiDung.getItemAt(i);
+            if (it instanceof NoiDung x && x.getId() != null && x.getId().equals(initialNoiDung.getId())) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            cboNoiDung.addItem(initialNoiDung);
         }
         // Renderer để hiển thị tên nội dung
         cboNoiDung.setRenderer(new DefaultListCellRenderer() {

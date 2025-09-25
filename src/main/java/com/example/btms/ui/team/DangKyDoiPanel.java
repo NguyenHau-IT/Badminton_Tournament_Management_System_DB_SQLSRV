@@ -5,6 +5,7 @@ import java.awt.FlowLayout;
 import java.sql.Connection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -39,6 +40,7 @@ import com.example.btms.service.team.DangKiDoiService;
  * Tab đăng ký đội (đôi) cho nội dung thi đấu đã đăng ký ở giải hiện tại.
  */
 public class DangKyDoiPanel extends JPanel {
+    private final Connection conn; // giữ connection để lọc nội dung đã đăng ký
     private final Prefs prefs;
     private final NoiDungService noiDungService;
     private final DangKiDoiService teamService;
@@ -76,6 +78,7 @@ public class DangKyDoiPanel extends JPanel {
     private final JComboBox<String> cboFilterField = new JComboBox<>(new String[] { "Tên đội", "CLB", "Nội dung" });
 
     public DangKyDoiPanel(Connection conn) {
+        this.conn = conn;
         this.prefs = new Prefs();
         this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
         this.teamService = new DangKiDoiService(new DangKiDoiRepository(conn));
@@ -147,17 +150,11 @@ public class DangKyDoiPanel extends JPanel {
         lblHeader.setText(
                 "Đăng ký đội cho giải: " + (tenGiai != null && !tenGiai.isBlank() ? tenGiai : ("ID=" + idGiai)));
 
-        // Chỉ lấy các nội dung là đôi đã đăng ký cho giải này
+        // Chỉ lấy các nội dung là ĐÔI đã đăng ký cho giải này (dùng loadCategories)
         model.setRowCount(0);
         try {
-            List<NoiDung> all = noiDungService.getAllNoiDung();
-            for (NoiDung nd : all) {
-                if (!Boolean.TRUE.equals(nd.getTeam()))
-                    continue; // chỉ nội dung đôi
-                // Vì chưa có service exists theo giải tại đây, dựa vào tab ĐăngKyNoiDungPanel
-                // đã đăng ký
-                // Để an toàn tối thiểu: vẫn cho phép chọn nội dung bất kỳ đôi; hoặc có thể lọc
-                // bằng chiTietGiaiDauService nếu truyền vào
+            List<NoiDung> registeredDoubles = loadRegisteredDoubleCategories();
+            for (NoiDung nd : registeredDoubles) {
                 List<DangKiDoi> teams = teamService.listTeams(idGiai, nd.getId());
                 for (DangKiDoi t : teams) {
                     String clbName = "";
@@ -209,27 +206,23 @@ public class DangKyDoiPanel extends JPanel {
             return;
         }
 
-        // Lấy danh sách nội dung ĐÔI và gợi ý chọn ban đầu (nếu có thể)
+        // Lấy danh sách nội dung ĐÔI đã đăng ký cho giải (loadCategories)
         List<NoiDung> doubles;
-        NoiDung initial;
         try {
-            List<NoiDung> all = noiDungService.getAllNoiDung();
-            doubles = new java.util.ArrayList<>();
-            for (NoiDung x : all)
-                if (Boolean.TRUE.equals(x.getTeam()))
-                    doubles.add(x);
-            if (doubles.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI.");
-                return;
-            }
-            initial = doubles.get(0);
+            doubles = loadRegisteredDoubleCategories();
         } catch (java.sql.SQLException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
             return;
         }
+        if (doubles.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI đã đăng ký cho giải.");
+            return;
+        }
+        NoiDung initial = doubles.get(0);
 
         DangKyDoiDialog dlg = new DangKyDoiDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
+                conn,
                 "Thêm đội",
                 teamService, detailService, vdvService, clbService,
                 idGiai, doubles, initial,
@@ -249,12 +242,14 @@ public class DangKyDoiPanel extends JPanel {
         Integer idNoiDung = (Integer) model.getValueAt(modelRow, 3); // vẫn lấy từ cột ẩn
 
         // Lấy nội dung theo id
-        Optional<NoiDung> nd = Optional.empty();
+        Optional<NoiDung> tmpNdOpt;
         try {
-            nd = noiDungService.getNoiDungById(idNoiDung);
+            tmpNdOpt = noiDungService.getNoiDungById(idNoiDung);
         } catch (java.sql.SQLException ignore) {
+            tmpNdOpt = Optional.empty();
         }
-        if (nd.isEmpty()) {
+        final Optional<NoiDung> ndOpt = tmpNdOpt; // final để dùng trong lambda phía dưới
+        if (ndOpt.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Không tìm thấy nội dung.");
             return;
         }
@@ -286,31 +281,69 @@ public class DangKyDoiPanel extends JPanel {
             System.err.println("Không lấy được thành viên đội: " + ex.getMessage());
         }
 
-        // Lấy tất cả ND đôi để đưa vào dialog (chế độ sửa sẽ disable đổi ND)
+        // Lấy danh sách ND đôi đã đăng ký
         List<NoiDung> doubles;
         try {
-            List<NoiDung> all = noiDungService.getAllNoiDung();
-            doubles = new java.util.ArrayList<>();
-            for (NoiDung x : all)
-                if (Boolean.TRUE.equals(x.getTeam()))
-                    doubles.add(x);
-            if (doubles.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI.");
-                return;
-            }
+            doubles = loadRegisteredDoubleCategories();
         } catch (java.sql.SQLException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
             return;
         }
+        if (doubles.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI đã đăng ký cho giải.");
+            return;
+        }
+        // Bảo đảm nội dung hiện tại có trong danh sách (phòng khi DB lệch)
+        if (ndOpt.isPresent()) {
+            boolean exists = false;
+            Integer currentId = ndOpt.get().getId();
+            for (NoiDung d : doubles) {
+                if (d.getId() != null && d.getId().equals(currentId)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                doubles.add(ndOpt.get());
+            }
+        }
 
         DangKyDoiDialog dlg = new DangKyDoiDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
+                conn,
                 "Sửa đội",
                 teamService, detailService, vdvService, clbService,
-                prefs.getInt("selectedGiaiDauId", -1), doubles, nd.get(),
+                prefs.getInt("selectedGiaiDauId", -1), doubles, ndOpt.get(),
                 idTeam, tenTeam, idClbInit, idVdv1Init, idVdv2Init);
         dlg.setVisible(true);
         reload();
+    }
+
+    /**
+     * Lấy danh sách nội dung ĐÔI đã đăng ký cho giải hiện tại (dựa trên
+     * CHI_TIET_GIAI_DAU)
+     */
+    private List<NoiDung> loadRegisteredDoubleCategories() throws java.sql.SQLException {
+        java.util.List<NoiDung> result = new java.util.ArrayList<>();
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        if (idGiai <= 0 || conn == null)
+            return result;
+        // maps[1] = doubles map (ten->id)
+        Map<String, Integer>[] maps = new NoiDungRepository(conn).loadCategories();
+        Map<String, Integer> doublesMap = maps[1];
+        if (doublesMap == null || doublesMap.isEmpty())
+            return result;
+        // Lấy tất cả nội dung rồi đối chiếu ID để tạo đối tượng đầy đủ (tuổi, giới
+        // tính, ...)
+        List<NoiDung> all = noiDungService.getAllNoiDung();
+        java.util.Set<Integer> idNeeded = new java.util.HashSet<>(doublesMap.values());
+        for (NoiDung nd : all) {
+            if (nd.getId() != null && idNeeded.contains(nd.getId()))
+                result.add(nd);
+        }
+        // Sắp xếp theo ID để ổn định
+        result.sort(java.util.Comparator.comparing(NoiDung::getId));
+        return result;
     }
 
     private void onDelete() {
@@ -337,33 +370,7 @@ public class DangKyDoiPanel extends JPanel {
         }
     }
 
-    private NoiDung chooseDoublesCategory() {
-        try {
-            List<NoiDung> list = noiDungService.getAllNoiDung();
-            java.util.List<NoiDung> doubles = new java.util.ArrayList<>();
-            for (NoiDung nd : list)
-                if (Boolean.TRUE.equals(nd.getTeam()))
-                    doubles.add(nd);
-            if (doubles.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI.");
-                return null;
-            }
-
-            NoiDung[] arr = doubles.toArray(NoiDung[]::new);
-            NoiDung sel = (NoiDung) javax.swing.JOptionPane.showInputDialog(
-                    this,
-                    "Chọn nội dung ĐÔI:",
-                    "Nội dung",
-                    javax.swing.JOptionPane.PLAIN_MESSAGE,
-                    null,
-                    arr,
-                    arr[0]);
-            return sel;
-        } catch (java.sql.SQLException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
-            return null;
-        }
-    }
+    // chooseDoublesCategory() không còn dùng sau khi lọc bằng loadCategories()
 
     /** Ẩn cột ID_TEAM và ID_Nội dung khỏi JTable (giữ trong model để thao tác) */
     private void hideIdColumns() {

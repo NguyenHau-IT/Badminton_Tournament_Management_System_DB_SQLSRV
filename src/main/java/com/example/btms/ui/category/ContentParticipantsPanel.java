@@ -144,9 +144,22 @@ public class ContentParticipantsPanel extends JPanel {
 
     private void loadNoiDungCombo() {
         try {
-            List<NoiDung> list = noiDungService.getAllNoiDung();
-            cboNoiDung.setModel(new DefaultComboBoxModel<>(list.toArray(NoiDung[]::new)));
-            if (!list.isEmpty())
+            // Chỉ lấy nội dung đã đăng ký cho giải (loadCategories)
+            var repo = new com.example.btms.repository.category.NoiDungRepository(conn);
+            java.util.Map<String, Integer>[] maps = repo.loadCategories(); // [0]=singles, [1]=doubles
+            java.util.Set<Integer> allowedIds = new java.util.LinkedHashSet<>();
+            allowedIds.addAll(maps[0].values());
+            allowedIds.addAll(maps[1].values());
+            List<NoiDung> all = noiDungService.getAllNoiDung();
+            java.util.List<NoiDung> filtered = new java.util.ArrayList<>();
+            for (NoiDung nd : all) {
+                if (nd.getId() != null && allowedIds.contains(nd.getId()))
+                    filtered.add(nd);
+            }
+            // Giữ thứ tự theo ID
+            filtered.sort(java.util.Comparator.comparing(NoiDung::getId));
+            cboNoiDung.setModel(new DefaultComboBoxModel<>(filtered.toArray(NoiDung[]::new)));
+            if (!filtered.isEmpty())
                 cboNoiDung.setSelectedIndex(0);
             reloadParticipants();
         } catch (Exception ex) {
@@ -258,16 +271,12 @@ public class ContentParticipantsPanel extends JPanel {
             System.err.println("Không lấy được thành viên đội: " + ex.getMessage());
         }
 
-        // Danh sách nội dung đôi (dialog sẽ disable đổi ND trong chế độ sửa)
+        // Danh sách nội dung đôi đã đăng ký (dialog sẽ disable đổi ND trong chế độ sửa)
         List<NoiDung> doubles;
         try {
-            List<NoiDung> all = noiDungService.getAllNoiDung();
-            doubles = new java.util.ArrayList<>();
-            for (NoiDung x : all)
-                if (Boolean.TRUE.equals(x.getTeam()))
-                    doubles.add(x);
+            doubles = loadRegisteredDoubles();
             if (doubles.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI.");
+                JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI đã đăng ký.");
                 return;
             }
         } catch (Exception ex) {
@@ -278,6 +287,7 @@ public class ContentParticipantsPanel extends JPanel {
         // Mở dialog sửa (bao gồm tên, CLB, thành viên)
         DangKyDoiDialog dlg = new DangKyDoiDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
+                conn,
                 "Sửa đội",
                 doiService, // teamService
                 chiTietDoiService,
@@ -309,13 +319,9 @@ public class ContentParticipantsPanel extends JPanel {
         try {
             var team = doiService.getTeam(idTeam);
             // Chọn nội dung mới (chỉ nội dung đôi)
-            List<NoiDung> all = noiDungService.getAllNoiDung();
-            java.util.List<NoiDung> doubles = new java.util.ArrayList<>();
-            for (NoiDung x : all)
-                if (Boolean.TRUE.equals(x.getTeam()))
-                    doubles.add(x);
+            List<NoiDung> doubles = loadRegisteredDoubles();
             if (doubles.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Không có nội dung đôi.");
+                JOptionPane.showMessageDialog(this, "Không có nội dung đôi đã đăng ký.");
                 return;
             }
             NoiDung selected = (NoiDung) JOptionPane.showInputDialog(this, "Chọn nội dung mới:", "Đổi nội dung đội",
@@ -332,5 +338,19 @@ public class ContentParticipantsPanel extends JPanel {
 
     private java.sql.Connection getConnectionFromServices() {
         return this.conn; // đơn giản: chúng ta đã lưu connection
+    }
+
+    private List<NoiDung> loadRegisteredDoubles() throws java.sql.SQLException {
+        var repo = new com.example.btms.repository.category.NoiDungRepository(conn);
+        java.util.Map<String, Integer>[] maps = repo.loadCategories(); // [1]=doubles
+        java.util.Set<Integer> ids = new java.util.LinkedHashSet<>(maps[1].values());
+        List<NoiDung> all = noiDungService.getAllNoiDung();
+        java.util.List<NoiDung> doubles = new java.util.ArrayList<>();
+        for (NoiDung nd : all) {
+            if (nd.getId() != null && ids.contains(nd.getId()) && Boolean.TRUE.equals(nd.getTeam()))
+                doubles.add(nd);
+        }
+        doubles.sort(java.util.Comparator.comparing(NoiDung::getId));
+        return doubles;
     }
 }
