@@ -1,79 +1,61 @@
 package com.example.btms.service.player;
 
+import java.sql.Connection;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 
 import com.example.btms.model.player.DangKyCaNhan;
 import com.example.btms.repository.player.DangKyCaNhanRepository;
-import com.example.btms.repository.player.VanDongVienRepository;
-import com.example.btms.repository.category.NoiDungRepository;
-import com.example.btms.model.player.VanDongVien;
-import com.example.btms.model.category.NoiDung;
 
 /**
- * Service nghiệp vụ đăng ký cá nhân: đảm bảo
- * - Không trùng (giải, nội dung, VĐV)
- * - Nội dung phải là nội dung đơn (TEAM = false)
- * - VĐV tồn tại
+ * Service quản lý đăng ký cá nhân (Singles).
  */
 public class DangKyCaNhanService {
     private final DangKyCaNhanRepository repo;
-    private final VanDongVienRepository vdvRepo;
-    private final NoiDungRepository ndRepo;
 
-    public DangKyCaNhanService(DangKyCaNhanRepository repo, VanDongVienRepository vdvRepo, NoiDungRepository ndRepo) {
-        this.repo = Objects.requireNonNull(repo);
-        this.vdvRepo = Objects.requireNonNull(vdvRepo);
-        this.ndRepo = Objects.requireNonNull(ndRepo);
+    public DangKyCaNhanService(Connection conn) {
+        this.repo = new DangKyCaNhanRepository(conn);
     }
 
     public DangKyCaNhan create(int idGiai, int idNoiDung, int idVdv) {
-        validate(idGiai, idNoiDung, idVdv, true);
+        validateIds(idGiai, idNoiDung, idVdv);
+        if (repo.exists(idGiai, idNoiDung, idVdv)) {
+            throw new IllegalStateException("VĐV đã đăng ký nội dung này trong giải");
+        }
         return repo.add(new DangKyCaNhan(idGiai, idNoiDung, idVdv));
     }
 
-    public void update(int id, int idGiai, int idNoiDung, int idVdv) {
-        DangKyCaNhan current = require(id);
-        validate(idGiai, idNoiDung, idVdv, !sameKey(current, idGiai, idNoiDung, idVdv));
-        current.setIdGiai(idGiai);
-        current.setIdNoiDung(idNoiDung);
-        current.setIdVdv(idVdv);
-        repo.update(current);
+    public void update(DangKyCaNhan d) {
+        Objects.requireNonNull(d, "DangKyCaNhan null");
+        validateIds(d.getIdGiai(), d.getIdNoiDung(), d.getIdVdv());
+        // Kiểm tra trùng (ngoại trừ chính bản ghi hiện tại)
+        if (repo.exists(d.getIdGiai(), d.getIdNoiDung(), d.getIdVdv())) {
+            // Nếu cần tinh chỉnh để loại bỏ chính nó thì phải truy vấn ID hiện tại; giản lược.
+            // Người dùng sẽ không được phép chuyển thành bản ghi giống hệt bản ghi khác.
+            Optional<DangKyCaNhan> current = repo.findById(d.getId());
+            if (current.isEmpty() || !sameTriple(current.get(), d)) {
+                throw new IllegalStateException("Trùng đăng ký");
+            }
+        }
+        repo.update(d);
     }
 
-    public void delete(int id) { require(id); repo.delete(id); }
+    private boolean sameTriple(DangKyCaNhan a, DangKyCaNhan b) {
+        return a.getIdGiai() == b.getIdGiai() && a.getIdNoiDung() == b.getIdNoiDung() && a.getIdVdv() == b.getIdVdv();
+    }
 
-    public DangKyCaNhan get(int id) { return require(id); }
+    public void delete(int id) { repo.delete(id); }
 
     public List<DangKyCaNhan> listByGiai(int idGiai) { return repo.findAllByGiai(idGiai); }
 
     public List<DangKyCaNhan> listByGiaiAndNoiDung(int idGiai, int idNoiDung) { return repo.findAllByGiaiAndNoiDung(idGiai, idNoiDung); }
 
-    /* ================= helpers ================= */
-    private DangKyCaNhan require(int id) {
-        DangKyCaNhan d = repo.findById(id);
-        if (d == null) throw new NoSuchElementException("Không tìm thấy đăng ký cá nhân ID=" + id);
-        return d;
-    }
+    public Optional<DangKyCaNhan> find(int id) { return repo.findById(id); }
 
-    private boolean sameKey(DangKyCaNhan d, int idGiai, int idNoiDung, int idVdv) {
-        return d.getIdGiai() == idGiai && d.getIdNoiDung() == idNoiDung && d.getIdVdv() == idVdv;
-    }
-
-    private void validate(int idGiai, int idNoiDung, int idVdv, boolean checkDup) {
-        if (idGiai <= 0) throw new IllegalArgumentException("ID_GIAI không hợp lệ");
-        java.util.Optional<NoiDung> ndOpt;
-        try {
-            ndOpt = ndRepo.findById(idNoiDung); // repository hiện trả về Optional & throws SQLException
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("Lỗi tra cứu nội dung: " + ex.getMessage(), ex);
+    private void validateIds(int idGiai, int idNoiDung, int idVdv) {
+        if (idGiai <= 0 || idNoiDung <= 0 || idVdv <= 0) {
+            throw new IllegalArgumentException("ID không hợp lệ");
         }
-        if (ndOpt == null || ndOpt.isEmpty()) throw new IllegalArgumentException("Nội dung không tồn tại");
-        NoiDung nd = ndOpt.get();
-    if (Boolean.TRUE.equals(nd.getTeam())) throw new IllegalArgumentException("Nội dung này là đôi, không phải đơn");
-        VanDongVien v = vdvRepo.findById(idVdv);
-        if (v == null) throw new IllegalArgumentException("Vận động viên không tồn tại");
-        if (checkDup && repo.exists(idGiai, idNoiDung, idVdv)) throw new IllegalStateException("Đã đăng ký nội dung này");
     }
 }

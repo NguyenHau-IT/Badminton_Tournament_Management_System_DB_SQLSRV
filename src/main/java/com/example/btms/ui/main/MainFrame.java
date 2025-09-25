@@ -73,6 +73,7 @@ public class MainFrame extends JFrame {
     private DangKyNoiDungPanel dangKyNoiDungPanel;
     private VanDongVienManagementPanel vanDongVienPanel;
     private com.example.btms.ui.team.DangKyDoiPanel dangKyDoiPanel;
+    private com.example.btms.ui.player.DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
     private com.example.btms.ui.category.ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
     private com.example.btms.ui.draw.BocThamDoiPanel bocThamDoiPanel; // bốc thăm thứ tự đội (0-based)
 
@@ -161,6 +162,7 @@ public class MainFrame extends JFrame {
                 ensureViewPresent("Vận động viên", vanDongVienPanel);
                 ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
                 ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
+                ensureViewPresent("Đăng ký cá nhân", dangKyCaNhanPanel);
                 ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
                 ensureViewPresent("Bốc thăm đội", bocThamDoiPanel);
                 ensureViewPresent("Thi đấu", multiCourtPanel);
@@ -444,6 +446,8 @@ public class MainFrame extends JFrame {
                                 tournamentTabPanel.getGiaiDauService());
                         // Đăng ký đội (đôi)
                         dangKyDoiPanel = new com.example.btms.ui.team.DangKyDoiPanel(conn);
+                        // Đăng ký cá nhân (đơn)
+                        dangKyCaNhanPanel = new com.example.btms.ui.player.DangKyCaNhanPanel(conn);
                         // Panel xem người Danh sách đăng kí
                         contentParticipantsPanel = new com.example.btms.ui.category.ContentParticipantsPanel(conn);
                         // Bốc thăm đội 0-based
@@ -550,6 +554,7 @@ public class MainFrame extends JFrame {
                 mManage.add(menuItem("Vận động viên"));
                 mManage.add(menuItem("Nội dung của giải"));
                 mManage.add(menuItem("Đăng ký đội"));
+                mManage.add(menuItem("Đăng ký cá nhân"));
                 mManage.add(menuItem("Danh sách đăng kí"));
                 mManage.add(menuItem("Bốc thăm đội"));
             }

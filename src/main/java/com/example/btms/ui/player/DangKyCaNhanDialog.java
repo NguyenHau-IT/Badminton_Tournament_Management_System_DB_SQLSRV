@@ -102,7 +102,11 @@ public class DangKyCaNhanDialog extends JDialog {
             if (editing == null) {
                 dkService.create(idGiai, nd.getId(), v.getId());
             } else {
-                dkService.update(editing.getId(), idGiai, nd.getId(), v.getId());
+                // Cập nhật đối tượng hiện có rồi gọi service.update(DangKyCaNhan)
+                editing.setIdGiai(idGiai);
+                editing.setIdNoiDung(nd.getId());
+                editing.setIdVdv(v.getId());
+                dkService.update(editing);
             }
             dispose();
         } catch (Exception ex) {

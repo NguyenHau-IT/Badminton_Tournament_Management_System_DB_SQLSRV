@@ -3,7 +3,7 @@ package com.example.btms.model.player;
 import java.util.Objects;
 
 /**
- * Đăng ký cá nhân vào một nội dung của một giải.
+ * Đăng ký cá nhân vào một nội dung (đơn) của một giải.
  * Giả định bảng: DANG_KI_CA_NHAN(ID IDENTITY PK, ID_GIAI, ID_NOI_DUNG, ID_VDV)
  */
 public class DangKyCaNhan {
