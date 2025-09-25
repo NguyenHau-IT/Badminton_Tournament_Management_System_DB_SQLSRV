@@ -8,7 +8,8 @@ import java.util.Optional;
 import com.example.btms.model.player.DangKyCaNhan;
 
 /**
- * JDBC Repository cho bảng DANG_KI_CA_NHAN (giả định cột: ID, ID_GIAI, ID_NOI_DUNG, ID_VDV).
+ * JDBC Repository cho bảng DANG_KI_CA_NHAN (giả định cột: ID, ID_GIAI,
+ * ID_NOI_DUNG, ID_VDV).
  */
 public class DangKyCaNhanRepository {
     private final Connection conn;
@@ -23,11 +24,13 @@ public class DangKyCaNhanRepository {
             ps.setInt(1, d.getIdGiai());
             ps.setInt(2, d.getIdNoiDung());
             ps.setInt(3, d.getIdVdv());
-            // Lưu thời điểm tạo (ngày-tháng-năm giờ:phút:giây). LocalDateTime rõ nghĩa hơn System.currentTimeMillis()
+            // Lưu thời điểm tạo (ngày-tháng-năm giờ:phút:giây). LocalDateTime rõ nghĩa hơn
+            // System.currentTimeMillis()
             ps.setTimestamp(4, Timestamp.valueOf(java.time.LocalDateTime.now().withNano(0)));
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) d.setId(rs.getInt(1));
+                if (rs.next())
+                    d.setId(rs.getInt(1));
             }
             return d;
         } catch (SQLException e) {
@@ -36,45 +39,86 @@ public class DangKyCaNhanRepository {
     }
 
     public Optional<DangKyCaNhan> findById(int id) {
-        final String sql = "SELECT ID, ID_GIAI, ID_NOI_DUNG, ID_VDV FROM DANG_KI_CA_NHAN WHERE ID=?";
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return Optional.of(map(rs));
-                return Optional.empty();
+        for (String pk : PK_CANDIDATES) {
+            String sql = "SELECT " + pk + " AS PK, ID_GIAI, ID_NOI_DUNG, ID_VDV FROM DANG_KI_CA_NHAN WHERE " + pk
+                    + "=?";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(new DangKyCaNhan(
+                                rs.getInt("PK"),
+                                rs.getInt("ID_GIAI"),
+                                rs.getInt("ID_NOI_DUNG"),
+                                rs.getInt("ID_VDV")));
+                    }
+                }
+            } catch (SQLException ex) {
+                if (!isInvalidColumnError(ex)) {
+                    throw new RuntimeException("Lỗi tìm đăng ký cá nhân (pk=" + pk + ") id=" + id, ex);
+                }
+                // nếu invalid column thì thử pk tiếp theo
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi tìm đăng ký cá nhân id=" + id, e);
         }
+        return Optional.empty();
     }
 
     public List<DangKyCaNhan> findAllByGiai(int idGiai) {
-        final String sql = "SELECT ID, ID_GIAI, ID_NOI_DUNG, ID_VDV FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? ORDER BY ID";
-        List<DangKyCaNhan> out = new ArrayList<>();
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, idGiai);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) out.add(map(rs));
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi tải đăng ký cá nhân theo giải", e);
-        }
-        return out;
+        return loadListDynamicPk("ID_GIAI=?", ps -> ps.setInt(1, idGiai), "Lỗi tải đăng ký cá nhân theo giải");
     }
 
     public List<DangKyCaNhan> findAllByGiaiAndNoiDung(int idGiai, int idNoiDung) {
-        final String sql = "SELECT ID, ID_GIAI, ID_NOI_DUNG, ID_VDV FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY ID";
-        List<DangKyCaNhan> out = new ArrayList<>();
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+        return loadListDynamicPk("ID_GIAI=? AND ID_NOI_DUNG=?", ps -> {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) out.add(map(rs));
+        }, String.format("Lỗi tải đăng ký cá nhân theo nội dung (giai=%d, noiDung=%d)", idGiai, idNoiDung));
+    }
+
+    /* ===== Dynamic PK support ===== */
+    private static final String[] PK_CANDIDATES = { "ID", "ID_DANG_KI", "ID_DANG_KY", "ID_DANGKY" };
+
+    private List<DangKyCaNhan> loadListDynamicPk(String where, SqlBinder binder, String baseError) {
+        SQLException lastInvalid = null;
+        for (String pk : PK_CANDIDATES) {
+            String sql = "SELECT " + pk + " AS PK, ID_GIAI, ID_NOI_DUNG, ID_VDV FROM DANG_KI_CA_NHAN WHERE " + where
+                    + " ORDER BY " + pk;
+            List<DangKyCaNhan> list = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                binder.bind(ps);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(new DangKyCaNhan(
+                                rs.getInt("PK"),
+                                rs.getInt("ID_GIAI"),
+                                rs.getInt("ID_NOI_DUNG"),
+                                rs.getInt("ID_VDV")));
+                    }
+                }
+                return list; // thành công với pk này
+            } catch (SQLException ex) {
+                if (isInvalidColumnError(ex)) { // thử pk khác
+                    lastInvalid = ex;
+                    continue;
+                }
+                throw new RuntimeException(baseError + " SQLState=" + ex.getSQLState() + " Code=" + ex.getErrorCode()
+                        + " Msg=" + ex.getMessage(), ex);
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("Lỗi tải đăng ký cá nhân theo nội dung", e);
         }
-        return out;
+        if (lastInvalid != null) {
+            throw new RuntimeException(
+                    baseError + ": không tìm được cột PK hợp lệ (thử: ID, ID_DANG_KI, ID_DANG_KY, ID_DANGKY)",
+                    lastInvalid);
+        }
+        return List.of();
+    }
+
+    private boolean isInvalidColumnError(SQLException ex) {
+        return ex != null && ex.getErrorCode() == 207;
+    }
+
+    @FunctionalInterface
+    private interface SqlBinder {
+        void bind(PreparedStatement ps) throws SQLException;
     }
 
     public boolean exists(int idGiai, int idNoiDung, int idVdv) {
@@ -116,9 +160,17 @@ public class DangKyCaNhanRepository {
 
     private DangKyCaNhan map(ResultSet rs) throws SQLException {
         return new DangKyCaNhan(
-                rs.getInt("ID"),
+                safeGet(rs, "ID"),
                 rs.getInt("ID_GIAI"),
                 rs.getInt("ID_NOI_DUNG"),
                 rs.getInt("ID_VDV"));
+    }
+
+    private Integer safeGet(ResultSet rs, String col) {
+        try {
+            return rs.getInt(col);
+        } catch (SQLException ex) {
+            return null;
+        }
     }
 }

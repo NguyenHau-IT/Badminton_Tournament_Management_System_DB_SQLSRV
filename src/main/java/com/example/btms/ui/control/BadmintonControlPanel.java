@@ -58,7 +58,7 @@ import com.example.btms.controller.ScoreboardPinController;
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.model.player.VanDongVien;
 import com.example.btms.model.team.DangKiDoi;
-import com.example.btms.repository.category.CategoryRepository;
+import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
 import com.example.btms.service.scoreboard.ScoreboardService;
@@ -990,7 +990,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         headerKnrDoubles.clear();
 
         if (conn != null) {
-            var repo = new CategoryRepository(conn);
+            NoiDungRepository repo = new NoiDungRepository(conn);
             Map<String, Integer>[] maps = repo.loadCategories();
             maps[0].forEach((k, v) -> {
                 cboHeaderSingles.addItem(k);
@@ -1026,7 +1026,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
         Integer knr = headerKnrSingles.get(header);
         // ID giải lưu trong Prefs dưới key 'selectedGiaiDauId' (đồng bộ với
-        // CategoryRepository)
+        // NoiDungRepository)
         Integer vernr = new Prefs().getInt("selectedGiaiDauId", -1);
         if (knr == null || vernr == null)
             return;

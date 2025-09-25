@@ -41,11 +41,14 @@ public class DangKyCaNhanPanel extends JPanel {
     private final DefaultTableModel model = new DefaultTableModel(
             new Object[] { "ID", "ID_Nội dung", "Nội dung", "ID_VĐV", "VĐV" }, 0) {
         @Override
-        public boolean isCellEditable(int r, int c) { return false; }
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
+
         @Override
         public Class<?> getColumnClass(int columnIndex) {
             return switch (columnIndex) {
-                case 0,1,3 -> Integer.class; // hidden ids
+                case 0, 1, 3 -> Integer.class; // hidden ids
                 default -> String.class;
             };
         }
@@ -69,7 +72,7 @@ public class DangKyCaNhanPanel extends JPanel {
         this.dkService = new DangKyCaNhanService(conn);
         this.vdvService = new VanDongVienService(new VanDongVienRepository(conn));
 
-        setLayout(new BorderLayout(8,8));
+        setLayout(new BorderLayout(8, 8));
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setRowSorter(sorter);
 
@@ -78,14 +81,16 @@ public class DangKyCaNhanPanel extends JPanel {
         row1.add(lblHeader);
         JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         row2.add(btnRefresh);
-    row2.add(new JLabel("Nội dung:"));
-    row2.add(cboNoiDungFilter);
-    row2.add(new JLabel("Lọc theo:"));
+        row2.add(new JLabel("Nội dung:"));
+        row2.add(cboNoiDungFilter);
+        row2.add(new JLabel("Lọc theo:"));
         row2.add(cboFilterField);
         row2.add(new JLabel("Tìm:"));
         row2.add(txtSearch);
         row2.add(lblCount);
-        row2.add(btnAdd); row2.add(btnEdit); row2.add(btnDelete);
+        row2.add(btnAdd);
+        row2.add(btnEdit);
+        row2.add(btnDelete);
         top.add(row1, BorderLayout.NORTH);
         top.add(row2, BorderLayout.CENTER);
 
@@ -99,12 +104,23 @@ public class DangKyCaNhanPanel extends JPanel {
         btnEdit.addActionListener(e -> onEdit());
         btnDelete.addActionListener(e -> onDelete());
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e) { updateFilter(); }
-            @Override public void removeUpdate(DocumentEvent e) { updateFilter(); }
-            @Override public void changedUpdate(DocumentEvent e) { updateFilter(); }
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                updateFilter();
+            }
         });
-    cboFilterField.addActionListener(e -> updateFilter());
-    cboNoiDungFilter.addActionListener(e -> updateFilter());
+        cboFilterField.addActionListener(e -> updateFilter());
+        cboNoiDungFilter.addActionListener(e -> updateFilter());
 
         reload();
     }
@@ -118,50 +134,72 @@ public class DangKyCaNhanPanel extends JPanel {
             lblCount.setText("0 đăng ký");
             return;
         }
-        lblHeader.setText("Đăng ký cá nhân cho giải: " + (tenGiai != null && !tenGiai.isBlank() ? tenGiai : ("ID="+idGiai)));
+        lblHeader.setText(
+                "Đăng ký cá nhân cho giải: " + (tenGiai != null && !tenGiai.isBlank() ? tenGiai : ("ID=" + idGiai)));
         model.setRowCount(0);
         try {
             // Load combobox nội dung filter (giữ lựa chọn cũ nếu có)
             NoiDung selectedNd = (NoiDung) cboNoiDungFilter.getSelectedItem();
             java.util.List<NoiDung> list = noiDungService.getAllNoiDung();
             java.util.List<NoiDung> singles = new java.util.ArrayList<>();
-            for (NoiDung nd : list) if (!Boolean.TRUE.equals(nd.getTeam())) singles.add(nd);
-            javax.swing.DefaultComboBoxModel<NoiDung> ndModel = new javax.swing.DefaultComboBoxModel<>(singles.toArray(NoiDung[]::new));
+            for (NoiDung nd : list)
+                if (!Boolean.TRUE.equals(nd.getTeam()))
+                    singles.add(nd);
+            javax.swing.DefaultComboBoxModel<NoiDung> ndModel = new javax.swing.DefaultComboBoxModel<>(
+                    singles.toArray(NoiDung[]::new));
             cboNoiDungFilter.setModel(ndModel);
             if (selectedNd != null) {
-                for (int i=0;i<cboNoiDungFilter.getItemCount();i++) {
-                    if (cboNoiDungFilter.getItemAt(i).getId().equals(selectedNd.getId())) { cboNoiDungFilter.setSelectedIndex(i); break; }
+                for (int i = 0; i < cboNoiDungFilter.getItemCount(); i++) {
+                    if (cboNoiDungFilter.getItemAt(i).getId().equals(selectedNd.getId())) {
+                        cboNoiDungFilter.setSelectedIndex(i);
+                        break;
+                    }
                 }
             }
 
             NoiDung filterNd = (NoiDung) cboNoiDungFilter.getSelectedItem();
             java.util.List<NoiDung> toLoad = new java.util.ArrayList<>();
-            if (filterNd != null) toLoad.add(filterNd); else toLoad.addAll(singles);
+            if (filterNd != null)
+                toLoad.add(filterNd);
+            else
+                toLoad.addAll(singles);
+
+            // Cache danh sách VĐV 1 lần để tránh gọi DB lặp lại khi số lượng bản ghi lớn
+            java.util.Map<Integer, String> vdvNameById = new java.util.HashMap<>();
+            vdvService.findAll().forEach(v -> vdvNameById.put(v.getId(), v.getHoTen()));
+
             for (NoiDung nd : toLoad) {
                 List<DangKyCaNhan> regs = dkService.listByGiaiAndNoiDung(idGiai, nd.getId());
                 for (DangKyCaNhan r : regs) {
-                    String tenVdv = vdvService.findAll().stream()
-                        .filter(v -> v.getId().equals(r.getIdVdv()))
-                        .map(v -> v.getHoTen())
-                        .findFirst().orElse("");
-                    model.addRow(new Object[]{ r.getId(), nd.getId(), nd.getTenNoiDung(), r.getIdVdv(), tenVdv });
+                    String tenVdv = vdvNameById.getOrDefault(r.getIdVdv(), "");
+                    model.addRow(new Object[] { r.getId(), nd.getId(), nd.getTenNoiDung(), r.getIdVdv(), tenVdv });
                 }
             }
             lblCount.setText(model.getRowCount() + " đăng ký");
             updateFilter();
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi tải đăng ký: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+            // Hiển thị thêm nguyên nhân gốc nếu có (vd: SQLState, ErrorCode) đã được bọc ở
+            // Repository
+            JOptionPane.showMessageDialog(this, "Lỗi tải đăng ký: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void updateFilter() {
         String q = txtSearch.getText();
-        if (q == null || q.isBlank()) { sorter.setRowFilter(null); return; }
+        if (q == null || q.isBlank()) {
+            sorter.setRowFilter(null);
+            return;
+        }
         int colIndex = "VĐV".equals(cboFilterField.getSelectedItem()) ? 4 : 2; // model indices after hiding
-        RowFilter<DefaultTableModel, Object> textFilter = RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(q.trim()), colIndex);
+        RowFilter<DefaultTableModel, Object> textFilter = RowFilter
+                .regexFilter("(?i)" + java.util.regex.Pattern.quote(q.trim()), colIndex);
         NoiDung ndSel = (NoiDung) cboNoiDungFilter.getSelectedItem();
-        if (ndSel == null) { sorter.setRowFilter(textFilter); return; }
-        RowFilter<DefaultTableModel,Object> ndFilter = new RowFilter<>() {
+        if (ndSel == null) {
+            sorter.setRowFilter(textFilter);
+            return;
+        }
+        RowFilter<DefaultTableModel, Object> ndFilter = new RowFilter<>() {
             @Override
             public boolean include(Entry<? extends DefaultTableModel, ? extends Object> entry) {
                 Integer idNd = (Integer) entry.getValue(1);
@@ -173,39 +211,52 @@ public class DangKyCaNhanPanel extends JPanel {
 
     private void onAdd() {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-        if (idGiai <= 0) { JOptionPane.showMessageDialog(this, "Chưa chọn giải."); return; }
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+            return;
+        }
         DangKyCaNhanDialog dlg = new DangKyCaNhanDialog(
-            javax.swing.SwingUtilities.getWindowAncestor(this),
-            "Thêm đăng ký cá nhân", idGiai,
-            dkService, vdvService, noiDungService,
-            null);
+                javax.swing.SwingUtilities.getWindowAncestor(this),
+                "Thêm đăng ký cá nhân", idGiai,
+                dkService, vdvService, noiDungService,
+                null);
         dlg.setVisible(true);
         reload();
     }
 
     private void onEdit() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Chọn một dòng để sửa."); return; }
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Chọn một dòng để sửa.");
+            return;
+        }
         int mRow = table.convertRowIndexToModel(row);
         Integer id = (Integer) model.getValueAt(mRow, 0);
         Optional<DangKyCaNhan> opt = dkService.find(id);
-        if (opt.isEmpty()) { JOptionPane.showMessageDialog(this, "Không tìm thấy bản ghi."); return; }
+        if (opt.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Không tìm thấy bản ghi.");
+            return;
+        }
         DangKyCaNhanDialog dlg = new DangKyCaNhanDialog(
-            javax.swing.SwingUtilities.getWindowAncestor(this),
-            "Sửa đăng ký cá nhân", prefs.getInt("selectedGiaiDauId", -1),
-            dkService, vdvService, noiDungService,
-            opt.get());
+                javax.swing.SwingUtilities.getWindowAncestor(this),
+                "Sửa đăng ký cá nhân", prefs.getInt("selectedGiaiDauId", -1),
+                dkService, vdvService, noiDungService,
+                opt.get());
         dlg.setVisible(true);
         reload();
     }
 
     private void onDelete() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Chọn một dòng để xóa."); return; }
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Chọn một dòng để xóa.");
+            return;
+        }
         int mRow = table.convertRowIndexToModel(row);
         Integer id = (Integer) model.getValueAt(mRow, 0);
         int c = JOptionPane.showConfirmDialog(this, "Xóa đăng ký này?", "Xác nhận", JOptionPane.YES_NO_OPTION);
-        if (c != JOptionPane.YES_OPTION) return;
+        if (c != JOptionPane.YES_OPTION)
+            return;
         try {
             dkService.delete(id);
             reload();
@@ -220,12 +271,17 @@ public class DangKyCaNhanPanel extends JPanel {
             java.util.List<String> hide = java.util.List.of("ID", "ID_Nội dung", "ID_VĐV");
             for (String h : hide) {
                 int modelIndex = model.findColumn(h);
-                if (modelIndex < 0) continue;
+                if (modelIndex < 0)
+                    continue;
                 int viewIndex = table.convertColumnIndexToView(modelIndex);
-                if (viewIndex < 0) continue;
+                if (viewIndex < 0)
+                    continue;
                 javax.swing.table.TableColumn col = columnModel.getColumn(viewIndex);
-                col.setMinWidth(0); col.setMaxWidth(0); col.setPreferredWidth(0);
+                col.setMinWidth(0);
+                col.setMaxWidth(0);
+                col.setPreferredWidth(0);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 }
