@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -72,6 +73,7 @@ public class DangKyDoiPanel extends JPanel {
     private final JButton btnDelete = new JButton("Xóa đội");
     private final JLabel lblCount = new JLabel("0 đội");
     private final javax.swing.JTextField txtSearch = new javax.swing.JTextField(16);
+    private final JComboBox<String> cboFilterField = new JComboBox<>(new String[] { "Tên đội", "CLB", "Nội dung" });
 
     public DangKyDoiPanel(Connection conn) {
         this.prefs = new Prefs();
@@ -90,6 +92,8 @@ public class DangKyDoiPanel extends JPanel {
         row1.add(lblHeader);
         JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         row2.add(btnRefresh);
+        row2.add(new JLabel("Lọc theo:"));
+        row2.add(cboFilterField);
         row2.add(new JLabel("Tìm:"));
         row2.add(txtSearch);
         row2.add(lblCount);
@@ -125,6 +129,7 @@ public class DangKyDoiPanel extends JPanel {
                 updateFilter();
             }
         });
+        cboFilterField.addActionListener(e -> updateFilter());
 
         reload();
     }
@@ -185,7 +190,16 @@ public class DangKyDoiPanel extends JPanel {
             sorter.setRowFilter(null);
             return;
         }
-        sorter.setRowFilter(RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(q.trim()), 1));
+        String selected = (String) cboFilterField.getSelectedItem();
+        int colIndex; // model column index for filtering
+        if ("CLB".equals(selected)) {
+            colIndex = 2; // CLB
+        } else if ("Nội dung".equals(selected)) {
+            colIndex = 4; // Nội dung
+        } else {
+            colIndex = 1; // Tên đội (default)
+        }
+        sorter.setRowFilter(RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(q.trim()), colIndex));
     }
 
     private void onAdd() {

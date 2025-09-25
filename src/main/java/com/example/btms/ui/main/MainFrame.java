@@ -157,7 +157,7 @@ public class MainFrame extends JFrame {
                 ensureViewPresent("Nội dung", noiDungPanel);
                 ensureViewPresent("Câu lạc bộ", cauLacBoPanel);
                 ensureViewPresent("Vận động viên", vanDongVienPanel);
-                ensureViewPresent("Đăng ký nội dung", dangKyNoiDungPanel);
+                ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
                 ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
                 ensureViewPresent("Thi đấu", multiCourtPanel);
                 ensureViewPresent("Giám sát", monitorTab);
@@ -430,7 +430,7 @@ public class MainFrame extends JFrame {
                         // Vận động viên
                         VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
                         vanDongVienPanel = new VanDongVienManagementPanel(vdvService, clbService);
-                        // Panel đăng ký nội dung theo giải chọn trong Prefs
+                        // Panel Nội dung của giải theo giải chọn trong Prefs
                         ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(
                                 new ChiTietGiaiDauRepository(conn));
                         dangKyNoiDungPanel = new DangKyNoiDungPanel(
@@ -540,7 +540,7 @@ public class MainFrame extends JFrame {
                 mManage.add(menuItem("Nội dung"));
                 mManage.add(menuItem("Câu lạc bộ"));
                 mManage.add(menuItem("Vận động viên"));
-                mManage.add(menuItem("Đăng ký nội dung"));
+                mManage.add(menuItem("Nội dung của giải"));
                 mManage.add(menuItem("Đăng ký đội"));
             }
             mb.add(mManage);
