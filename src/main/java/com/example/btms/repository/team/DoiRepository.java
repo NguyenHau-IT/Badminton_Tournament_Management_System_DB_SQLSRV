@@ -104,7 +104,7 @@ public class DoiRepository {
     public String fetchClubNameById(int teamId) {
         String clubName = null;
 
-        final String sql = "SELECT clb.TEN_CLB FROM dbo.DANG_KI_DOI dkd " +
+        final String sql = "SELECT clb.TEN_CLB FROM DANG_KI_DOI dkd " +
                 "LEFT JOIN dbo.CAU_LAC_BO clb ON clb.ID = dkd.ID_CAU_LAC_BO " +
                 "WHERE dkd.ID_TEAM = ?";
 
@@ -125,4 +125,36 @@ public class DoiRepository {
         }
         return clubName;
     }
+
+    /**
+     * Lấy Id_CLB theo tên team.
+     * Nếu không tìm thấy, trả về -1.
+     */
+    public int fetchIdClbByTeamName(String teamName, int idNoiDung, int idGiai) {
+        int idClb = -1;
+
+        final String sql = "SELECT ID_CAU_LAC_BO FROM DANG_KI_DOI " +
+                "WHERE TEN_TEAM = ? AND ID_NOI_DUNG = ? AND ID_GIAI = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamName);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, idGiai);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    idClb = rs.getInt("ID_CAU_LAC_BO");
+                }
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Đọc ID_CAU_LAC_BO theo tên team lỗi: " + ex.getMessage(),
+                    "Lỗi DB",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+
+        return idClb;
+    }
+
 }

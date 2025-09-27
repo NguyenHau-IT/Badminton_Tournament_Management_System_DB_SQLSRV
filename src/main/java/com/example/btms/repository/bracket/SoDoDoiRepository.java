@@ -1,5 +1,6 @@
 package com.example.btms.repository.bracket;
 
+import java.sql.Statement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,38 +19,72 @@ public class SoDoDoiRepository {
         this.conn = conn;
     }
 
-    public void add(SoDoDoi row) {
-        String sql = "INSERT INTO SO_DO_DOI " +
+    public int add(SoDoDoi row) {
+        final String sql = "INSERT INTO SO_DO_DOI " +
                 "(ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM, TOA_DO_X, TOA_DO_Y, VI_TRI, SO_DO, THOI_GIAN) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        // TODO: validate nếu cần
+        // Objects.requireNonNull(row.getTenTeam(), "TEN_TEAM không được null");
+        // Objects.requireNonNull(row.getViTri(), "VI_TRI không được null");
+
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, row.getIdGiai());
             ps.setInt(2, row.getIdNoiDung());
-            if (row.getIdClb() != null)
-                ps.setInt(3, row.getIdClb());
-            else
+
+            // Integer -> nullable int
+            if (row.getIdClb() == null)
                 ps.setNull(3, Types.INTEGER);
+            else
+                ps.setInt(3, row.getIdClb());
+
             ps.setString(4, row.getTenTeam());
-            if (row.getToaDoX() != null)
-                ps.setInt(5, row.getToaDoX());
-            else
+
+            if (row.getToaDoX() == null)
                 ps.setNull(5, Types.INTEGER);
-            if (row.getToaDoY() != null)
-                ps.setInt(6, row.getToaDoY());
             else
+                ps.setInt(5, row.getToaDoX());
+
+            if (row.getToaDoY() == null)
                 ps.setNull(6, Types.INTEGER);
-            ps.setInt(7, row.getViTri());
-            if (row.getSoDo() != null)
-                ps.setInt(8, row.getSoDo());
             else
+                ps.setInt(6, row.getToaDoY());
+
+            ps.setInt(7, row.getViTri()); // giả định không null
+
+            if (row.getSoDo() == null)
                 ps.setNull(8, Types.INTEGER);
-            if (row.getThoiGian() != null)
-                ps.setTimestamp(9, Timestamp.valueOf(row.getThoiGian()));
             else
+                ps.setInt(8, row.getSoDo());
+
+            // THOI_GIAN: ưu tiên setObject để tương thích DATETIME2/OffsetDateTime
+            if (row.getThoiGian() == null) {
                 ps.setNull(9, Types.TIMESTAMP);
-            ps.executeUpdate();
+            } else {
+                // Nếu là LocalDateTime:
+                // ps.setTimestamp(9, Timestamp.valueOf(row.getThoiGian()));
+                // Nếu là OffsetDateTime/Instant/LocalDateTime: dùng setObject cho gọn
+                ps.setObject(9, row.getThoiGian());
+            }
+
+            int affected = ps.executeUpdate();
+
+            // Nếu cần lấy khóa tự tăng:
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) {
+                    return keys.getInt(1);
+                }
+            }
+            return affected; // hoặc trả về 1/0 nếu bạn không cần id
         } catch (SQLException e) {
-            throw new RuntimeException("Lỗi thêm SO_DO_DOI", e);
+            // Nếu dùng SQL Server: 2601 (duplicate key), 2627 (unique constraint)
+            // Có thể phân nhánh để báo lỗi rõ hơn
+            // if (e instanceof SQLIntegrityConstraintViolationException || e.getErrorCode()
+            // == 2601 || e.getErrorCode() == 2627) { ... }
+            throw new RuntimeException(
+                    "Lỗi thêm SO_DO_DOI (SQLState=" + e.getSQLState() + ", Code=" + e.getErrorCode() + "): "
+                            + e.getMessage(),
+                    e);
         }
     }
 

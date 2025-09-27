@@ -112,6 +112,10 @@ public class BocThamDoiService {
         resetWithOrder(idGiai, idNoiDung, teams);
     }
 
+    public int getSoDo(int idGiai, int idNoiDung, int idClb) {
+        return repo.getSoDo(idGiai, idNoiDung, idClb);
+    }
+
     /* ===== helpers ===== */
     private void validateRow(String tenTeam, int thuTu) {
         if (tenTeam == null || tenTeam.trim().isEmpty())

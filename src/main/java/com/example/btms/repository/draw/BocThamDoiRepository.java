@@ -126,4 +126,24 @@ public class BocThamDoiRepository {
                 rs.getInt("THU_TU"),
                 soDo);
     }
+
+    public int getSoDo(int idGiai, int idNoiDung, int idClb) {
+        final String sql = "SELECT SO_DO FROM BOC_THAM_DOI " +
+                "WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_CLB=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, idClb);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("SO_DO");
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi lấy SO_DO từ BOC_THAM_DOI", e);
+        }
+        return 0; // giá trị mặc định nếu không có dữ liệu
+    }
+
 }

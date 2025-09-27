@@ -31,4 +31,9 @@ public class DoiService {
     public String getClubNameByTeamId(int teamId) {
         return teamRepo.fetchClubNameById(teamId);
     }
+
+    /** Lấy Id_CLB theo tên team **/
+    public int getIdClbByTeamName(String teamName, int idNoiDung, int idGiai) {
+        return teamRepo.fetchIdClbByTeamName(teamName, idNoiDung, idGiai);
+    }
 }
