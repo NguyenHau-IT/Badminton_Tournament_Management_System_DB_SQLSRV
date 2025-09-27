@@ -81,7 +81,7 @@ public class MainFrame extends JFrame {
     private com.example.btms.ui.team.DangKyDoiPanel dangKyDoiPanel;
     private com.example.btms.ui.player.DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
     private com.example.btms.ui.category.ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
-    private com.example.btms.ui.draw.BocThamDoiPanel bocThamDoiPanel; // bốc thăm thứ tự đội (0-based)
+    private com.example.btms.ui.draw.BocThamThiDau bocThamThiDauPanel; // bốc thăm thi đấu (đơn/đôi) 0-based
     private com.example.btms.ui.draw.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
     // Cửa sổ nổi cho "Sơ đồ thi đấu"
     private JFrame soDoThiDauFrame;
@@ -443,8 +443,8 @@ public class MainFrame extends JFrame {
                         dangKyCaNhanPanel = new com.example.btms.ui.player.DangKyCaNhanPanel(conn);
                         // Panel xem người Danh sách đăng kí
                         contentParticipantsPanel = new com.example.btms.ui.category.ContentParticipantsPanel(conn);
-                        // Bốc thăm đội 0-based
-                        bocThamDoiPanel = new com.example.btms.ui.draw.BocThamDoiPanel(conn);
+                        // Bốc thăm thi đấu (0-based order)
+                        bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
                         soDoThiDauPanel = new com.example.btms.ui.draw.SoDoThiDauPanel(conn);
                         // Tổng sắp huy chương (kết quả toàn đoàn)
                         try {
@@ -574,7 +574,7 @@ public class MainFrame extends JFrame {
                     mManage.add(menuItem("Đăng ký đội"));
                     mManage.add(menuItem("Đăng ký cá nhân"));
                     mManage.add(menuItem("Danh sách đăng kí"));
-                    mManage.add(menuItem("Bốc thăm đội"));
+                    mManage.add(menuItem("Bốc thăm thi đấu"));
                     // Mặc định mở "Sơ đồ thi đấu" ở cửa sổ riêng khi chọn từ menu
                     JMenuItem miSoDo = new JMenuItem("Sơ đồ thi đấu");
                     miSoDo.addActionListener(e -> openSoDoThiDauWindow());
@@ -644,7 +644,7 @@ public class MainFrame extends JFrame {
         }
         selectedGiaiDau = gd;
         try {
-            new com.example.btms.config.Prefs().putInt("selected_giaidau_id", gd.getId());
+            new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
         } catch (Exception ignore) {
         }
 
@@ -665,7 +665,7 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
             ensureViewPresent("Đăng ký cá nhân", dangKyCaNhanPanel);
             ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
-            ensureViewPresent("Bốc thăm đội", bocThamDoiPanel);
+            ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
             ensureViewPresent("Sơ đồ thi đấu", soDoThiDauPanel);
             ensureViewPresent("Thi đấu", multiCourtPanel);
             ensureViewPresent("Giám sát", monitorTab);
@@ -687,7 +687,7 @@ public class MainFrame extends JFrame {
             if (gd != null) {
                 selectedGiaiDau = gd;
                 try {
-                    new com.example.btms.config.Prefs().putInt("selected_giaidau_id", gd.getId());
+                    new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
                 } catch (Exception ignore) {
                 }
                 updateNavigationRootTitleFromSelection();
@@ -743,6 +743,9 @@ public class MainFrame extends JFrame {
                 if ("Sơ đồ thi đấu".equals(label)) {
                     openSoDoThiDauWindow();
                     return;
+                }
+                if ("Bốc thăm thi đấu".equals(label)) {
+                    if (bocThamThiDauPanel != null) ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
                 }
                 if (views.containsKey(label))
                     showView(label);
@@ -815,7 +818,7 @@ public class MainFrame extends JFrame {
 
             // 3) Bốc thăm
             DefaultMutableTreeNode draw = new DefaultMutableTreeNode("Bốc thăm");
-            draw.add(new DefaultMutableTreeNode("Bốc thăm đội"));
+            draw.add(new DefaultMutableTreeNode("Bốc thăm thi đấu"));
             draw.add(new DefaultMutableTreeNode("Sơ đồ thi đấu"));
             root.add(draw);
 
