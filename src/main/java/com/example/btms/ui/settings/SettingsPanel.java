@@ -37,6 +37,7 @@ public class SettingsPanel extends JPanel {
     private JLabel lblStartSound;
     private JLabel lblEndSound;
     private Preferences soundPrefs;
+    private JLabel lblReportLogo;
 
     public SettingsPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -87,12 +88,14 @@ public class SettingsPanel extends JPanel {
             savedCols = 3;
         cboMonitorCols.setSelectedItem(String.valueOf(savedCols));
         cboMonitorCols.addActionListener(e -> {
-            try {
-                int cols = Integer.parseInt((String) cboMonitorCols.getSelectedItem());
-                prefs.putInt("monitor.columns", cols);
-                // gọi sang monitorTab nếu có
-                mainFrame.updateMonitorColumns(cols);
-            } catch (Exception ignore) {
+            Object sel = cboMonitorCols.getSelectedItem();
+            if (sel instanceof String s && s.chars().allMatch(Character::isDigit)) {
+                int cols = Integer.parseInt(s);
+                if (cols >= 1 && cols <= 4) {
+                    prefs.putInt("monitor.columns", cols);
+                    // gọi sang monitorTab nếu có
+                    mainFrame.updateMonitorColumns(cols);
+                }
             }
         });
         panel.add(rowLabelWithComp("Số cột giám sát:", cboMonitorCols), gc);
@@ -118,6 +121,18 @@ public class SettingsPanel extends JPanel {
             mainFrame.applyAlwaysOnTopFloating(chkAlwaysOnTop.isSelected());
         });
         panel.add(chkAlwaysOnTop, gc);
+
+        // ================== Logo báo cáo (PDF) ==================
+        gc.gridy++;
+        lblReportLogo = new JLabel(getShortPath(prefs.get("report.logo.path", "(chưa chọn)")));
+        JButton btnPickLogo = new JButton("Chọn...");
+        btnPickLogo.addActionListener(e -> chooseLogoFile());
+        JButton btnClearLogo = new JButton("Xóa");
+        btnClearLogo.addActionListener(e -> {
+            prefs.remove("report.logo.path");
+            lblReportLogo.setText("(chưa chọn)");
+        });
+        panel.add(rowLabelWithComp("Logo báo cáo:", wrapTriple(lblReportLogo, btnPickLogo, btnClearLogo)), gc);
 
         // === Âm thanh trận đấu ===
         gc.gridy++;
@@ -243,6 +258,33 @@ public class SettingsPanel extends JPanel {
             String val = "builtin:" + selected;
             soundPrefs.put(key, val);
             target.setText(getShortPath("[builtin] " + selected));
+        }
+    }
+
+    private void chooseLogoFile() {
+        JFileChooser fc = new JFileChooser();
+        fc.setDialogTitle("Chọn ảnh logo (PNG/JPG)");
+        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Ảnh (PNG, JPG)", "png", "jpg", "jpeg"));
+        String current = prefs.get("report.logo.path", "");
+        if (current != null && !current.isBlank()) {
+            java.io.File cur = new java.io.File(current);
+            if (cur.getParentFile() != null && cur.getParentFile().exists()) {
+                fc.setCurrentDirectory(cur.getParentFile());
+            }
+        }
+        int r = fc.showOpenDialog(this);
+        if (r == JFileChooser.APPROVE_OPTION) {
+            var f = fc.getSelectedFile();
+            if (f != null && f.isFile()) {
+                String lower = f.getName().toLowerCase();
+                if (!(lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg"))) {
+                    javax.swing.JOptionPane.showMessageDialog(this, "Chỉ hỗ trợ PNG/JPG.", "Logo",
+                            javax.swing.JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                prefs.put("report.logo.path", f.getAbsolutePath());
+                lblReportLogo.setText(getShortPath(f.getAbsolutePath()));
+            }
         }
     }
 

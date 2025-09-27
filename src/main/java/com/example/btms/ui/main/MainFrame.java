@@ -446,6 +446,13 @@ public class MainFrame extends JFrame {
                         // Bốc thăm đội 0-based
                         bocThamDoiPanel = new com.example.btms.ui.draw.BocThamDoiPanel(conn);
                         soDoThiDauPanel = new com.example.btms.ui.draw.SoDoThiDauPanel(conn);
+                        // Tổng sắp huy chương (kết quả toàn đoàn)
+                        try {
+                            com.example.btms.ui.result.TongSapHuyChuongPanel tongSapHuyChuongPanel = new com.example.btms.ui.result.TongSapHuyChuongPanel(
+                                    conn, clbService);
+                            ensureViewPresent("Tổng sắp huy chương", tongSapHuyChuongPanel);
+                        } catch (Throwable ignore) {
+                        }
                         // Tournament selection now uses modal dialog, no panel needed here
 
                         updateAuthService(conn);
@@ -815,6 +822,7 @@ public class MainFrame extends JFrame {
             // 4) Kết quả
             DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
             result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
+            result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
             root.add(result);
         }
 
