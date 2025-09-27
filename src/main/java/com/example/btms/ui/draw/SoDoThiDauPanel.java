@@ -27,11 +27,13 @@ import com.example.btms.config.Prefs;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.draw.BocThamDoi;
 import com.example.btms.repository.category.NoiDungRepository;
+import com.example.btms.repository.club.CauLacBoRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.draw.BocThamDoiRepository;
 import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.bracket.SoDoDoiService;
 import com.example.btms.service.draw.BocThamDoiService;
+import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.team.DoiService;
 
 /**
@@ -66,6 +68,7 @@ public class SoDoThiDauPanel extends JPanel {
     private final BocThamDoiService bocThamService;
     private final SoDoDoiService soDoDoiService;
     private final DoiService doiService;
+    private final CauLacBoService clbService;
 
     public SoDoThiDauPanel(Connection conn) { // giữ signature cũ để MainFrame không phải đổi nhiều
         Objects.requireNonNull(conn, "Connection null");
@@ -73,6 +76,7 @@ public class SoDoThiDauPanel extends JPanel {
         this.bocThamService = new BocThamDoiService((Connection) conn, new BocThamDoiRepository((Connection) conn));
         this.soDoDoiService = new SoDoDoiService(new SoDoDoiRepository((Connection) conn));
         this.doiService = new DoiService(conn);
+        this.clbService = new CauLacBoService(new CauLacBoRepository((Connection) conn));
 
         setLayout(new BorderLayout(8, 8));
         add(buildTop(), BorderLayout.NORTH);
@@ -113,18 +117,12 @@ public class SoDoThiDauPanel extends JPanel {
         }
         int idNoiDung = nd.getId();
         try {
-            // Xóa dữ liệu cũ của (Giải, Nội dung)
-            for (var row : soDoDoiService.list(idGiai, idNoiDung)) {
-                soDoDoiService.delete(idGiai, idNoiDung, row.getViTri());
-            }
             // Lưu các ô đang hiển thị (chỉ lưu ô có tên)
             java.time.LocalDateTime now = java.time.LocalDateTime.now();
             for (BracketCanvas.Slot s : canvas.getSlots()) {
                 if (s.text != null && !s.text.isBlank()) {
                     int idClb = doiService.getIdClbByTeamName(s.text.trim(), idNoiDung, idGiai);
                     int soDo = bocThamService.getSoDo(idGiai, idNoiDung, idClb);
-                    System.out.println("DEBUG: Lưu sơ đồ: " + idGiai + "," + idNoiDung + "," + idClb + ","
-                            + s.text.trim() + "," + s.x + "," + s.y + "," + s.order + "," + soDo);
                     soDoDoiService.create(
                             idGiai,
                             idNoiDung,
@@ -226,7 +224,24 @@ public class SoDoThiDauPanel extends JPanel {
             namesByT.add(null);
         for (int i = 0; i < Math.min(N, M); i++) {
             int t = pos.get(i);
-            namesByT.set(t, list.get(i).getTenTeam());
+            BocThamDoi row = list.get(i);
+            String team = row.getTenTeam() != null ? row.getTenTeam().trim() : "";
+            String club = "";
+            try {
+                Integer idClb = row.getIdClb();
+                if (idClb == null && team != null && !team.isBlank()) {
+                    // Fallback: try resolve club by team name for this tournament/category
+                    idClb = doiService.getIdClbByTeamName(team, nd.getId(), idGiai);
+                }
+                if (idClb != null) {
+                    var c = clbService.findOne(idClb);
+                    if (c != null && c.getTenClb() != null)
+                        club = c.getTenClb().trim();
+                }
+            } catch (RuntimeException ignore) {
+            }
+            String display = club.isBlank() ? team : (team + " - " + club);
+            namesByT.set(t, display);
         }
         // BYE auto-advance for first round: scan all pairs in the seeded column.
         // For each pair that has exactly one participant, clear both leaves and
@@ -401,15 +416,12 @@ public class SoDoThiDauPanel extends JPanel {
                 g2.fillRoundRect(s.x, s.y, w, h, 8, 8);
                 g2.setColor(new Color(120, 120, 120));
                 g2.drawRoundRect(s.x, s.y, w, h, 8, 8);
-                // Số thứ tự liên tục, ghi trong ô (bên trái, màu xám)
-                g2.setColor(new Color(90, 90, 90));
-                g2.drawString(String.valueOf(s.order), s.x + 8, s.y + 18);
-                // Text
+                // Text (ẩn số thứ tự slot để gọn gàng)
                 if (s.text != null && !s.text.isBlank()) {
                     g2.setColor(Color.BLACK);
                     String txt = truncate(s.text, 28); // cho phép tên dài hơn vì ô rộng hơn
-                    // đẩy text sang phải một chút để không chồng lên số thứ tự
-                    g2.drawString(txt, s.x + 26, s.y + 18);
+                    // Căn trái vừa phải trong ô
+                    g2.drawString(txt, s.x + 10, s.y + 18);
                 }
             }
 

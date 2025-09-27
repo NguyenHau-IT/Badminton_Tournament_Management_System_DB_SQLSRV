@@ -397,4 +397,40 @@ public class DangKyNoiDungPanel extends JPanel {
         }
         lblCount.setText(visible + "/" + totalRegistered + " nội dung");
     }
+
+    /**
+     * Try to locate and select a specific Nội dung by its ID in the table.
+     * This will ensure the row is visible by temporarily showing all and clearing
+     * search filter.
+     */
+    public void selectNoiDungById(Integer idNoiDung) {
+        if (idNoiDung == null)
+            return;
+        // Ensure data is loaded and filters won't hide the target row
+        if (!showAll) {
+            showAll = true;
+            btnShowAll.setText("Chỉ đã đăng ký");
+        }
+        if (txtSearch.getText() != null && !txtSearch.getText().isBlank()) {
+            txtSearch.setText("");
+        }
+        updateFilters();
+
+        // Find the model row with matching ID in column 1
+        int targetModelRow = -1;
+        for (int i = 0; i < model.getRowCount(); i++) {
+            Object v = model.getValueAt(i, 1);
+            if (v instanceof Integer iid && iid.equals(idNoiDung)) {
+                targetModelRow = i;
+                break;
+            }
+        }
+        if (targetModelRow < 0)
+            return;
+        int viewRow = table.convertRowIndexToView(targetModelRow);
+        if (viewRow >= 0) {
+            table.getSelectionModel().setSelectionInterval(viewRow, viewRow);
+            table.scrollRectToVisible(table.getCellRect(viewRow, 0, true));
+        }
+    }
 }

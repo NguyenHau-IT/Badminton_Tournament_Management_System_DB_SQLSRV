@@ -57,7 +57,7 @@ public class ContentParticipantsPanel extends JPanel {
     private final JLabel lblInfo = new JLabel("Chưa chọn nội dung");
 
     private final DefaultTableModel model = new DefaultTableModel(
-            new Object[] { "ID", "Tên", "CLB / Thành viên" }, 0) {
+            new Object[] { "ID", "Tên", "CLB", "Thành viên" }, 0) {
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -88,6 +88,24 @@ public class ContentParticipantsPanel extends JPanel {
         add(new JScrollPane(table), BorderLayout.CENTER);
 
         loadNoiDungCombo();
+    }
+
+    /**
+     * Chọn nội dung theo ID (dùng khi người dùng chọn từ cây chức năng) và tải lại
+     * danh sách.
+     */
+    public void selectNoiDungById(Integer idNoiDung) {
+        if (idNoiDung == null)
+            return;
+        var ndComboModel = cboNoiDung.getModel();
+        for (int i = 0; i < ndComboModel.getSize(); i++) {
+            NoiDung nd = ndComboModel.getElementAt(i);
+            if (nd != null && idNoiDung.equals(nd.getId())) {
+                cboNoiDung.setSelectedIndex(i);
+                break;
+            }
+        }
+        reloadParticipants();
     }
 
     private JPanel buildTop() {
@@ -150,7 +168,12 @@ public class ContentParticipantsPanel extends JPanel {
             java.util.Set<Integer> allowedIds = new java.util.LinkedHashSet<>();
             allowedIds.addAll(maps[0].values());
             allowedIds.addAll(maps[1].values());
-            List<NoiDung> all = noiDungService.getAllNoiDung();
+            List<NoiDung> all;
+            try {
+                all = noiDungService.getAllNoiDung();
+            } catch (java.sql.SQLException se) {
+                throw new RuntimeException(se);
+            }
             java.util.List<NoiDung> filtered = new java.util.ArrayList<>();
             for (NoiDung nd : all) {
                 if (nd.getId() != null && allowedIds.contains(nd.getId()))
@@ -162,7 +185,7 @@ public class ContentParticipantsPanel extends JPanel {
             if (!filtered.isEmpty())
                 cboNoiDung.setSelectedIndex(0);
             reloadParticipants();
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -188,12 +211,27 @@ public class ContentParticipantsPanel extends JPanel {
             if (isDoi) {
                 List<DangKiDoi> teams = doiService.listTeams(idGiai, nd.getId());
                 for (DangKiDoi t : teams) {
+                    // CLB name
+                    String clbName = "";
+                    try {
+                        var teamFull = doiService.getTeam(Objects.requireNonNull(t.getIdTeam()));
+                        if (teamFull.getIdCauLacBo() != null) {
+                            try {
+                                com.example.btms.model.club.CauLacBo clb = clbService.findOne(teamFull.getIdCauLacBo());
+                                clbName = clb != null ? clb.getTenClb() : "";
+                            } catch (Exception ignore) {
+                            }
+                        }
+                    } catch (Exception ignore) {
+                    }
+
+                    // Members
                     String members;
                     try {
                         List<ChiTietDoi> list = chiTietDoiService.listMembers(Objects.requireNonNull(t.getIdTeam()));
-                        if (list.isEmpty())
+                        if (list.isEmpty()) {
                             members = "(chưa có thành viên)";
-                        else {
+                        } else {
                             StringBuilder sb = new StringBuilder();
                             for (int i = 0; i < list.size(); i++) {
                                 var m = list.get(i);
@@ -207,18 +245,30 @@ public class ContentParticipantsPanel extends JPanel {
                             }
                             members = sb.toString();
                         }
-                    } catch (Exception ex) {
+                    } catch (RuntimeException ex) {
                         members = "(lỗi lấy thành viên)";
                     }
-                    model.addRow(new Object[] { t.getIdTeam(), t.getTenTeam(), members });
+                    model.addRow(new Object[] { t.getIdTeam(), t.getTenTeam(), clbName, members });
                 }
             } else {
                 Map<String, Integer> map = vdvService.loadSinglesNames(nd.getId(), idGiai);
                 for (Map.Entry<String, Integer> e : map.entrySet()) {
-                    model.addRow(new Object[] { e.getValue(), e.getKey(), "" });
+                    String clbName = "";
+                    try {
+                        var v = vdvService.findOne(e.getValue());
+                        if (v.getIdClb() != null) {
+                            try {
+                                com.example.btms.model.club.CauLacBo clb = clbService.findOne(v.getIdClb());
+                                clbName = clb != null ? clb.getTenClb() : "";
+                            } catch (Exception ignore) {
+                            }
+                        }
+                    } catch (RuntimeException ignore) {
+                    }
+                    model.addRow(new Object[] { e.getValue(), e.getKey(), clbName, "" });
                 }
             }
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải danh sách: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -279,7 +329,7 @@ public class ContentParticipantsPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Chưa có nội dung ĐÔI đã đăng ký.");
                 return;
             }
-        } catch (Exception ex) {
+        } catch (java.sql.SQLException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
             return;
         }
@@ -331,7 +381,7 @@ public class ContentParticipantsPanel extends JPanel {
             team.setIdNoiDung(selected.getId());
             new com.example.btms.repository.team.DangKiDoiRepository(getConnectionFromServices()).update(team);
             reloadParticipants();
-        } catch (Exception ex) {
+        } catch (java.sql.SQLException | RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi đổi nội dung: " + ex.getMessage());
         }
     }

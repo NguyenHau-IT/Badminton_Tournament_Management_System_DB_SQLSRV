@@ -27,6 +27,12 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
+import javax.swing.JTree;
+import javax.swing.JScrollPane;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreeSelectionModel;
 
 import com.example.btms.config.ConnectionConfig;
 import com.example.btms.model.db.SQLSRVConnectionManager;
@@ -53,7 +59,7 @@ import com.example.btms.ui.net.NetworkConfig;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;
-import com.example.btms.ui.tournament.GiaiDauSelectPanel;
+import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.ui.tournament.TournamentTabPanel;
 import com.example.btms.util.ui.IconUtil;
 import com.example.btms.util.ui.Ui;
@@ -77,6 +83,10 @@ public class MainFrame extends JFrame {
     private com.example.btms.ui.category.ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
     private com.example.btms.ui.draw.BocThamDoiPanel bocThamDoiPanel; // bốc thăm thứ tự đội (0-based)
     private com.example.btms.ui.draw.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
+    // Cửa sổ nổi cho "Sơ đồ thi đấu"
+    private JFrame soDoThiDauFrame;
+    // Cửa sổ nổi cho "Thi đấu"/"Nhiều sân"
+    private JFrame thiDauFrame;
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
@@ -88,8 +98,9 @@ public class MainFrame extends JFrame {
     private final MonitorTab monitorTab = new MonitorTab();
     private final ScreenshotTab screenshotTab = new ScreenshotTab();
     private final LogTab logTab = new LogTab();
-    private final LoginTab loginTab = new LoginTab();
+    private final LoginTab loginTab = new LoginTab(); // dùng trong dialog đăng nhập tự tạo
     private final TournamentTabPanel tournamentTabPanel = new TournamentTabPanel(service);
+    private GiaiDau selectedGiaiDau; // giải đấu đã chọn sau đăng nhập
 
     private AuthService authService;
 
@@ -108,12 +119,15 @@ public class MainFrame extends JFrame {
     private final Map<String, Component> views = new LinkedHashMap<>();
     private Role currentRole = null;
     private SettingsPanel settingsPanel; // trang cài đặt
+    // Left navigation tree
+    private JTree navTree;
+    private DefaultTreeModel navModel;
 
     // Icons
     // (Icons kept if later needed for menu entries – currently omitted to simplify)
 
     private javax.swing.Timer ramTimer;
-    private GiaiDauSelectPanel giaiDauSelectPanel;
+    // removed legacy select panel usage; selection is done via dialog now
 
     public MainFrame() {
         this(null, null);
@@ -150,54 +164,17 @@ public class MainFrame extends JFrame {
 
         // (Old tab configuration removed)
 
-        // Listener login -> mở các tab phù hợp sau khi đăng nhập
-        loginTab.setListener((username, role) -> SwingUtilities.invokeLater(() -> {
-            currentRole = role;
-            if (role == Role.ADMIN) {
-                monitorTab.setAdminMode(true, null);
-                controlPanel.setClientName("ADMIN-" + username);
-                ensureViewPresent("Chọn giải đấu", giaiDauSelectPanel);
-                ensureViewPresent("Giải đấu", tournamentTabPanel);
-                ensureViewPresent("Nội dung", noiDungPanel);
-                ensureViewPresent("Câu lạc bộ", cauLacBoPanel);
-                ensureViewPresent("Vận động viên", vanDongVienPanel);
-                ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
-                ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
-                ensureViewPresent("Đăng ký cá nhân", dangKyCaNhanPanel);
-                ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
-                ensureViewPresent("Bốc thăm đội", bocThamDoiPanel);
-                ensureViewPresent("Sơ đồ thi đấu", soDoThiDauPanel);
-                ensureViewPresent("Thi đấu", multiCourtPanel);
-                ensureViewPresent("Giám sát", monitorTab);
-                ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
-                ensureViewPresent("Logs", logTab);
-                if (giaiDauSelectPanel != null)
-                    showView("Chọn giải đấu");
-            } else {
-                monitorTab.setAdminMode(false, username);
-                controlPanel.setClientName("CLIENT-" + username);
-                ensureViewPresent("Giải đấu", tournamentTabPanel);
-                ensureViewPresent("Nhiều sân", multiCourtPanel);
-                ensureViewPresent("Giám sát", monitorTab);
-                showView("Giải đấu");
-                if (giaiDauSelectPanel != null)
-                    showView("Chọn giải đấu");
-            }
-            buildMenuBar();
-            try {
-                tournamentTabPanel.unlockSelection();
-            } catch (Exception ignored) {
-            }
-        }));
+        // Không dùng Login như một trang trong main nữa; đăng nhập qua dialog
 
-        // Ban đầu chỉ có Login (CardLayout)
-        ensureViewPresent("Login", loginTab);
         // Khởi tạo trang cài đặt sớm để luôn truy cập được
         settingsPanel = new SettingsPanel(this);
         ensureViewPresent("Cài đặt", settingsPanel);
-        ((CardLayout) cardPanel.getLayout()).show(cardPanel, "Login");
+        // Chưa hiển thị view nào cho đến khi đăng nhập và chọn giải
 
         root.add(header, BorderLayout.NORTH);
+        // Left navigation tree
+        JScrollPane nav = buildNavigationTreePanel();
+        root.add(nav, BorderLayout.WEST);
         // Use cardPanel instead of tabs in CENTER (tabs kept temporarily for reference)
         root.add(wrapCard(cardPanel), BorderLayout.CENTER);
         root.add(status, BorderLayout.SOUTH);
@@ -233,6 +210,20 @@ public class MainFrame extends JFrame {
             public void windowClosed(WindowEvent e) {
                 try {
                     controlPanel.saveSplitLocations();
+                } catch (Exception ignored) {
+                }
+                try {
+                    if (soDoThiDauFrame != null) {
+                        soDoThiDauFrame.dispose();
+                        soDoThiDauFrame = null;
+                    }
+                } catch (Exception ignored) {
+                }
+                try {
+                    if (thiDauFrame != null) {
+                        thiDauFrame.dispose();
+                        thiDauFrame = null;
+                    }
                 } catch (Exception ignored) {
                 }
                 try {
@@ -455,17 +446,16 @@ public class MainFrame extends JFrame {
                         // Bốc thăm đội 0-based
                         bocThamDoiPanel = new com.example.btms.ui.draw.BocThamDoiPanel(conn);
                         soDoThiDauPanel = new com.example.btms.ui.draw.SoDoThiDauPanel(conn);
-                        giaiDauSelectPanel = new GiaiDauSelectPanel(tournamentTabPanel.getGiaiDauService());
+                        // Tournament selection now uses modal dialog, no panel needed here
 
                         updateAuthService(conn);
 
                         statusConn.setText("Đã kết nối");
                         statusConn.setForeground(new Color(46, 204, 113));
 
-                        // Sau khi có connection đảm bảo Login view tồn tại
-                        ensureViewPresent("Login", loginTab);
-                        showView("Login");
+                        // Sau khi có connection: buộc đăng nhập và chọn giải qua dialog
                         buildMenuBar();
+                        forceLoginAndTournamentSelection();
 
                         System.out.println("✓ Tự động kết nối SQL Server thành công!");
                     } catch (Exception e) {
@@ -527,13 +517,20 @@ public class MainFrame extends JFrame {
             return;
         ((CardLayout) cardPanel.getLayout()).show(cardPanel, name);
         setTitle("Badminton Event Technology - " + name);
+        // Update nav root with tournament name if available
+        if (navModel != null) {
+            updateNavigationRootTitleFromSelection();
+            navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
+            for (int i = 0; i < navTree.getRowCount(); i++)
+                navTree.expandRow(i);
+        }
     }
 
     private void buildMenuBar() {
         JMenuBar mb = new JMenuBar();
         JMenu mSystem = new JMenu("Hệ thống");
-        JMenuItem miLogin = new JMenuItem("Đăng nhập");
-        miLogin.addActionListener(e -> showView("Login"));
+        JMenuItem miLogin = new JMenuItem("Đăng nhập...");
+        miLogin.addActionListener(e -> forceLoginAndTournamentSelection());
         mSystem.add(miLogin);
         if (currentRole != null) {
             JMenuItem miLogout = new JMenuItem("Đăng xuất");
@@ -547,41 +544,64 @@ public class MainFrame extends JFrame {
         mb.add(mSystem);
 
         if (currentRole != null) {
-            JMenu mManage = new JMenu("Quản lý");
-            if (currentRole == Role.ADMIN && giaiDauSelectPanel != null)
-                mManage.add(menuItem("Chọn giải đấu"));
-            mManage.add(menuItem("Giải đấu"));
-            if (currentRole == Role.ADMIN) {
-                mManage.add(menuItem("Nội dung"));
-                mManage.add(menuItem("Câu lạc bộ"));
-                mManage.add(menuItem("Vận động viên"));
-                mManage.add(menuItem("Nội dung của giải"));
-                mManage.add(menuItem("Đăng ký đội"));
-                mManage.add(menuItem("Đăng ký cá nhân"));
-                mManage.add(menuItem("Danh sách đăng kí"));
-                mManage.add(menuItem("Bốc thăm đội"));
-                mManage.add(menuItem("Sơ đồ thi đấu"));
+            // Nếu chưa chọn giải -> chỉ hiện chọn giải và cài đặt
+            if (selectedGiaiDau == null) {
+                JMenu mManage = new JMenu("Quản lý");
+                if (currentRole == Role.ADMIN)
+                    mManage.add(menuSelectTournament());
+                mb.add(mManage);
+
+                JMenu mOther = new JMenu("Khác");
+                mOther.add(menuItem("Cài đặt"));
+                mb.add(mOther);
+            } else {
+                JMenu mManage = new JMenu("Quản lý");
+                if (currentRole == Role.ADMIN)
+                    mManage.add(menuSelectTournament());
+                mManage.add(menuItem("Giải đấu"));
+                if (currentRole == Role.ADMIN) {
+                    mManage.add(menuItem("Nội dung"));
+                    mManage.add(menuItem("Câu lạc bộ"));
+                    mManage.add(menuItem("Vận động viên"));
+                    mManage.add(menuItem("Nội dung của giải"));
+                    mManage.add(menuItem("Đăng ký đội"));
+                    mManage.add(menuItem("Đăng ký cá nhân"));
+                    mManage.add(menuItem("Danh sách đăng kí"));
+                    mManage.add(menuItem("Bốc thăm đội"));
+                    // Mặc định mở "Sơ đồ thi đấu" ở cửa sổ riêng khi chọn từ menu
+                    JMenuItem miSoDo = new JMenuItem("Sơ đồ thi đấu");
+                    miSoDo.addActionListener(e -> openSoDoThiDauWindow());
+                    if (!views.containsKey("Sơ đồ thi đấu"))
+                        miSoDo.setEnabled(false);
+                    mManage.add(miSoDo);
+                }
+                mb.add(mManage);
+
+                JMenu mPlay = new JMenu("Thi đấu");
+                if (currentRole == Role.ADMIN) {
+                    JMenuItem miThiDau = new JMenuItem("Thi đấu");
+                    miThiDau.addActionListener(e -> openThiDauWindow());
+                    if (!views.containsKey("Thi đấu"))
+                        miThiDau.setEnabled(false);
+                    mPlay.add(miThiDau);
+                } else {
+                    JMenuItem miNhieuSan = new JMenuItem("Nhiều sân");
+                    miNhieuSan.addActionListener(e -> openThiDauWindow());
+                    if (!views.containsKey("Nhiều sân"))
+                        miNhieuSan.setEnabled(false);
+                    mPlay.add(miNhieuSan);
+                }
+                mPlay.add(menuItem("Giám sát"));
+                if (currentRole == Role.ADMIN)
+                    mPlay.add(menuItem("Kết quả đã thi đấu"));
+                mb.add(mPlay);
+
+                JMenu mOther = new JMenu("Khác");
+                if (currentRole == Role.ADMIN)
+                    mOther.add(menuItem("Logs"));
+                mOther.add(menuItem("Cài đặt"));
+                mb.add(mOther);
             }
-            mb.add(mManage);
-
-            JMenu mPlay = new JMenu("Thi đấu");
-            if (currentRole == Role.ADMIN)
-                mPlay.add(menuItem("Thi đấu"));
-            else
-                mPlay.add(menuItem("Nhiều sân"));
-            mPlay.add(menuItem("Giám sát"));
-            if (currentRole == Role.ADMIN)
-                mPlay.add(menuItem("Kết quả đã thi đấu"));
-            mb.add(mPlay);
-
-            // Menu giao diện luôn hiển thị để đổi theme cả khi chưa đăng nhập
-            // Bỏ menu Giao diện – chuyển sang trang "Cài đặt"
-
-            JMenu mOther = new JMenu("Khác");
-            if (currentRole == Role.ADMIN)
-                mOther.add(menuItem("Logs"));
-            mOther.add(menuItem("Cài đặt"));
-            mb.add(mOther);
         }
         // Nếu chưa đăng nhập vẫn có truy cập Cài đặt (ví dụ đổi theme trước khi login)
         if (currentRole == null) {
@@ -593,6 +613,246 @@ public class MainFrame extends JFrame {
         setJMenuBar(mb);
         revalidate();
         repaint();
+    }
+
+    /**
+     * Force the user to login and then select a tournament before entering the main
+     * UI.
+     */
+    private void forceLoginAndTournamentSelection() {
+        // 1) Đăng nhập bằng dialog nội bộ
+        if (!showLoginDialog()) {
+            return; // huỷ
+        }
+
+        // 2) Chọn giải đấu
+        GiaiDau gd = showTournamentSelectDialog();
+        if (gd == null) {
+            // quay về trạng thái chưa đăng nhập
+            currentRole = null;
+            selectedGiaiDau = null;
+            buildMenuBar();
+            rebuildNavigationTree();
+            return;
+        }
+        selectedGiaiDau = gd;
+        try {
+            new com.example.btms.config.Prefs().putInt("selected_giaidau_id", gd.getId());
+        } catch (Exception ignore) {
+        }
+
+        // 3) Hiển thị đầy đủ chức năng
+        registerViewsForCurrentRole();
+        buildMenuBar();
+        rebuildNavigationTree();
+        showView("Giải đấu");
+    }
+
+    private void registerViewsForCurrentRole() {
+        if (currentRole == Role.ADMIN) {
+            ensureViewPresent("Giải đấu", tournamentTabPanel);
+            ensureViewPresent("Nội dung", noiDungPanel);
+            ensureViewPresent("Câu lạc bộ", cauLacBoPanel);
+            ensureViewPresent("Vận động viên", vanDongVienPanel);
+            ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
+            ensureViewPresent("Đăng ký đội", dangKyDoiPanel);
+            ensureViewPresent("Đăng ký cá nhân", dangKyCaNhanPanel);
+            ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
+            ensureViewPresent("Bốc thăm đội", bocThamDoiPanel);
+            ensureViewPresent("Sơ đồ thi đấu", soDoThiDauPanel);
+            ensureViewPresent("Thi đấu", multiCourtPanel);
+            ensureViewPresent("Giám sát", monitorTab);
+            ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
+            ensureViewPresent("Logs", logTab);
+            ensureViewPresent("Cài đặt", settingsPanel);
+        } else {
+            ensureViewPresent("Giải đấu", tournamentTabPanel);
+            ensureViewPresent("Nhiều sân", multiCourtPanel);
+            ensureViewPresent("Giám sát", monitorTab);
+            ensureViewPresent("Cài đặt", settingsPanel);
+        }
+    }
+
+    private JMenuItem menuSelectTournament() {
+        JMenuItem mi = new JMenuItem("Chọn giải đấu...");
+        mi.addActionListener(e -> {
+            GiaiDau gd = showTournamentSelectDialog();
+            if (gd != null) {
+                selectedGiaiDau = gd;
+                try {
+                    new com.example.btms.config.Prefs().putInt("selected_giaidau_id", gd.getId());
+                } catch (Exception ignore) {
+                }
+                updateNavigationRootTitleFromSelection();
+                if (navModel != null)
+                    navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
+                rebuildNavigationTree();
+            }
+        });
+        return mi;
+    }
+
+    /**
+     * Build the left navigation tree with high-level sections and map leaf nodes to
+     * views.
+     */
+    private JScrollPane buildNavigationTreePanel() {
+        DefaultMutableTreeNode root = new DefaultMutableTreeNode("Giải đấu hiện tại");
+        navModel = new DefaultTreeModel(root);
+        navTree = new JTree(navModel);
+        navTree.setRootVisible(true);
+        navTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        navTree.addTreeSelectionListener((TreeSelectionEvent e) -> {
+            Object comp = navTree.getLastSelectedPathComponent();
+            if (!(comp instanceof DefaultMutableTreeNode node))
+                return;
+            if (node.getChildCount() > 0)
+                return; // only handle leaf items
+            Object uo = node.getUserObject();
+            if (uo instanceof ContentNode cn) {
+                DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
+                String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
+                if ("Danh sách đăng kí".equals(parentLabel)) {
+                    if (contentParticipantsPanel != null) {
+                        ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
+                        contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
+                        showView("Danh sách đăng kí");
+                    }
+                } else if ("Nội dung của giải".equals(parentLabel)) {
+                    if (dangKyNoiDungPanel != null) {
+                        ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
+                        // Focus the selected nội dung inside the registration panel
+                        try {
+                            dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
+                        } catch (Throwable ignore) {
+                        }
+                        showView("Nội dung của giải");
+                    }
+                }
+                return;
+            }
+            if (uo instanceof String label) {
+                // Khi chọn "Sơ đồ thi đấu" trong cây điều hướng, mở cửa sổ riêng
+                if ("Sơ đồ thi đấu".equals(label)) {
+                    openSoDoThiDauWindow();
+                    return;
+                }
+                if (views.containsKey(label))
+                    showView(label);
+            }
+        });
+
+        JScrollPane sp = new JScrollPane(navTree);
+        sp.setPreferredSize(new java.awt.Dimension(240, 10));
+        rebuildNavigationTree();
+        return sp;
+    }
+
+    /** Recreate the tree nodes according to current role and available views. */
+    private void rebuildNavigationTree() {
+        if (navModel == null)
+            return;
+        DefaultMutableTreeNode root = (DefaultMutableTreeNode) navModel.getRoot();
+        if (root == null)
+            return;
+        // Root title = tournament name if available
+        updateNavigationRootTitleFromSelection();
+        root.removeAllChildren();
+
+        if (currentRole == null) {
+            root.add(new DefaultMutableTreeNode("Vui lòng đăng nhập"));
+        } else if (selectedGiaiDau == null) {
+            root.add(new DefaultMutableTreeNode("Vui lòng chọn giải đấu"));
+        } else {
+            // 1) Nội dung của giải -> expand to all registered categories
+            DefaultMutableTreeNode ndg = new DefaultMutableTreeNode("Nội dung của giải");
+            try {
+                if (service != null && service.current() != null) {
+                    var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                    java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                    java.util.Map<String, Integer> singles = maps[0];
+                    java.util.Map<String, Integer> doubles = maps[1];
+                    for (var entry : singles.entrySet()) {
+                        ndg.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                    }
+                    for (var entry : doubles.entrySet()) {
+                        ndg.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            root.add(ndg);
+
+            // 2) Đăng ký thi đấu
+            DefaultMutableTreeNode reg = new DefaultMutableTreeNode("Đăng ký thi đấu");
+            reg.add(new DefaultMutableTreeNode("Đăng ký đội"));
+            reg.add(new DefaultMutableTreeNode("Đăng ký cá nhân"));
+            DefaultMutableTreeNode regList = new DefaultMutableTreeNode("Danh sách đăng kí");
+            try {
+                if (service != null && service.current() != null) {
+                    var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                    java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                    java.util.Map<String, Integer> singles = maps[0];
+                    java.util.Map<String, Integer> doubles = maps[1];
+                    for (var entry : singles.entrySet()) {
+                        regList.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                    }
+                    for (var entry : doubles.entrySet()) {
+                        regList.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            reg.add(regList);
+            root.add(reg);
+
+            // 3) Bốc thăm
+            DefaultMutableTreeNode draw = new DefaultMutableTreeNode("Bốc thăm");
+            draw.add(new DefaultMutableTreeNode("Bốc thăm đội"));
+            draw.add(new DefaultMutableTreeNode("Sơ đồ thi đấu"));
+            root.add(draw);
+
+            // 4) Kết quả
+            DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
+            result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
+            root.add(result);
+        }
+
+        navModel.reload();
+        for (int i = 0; i < navTree.getRowCount(); i++) {
+            navTree.expandRow(i);
+        }
+    }
+
+    // Tree leaf model for "Danh sách đăng kí" -> Nội dung items
+    private static final class ContentNode {
+        final String label;
+        final Integer idNoiDung;
+
+        ContentNode(String label, Integer idNoiDung) {
+            this.label = label;
+            this.idNoiDung = idNoiDung;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    private void updateNavigationRootTitleFromSelection() {
+        try {
+            String title = "Giải đấu";
+            if (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
+                    && !selectedGiaiDau.getTenGiai().isBlank()) {
+                title = selectedGiaiDau.getTenGiai();
+            }
+            DefaultMutableTreeNode root = (DefaultMutableTreeNode) navModel.getRoot();
+            if (root != null) {
+                root.setUserObject(title);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private JMenuItem menuItem(String viewName) {
@@ -607,9 +867,25 @@ public class MainFrame extends JFrame {
         int confirm = JOptionPane.showConfirmDialog(this, "Đăng xuất?", "Xác nhận", JOptionPane.YES_NO_OPTION);
         if (confirm != JOptionPane.YES_OPTION)
             return;
+        try {
+            if (soDoThiDauFrame != null) {
+                soDoThiDauFrame.dispose();
+                soDoThiDauFrame = null;
+            }
+        } catch (Exception ignore) {
+        }
+        try {
+            if (thiDauFrame != null) {
+                thiDauFrame.dispose();
+                thiDauFrame = null;
+            }
+        } catch (Exception ignore) {
+        }
         currentRole = null;
-        showView("Login");
+        selectedGiaiDau = null;
+        showView("Cài đặt");
         buildMenuBar();
+        rebuildNavigationTree();
     }
 
     /** Public wrapper cho SettingsPanel gọi đổi theme và lưu Prefs. */
@@ -688,5 +964,191 @@ public class MainFrame extends JFrame {
             monitorTab.refreshAllViewerSettings();
         } catch (Exception ignore) {
         }
+    }
+
+    /**
+     * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại.
+     * Nếu cửa sổ đã mở, sẽ đưa ra phía trước.
+     */
+    private void openSoDoThiDauWindow() {
+        try {
+            if (soDoThiDauFrame != null) {
+                soDoThiDauFrame.setVisible(true);
+                soDoThiDauFrame.toFront();
+                soDoThiDauFrame.requestFocus();
+                return;
+            }
+            Connection conn = (service != null) ? service.current() : null;
+            if (conn == null) {
+                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // Tạo panel mới cho cửa sổ nổi để không ảnh hưởng card center
+            com.example.btms.ui.draw.SoDoThiDauPanel panel = new com.example.btms.ui.draw.SoDoThiDauPanel(conn);
+            JFrame f = new JFrame();
+            String title = "Sơ đồ thi đấu";
+            try {
+                if (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
+                        && !selectedGiaiDau.getTenGiai().isBlank())
+                    title = title + " - " + selectedGiaiDau.getTenGiai();
+            } catch (Exception ignore) {
+            }
+            f.setTitle(title);
+            f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            f.setLayout(new BorderLayout());
+            f.add(panel, BorderLayout.CENTER);
+            IconUtil.applyTo(f);
+            f.setExtendedState(JFrame.MAXIMIZED_BOTH);
+            f.setLocationRelativeTo(this);
+            f.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosed(WindowEvent e) {
+                    soDoThiDauFrame = null;
+                }
+
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    soDoThiDauFrame = null;
+                }
+            });
+            soDoThiDauFrame = f;
+            f.setVisible(true);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không thể mở Sơ đồ thi đấu: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Mở trang "Thi đấu" (điều khiển nhiều sân) ở cửa sổ riêng.
+     * Dùng chung CourtManagerService nên có thể mở song song với tab nếu cần.
+     */
+    private void openThiDauWindow() {
+        try {
+            if (thiDauFrame != null) {
+                thiDauFrame.setVisible(true);
+                thiDauFrame.toFront();
+                thiDauFrame.requestFocus();
+                return;
+            }
+            Connection conn = (service != null) ? service.current() : null;
+            if (conn == null) {
+                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // Tạo panel điều khiển mới và gắn kết nối + network interface hiện tại
+            com.example.btms.ui.control.MultiCourtControlPanel panel = new com.example.btms.ui.control.MultiCourtControlPanel();
+            panel.setConnection(conn);
+            try {
+                if (multiCourtPanel != null && multiCourtPanel.getNetworkInterface() != null) {
+                    panel.setNetworkInterface(multiCourtPanel.getNetworkInterface());
+                }
+            } catch (Throwable ignore) {
+            }
+
+            JFrame f = new JFrame();
+            String title = (currentRole == Role.ADMIN) ? "Thi đấu" : "Nhiều sân";
+            try {
+                if (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
+                        && !selectedGiaiDau.getTenGiai().isBlank())
+                    title = title + " - " + selectedGiaiDau.getTenGiai();
+            } catch (Exception ignore) {
+            }
+            f.setTitle(title);
+            f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            f.setLayout(new BorderLayout());
+            f.add(panel, BorderLayout.CENTER);
+            IconUtil.applyTo(f);
+            f.setExtendedState(JFrame.MAXIMIZED_BOTH);
+            f.setLocationRelativeTo(this);
+            f.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosed(WindowEvent e) {
+                    thiDauFrame = null;
+                }
+
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    thiDauFrame = null;
+                }
+            });
+            thiDauFrame = f;
+            f.setVisible(true);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không thể mở trang Thi đấu: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /* -------------------- Inline dialogs -------------------- */
+    private boolean showLoginDialog() {
+        final javax.swing.JDialog dlg = new javax.swing.JDialog(this, "Đăng nhập", true);
+        dlg.setLayout(new BorderLayout());
+        try {
+            if (loginTab.getParent() != null) {
+                ((java.awt.Container) loginTab.getParent()).remove(loginTab);
+            }
+        } catch (Exception ignore) {
+        }
+        loginTab.setListener((username, role) -> {
+            this.currentRole = role;
+            try {
+                if (role == Role.ADMIN) {
+                    monitorTab.setAdminMode(true, null);
+                    controlPanel.setClientName("ADMIN-" + username);
+                } else {
+                    monitorTab.setAdminMode(false, username);
+                    controlPanel.setClientName("CLIENT-" + username);
+                }
+            } catch (Exception ignore) {
+            }
+            dlg.dispose();
+        });
+        dlg.add(loginTab, BorderLayout.CENTER);
+        javax.swing.JPanel south = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
+        javax.swing.JButton btnCancel = new javax.swing.JButton("Hủy");
+        btnCancel.addActionListener(e -> {
+            this.currentRole = null;
+            dlg.dispose();
+        });
+        south.add(btnCancel);
+        dlg.add(south, BorderLayout.SOUTH);
+        dlg.pack();
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
+        return currentRole != null;
+    }
+
+    private GiaiDau showTournamentSelectDialog() {
+        final javax.swing.JDialog dlg = new javax.swing.JDialog(this, "Chọn giải đấu", true);
+        dlg.setLayout(new BorderLayout());
+        TournamentTabPanel chooser = new TournamentTabPanel(service);
+        chooser.updateConnection();
+        dlg.add(chooser, BorderLayout.CENTER);
+        javax.swing.JPanel south = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
+        javax.swing.JButton btnOk = new javax.swing.JButton("Chọn");
+        javax.swing.JButton btnCancel = new javax.swing.JButton("Hủy");
+        final GiaiDau[] result = new GiaiDau[1];
+        btnOk.addActionListener(e -> {
+            GiaiDau pick = chooser.getSelectedGiaiDau();
+            if (pick == null) {
+                javax.swing.JOptionPane.showMessageDialog(dlg, "Vui lòng chọn một giải đấu.", "Chưa chọn",
+                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            result[0] = pick;
+            dlg.dispose();
+        });
+        btnCancel.addActionListener(e -> {
+            result[0] = null;
+            dlg.dispose();
+        });
+        south.add(btnCancel);
+        south.add(btnOk);
+        dlg.add(south, BorderLayout.SOUTH);
+        dlg.setSize(900, 600);
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
+        return result[0];
     }
 }
