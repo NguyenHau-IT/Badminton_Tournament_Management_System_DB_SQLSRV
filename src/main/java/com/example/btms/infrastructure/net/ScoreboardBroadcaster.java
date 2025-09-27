@@ -118,6 +118,9 @@ public class ScoreboardBroadcaster implements PropertyChangeListener, AutoClosea
             }
         }
 
+        String clubA = (s.clubs != null && s.clubs.length > 0 && s.clubs[0] != null) ? s.clubs[0] : "";
+        String clubB = (s.clubs != null && s.clubs.length > 1 && s.clubs[1] != null) ? s.clubs[1] : "";
+
         String json = buildJson("UPSERT",
                 "sid", sid,
                 "client", clientName,
@@ -128,6 +131,8 @@ public class ScoreboardBroadcaster implements PropertyChangeListener, AutoClosea
                 "doubles", String.valueOf(doubles),
                 "nameA", nameA,
                 "nameB", nameB,
+                "clubA", clubA,
+                "clubB", clubB,
                 "game", String.valueOf(s.gameNumber),
                 "bestOf", String.valueOf(s.bestOf),
                 "scoreA", String.valueOf(s.score[0]),

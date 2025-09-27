@@ -263,8 +263,29 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             // chừa khoảng margin nhỏ giữa các card
             int hGap = 12;
             int totalGap = (columns + 1) * (hGap / 2);
-            int cellWidth = Math.max(320, (vw - totalGap) / columns);
+            // Tăng min width khi giảm số cột để card rộng hơn rõ rệt
+            int minWidth;
+            switch (Math.max(1, Math.min(6, columns))) {
+                case 1 -> minWidth = 600;
+                case 2 -> minWidth = 420;
+                case 3 -> minWidth = 320;
+                case 4 -> minWidth = 280;
+                case 5 -> minWidth = 240;
+                default -> minWidth = 220;
+            }
+            int cellWidth = Math.max(minWidth, (vw - totalGap) / columns);
             list.setFixedCellWidth(cellWidth);
+            // Điều chỉnh chiều cao card theo số cột (cao hơn trước)
+            int cellH;
+            switch (Math.max(1, Math.min(6, columns))) {
+                case 1 -> cellH = 340;
+                case 2 -> cellH = 300;
+                case 3 -> cellH = 260;
+                default -> cellH = 230;
+            }
+            list.setFixedCellHeight(cellH);
+            // Lưu số cột hiện tại để renderer có thể điều chỉnh tỉ lệ ô tên VĐV
+            list.putClientProperty("monitor.columns", columns);
             list.revalidate();
             list.repaint();
         } catch (Exception ignore) {
@@ -283,6 +304,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         }
         SwingUtilities.invokeLater(() -> {
             updateCellWidthForColumns();
+            list.putClientProperty("monitor.columns", this.columns);
             list.revalidate();
             list.repaint();
         });
@@ -420,6 +442,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         r.doubles = "true".equalsIgnoreCase(m.getOrDefault("doubles", "false"));
         r.nameA = m.getOrDefault("nameA", "");
         r.nameB = m.getOrDefault("nameB", "");
+        // Nhận tên CLB (nếu có)
+        r.clubA = m.getOrDefault("clubA", "");
+        r.clubB = m.getOrDefault("clubB", "");
         r.game = parseInt(m.get("game"));
         r.bestOf = parseInt(m.get("bestOf"));
         r.scoreA = parseInt(m.get("scoreA"));
@@ -513,6 +538,8 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         // Đánh dấu Row để xóa bằng cách set tất cả dữ liệu về null/0
         row.nameA = "";
         row.nameB = "";
+        row.clubA = "";
+        row.clubB = "";
         row.scoreA = 0;
         row.scoreB = 0;
         row.game = 0;
@@ -596,6 +623,8 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         // Cập nhật tất cả dữ liệu mà không tạo object mới
         target.nameA = source.nameA;
         target.nameB = source.nameB;
+        target.clubA = source.clubA;
+        target.clubB = source.clubB;
         target.scoreA = source.scoreA;
         target.scoreB = source.scoreB;
         target.game = source.game;
@@ -942,7 +971,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
     // --- Dữ liệu cho mỗi card ---
     private static class Row {
-        String client, host, header, kind, nameA, nameB, courtId; // Thêm courtId
+        String client, host, header, kind, nameA, nameB, clubA, clubB, courtId; // Thêm courtId và tên CLB
         boolean doubles;
         int game, bestOf, scoreA, scoreB, gamesA, gamesB;
         long updated;
@@ -967,8 +996,10 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     private static class CardRenderer extends JPanel implements ListCellRenderer<Row> {
         private final JLabel lblHeader = new JLabel();
         private final JLabel lblMeta = new JLabel();
+        private final JLabel lblClubA = new JLabel();
         private final JLabel lblNames = new JLabel();
         private final JLabel lblVS = new JLabel();
+        private final JLabel lblClubB = new JLabel();
         private final JLabel lblNames2 = new JLabel();
         private final JLabel lblScore = new JLabel();
         private final JLabel lblScoreB = new JLabel(); // Thêm label điểm cho đội B
@@ -1000,8 +1031,12 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             lblMeta.setForeground(Color.WHITE); // Thay đổi màu chữ meta thành trắng
 
             // Tên & điểm
+            lblClubA.setFont(lblClubA.getFont().deriveFont(Font.ITALIC, 13f));
+            lblClubA.setForeground(Color.LIGHT_GRAY);
             lblNames.setFont(lblNames.getFont().deriveFont(Font.BOLD, 16f)); // Tăng font size tên đội A
             lblNames.setForeground(Color.WHITE); // Thay đổi màu chữ tên thành trắng
+            lblClubB.setFont(lblClubB.getFont().deriveFont(Font.ITALIC, 13f));
+            lblClubB.setForeground(Color.LIGHT_GRAY);
             lblNames2.setFont(lblNames2.getFont().deriveFont(Font.BOLD, 16f)); // Tăng font size tên đội B
             lblNames2.setForeground(Color.WHITE); // Thay đổi màu chữ tên đội B thành trắng
             lblScore.setFont(lblScore.getFont().deriveFont(Font.BOLD, lblScore.getFont().getSize2D() + 4f));
@@ -1033,10 +1068,11 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
             // Panel tên A (kích thước sẽ cập nhật theo số cột)
             nameAPanel.setOpaque(false);
-            nameAPanel.setPreferredSize(new Dimension(250, 50));
-            nameAPanel.setMinimumSize(new Dimension(250, 50));
-            nameAPanel.setMaximumSize(new Dimension(250, 50));
-            nameAPanel.setSize(new Dimension(250, 50));
+            nameAPanel.setPreferredSize(new Dimension(250, 60));
+            nameAPanel.setMinimumSize(new Dimension(250, 60));
+            nameAPanel.setMaximumSize(new Dimension(250, 60));
+            nameAPanel.setSize(new Dimension(250, 60));
+            nameAPanel.add(lblClubA, BorderLayout.NORTH);
             nameAPanel.add(lblNames, BorderLayout.CENTER); // Căn giữa tên theo chiều dọc
 
             teamAPanel.add(nameAPanel, BorderLayout.WEST);
@@ -1059,10 +1095,11 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
             // Panel tên B (kích thước sẽ cập nhật theo số cột)
             nameBPanel.setOpaque(false);
-            nameBPanel.setPreferredSize(new Dimension(250, 50));
-            nameBPanel.setMinimumSize(new Dimension(250, 50));
-            nameBPanel.setMaximumSize(new Dimension(250, 50));
-            nameBPanel.setSize(new Dimension(250, 50));
+            nameBPanel.setPreferredSize(new Dimension(250, 60));
+            nameBPanel.setMinimumSize(new Dimension(250, 60));
+            nameBPanel.setMaximumSize(new Dimension(250, 60));
+            nameBPanel.setSize(new Dimension(250, 60));
+            nameBPanel.add(lblClubB, BorderLayout.NORTH);
             nameBPanel.add(lblNames2, BorderLayout.CENTER); // Căn giữa tên theo chiều dọc
 
             teamBPanel.add(nameBPanel, BorderLayout.WEST);
@@ -1095,8 +1132,42 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             // Nội dung
             // Cập nhật kích thước linh hoạt theo số cột hiện tại
             int cellW = Math.max(320, list.getFixedCellWidth());
-            int nameW = Math.max(160, (int) Math.round(cellW * 0.5));
-            Dimension nameSize = new Dimension(nameW, 50);
+            // Lấy số cột hiện tại từ client property (do MonitorTab set)
+            Object colProp = list.getClientProperty("monitor.columns");
+            int cols = 3;
+            if (colProp instanceof Integer i)
+                cols = i;
+            // Tăng tỉ lệ chiều rộng ô tên VĐV khi số cột ít đi
+            double nameRatio;
+            int minName;
+            switch (Math.max(1, Math.min(6, cols))) {
+                case 1 -> {
+                    nameRatio = 0.70;
+                    minName = 240;
+                }
+                case 2 -> {
+                    nameRatio = 0.60;
+                    minName = 200;
+                }
+                case 3 -> {
+                    nameRatio = 0.50;
+                    minName = 160;
+                }
+                default -> {
+                    nameRatio = 0.45;
+                    minName = 150;
+                }
+            }
+            int nameW = Math.max(minName, (int) Math.round(cellW * nameRatio));
+            // Cao hơn khi ít cột để hiển thị thêm dòng CLB
+            int nameH;
+            switch (Math.max(1, Math.min(6, cols))) {
+                case 1 -> nameH = 90;
+                case 2 -> nameH = 75;
+                case 3 -> nameH = 65;
+                default -> nameH = 60;
+            }
+            Dimension nameSize = new Dimension(nameW, nameH);
             nameAPanel.setPreferredSize(nameSize);
             nameAPanel.setMinimumSize(nameSize);
             nameAPanel.setMaximumSize(new Dimension(nameW, Integer.MAX_VALUE));
@@ -1104,8 +1175,15 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             nameBPanel.setMinimumSize(nameSize);
             nameBPanel.setMaximumSize(new Dimension(nameW, Integer.MAX_VALUE));
 
-            // Đặt kích thước renderer theo ô
-            Dimension fixedSize = new Dimension(cellW, 200);
+            // Đặt kích thước renderer theo ô – tăng chiều cao khi giảm số cột
+            int cellH;
+            switch (Math.max(1, Math.min(6, cols))) {
+                case 1 -> cellH = 340;
+                case 2 -> cellH = 300;
+                case 3 -> cellH = 260;
+                default -> cellH = 230;
+            }
+            Dimension fixedSize = new Dimension(cellW, cellH);
             setPreferredSize(fixedSize);
             setMinimumSize(fixedSize);
             setMaximumSize(new Dimension(cellW, Integer.MAX_VALUE));
@@ -1122,6 +1200,10 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                             safe(r.host))
                     : String.format("%s • %s@%s", mode, safe(r.client), safe(r.host));
             lblMeta.setText(courtInfo);
+
+            // Cập nhật dòng CLB nếu có
+            lblClubA.setText(safe(r.clubA));
+            lblClubB.setText(safe(r.clubB));
 
             // Xử lý hiển thị tên cho đánh đôi
             if (r.doubles) {
@@ -1153,9 +1235,30 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             // Tạo các ô điểm cho đội A
             scoreAPanel.removeAll();
             scoreAPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); // Không có khoảng cách
+            // Kích thước ô điểm theo số cột (tăng chiều cao như yêu cầu)
+            Dimension scoreBoxSize;
+            float scoreFont;
+            switch (Math.max(1, Math.min(6, cols))) {
+                case 1 -> {
+                    scoreBoxSize = new Dimension(80, 70); // giảm chiều rộng một chút
+                    scoreFont = 32f;
+                }
+                case 2 -> {
+                    scoreBoxSize = new Dimension(72, 64); // giảm chiều rộng một chút
+                    scoreFont = 28f;
+                }
+                case 3 -> {
+                    scoreBoxSize = new Dimension(60, 56); // giảm chiều rộng một chút
+                    scoreFont = 26f;
+                }
+                default -> {
+                    scoreBoxSize = new Dimension(58, 52); // giảm chiều rộng một chút
+                    scoreFont = 24f;
+                }
+            }
             int maxGames = Math.min(r.bestOf, 3); // Giới hạn tối đa 3 ván
             for (int i = 0; i < maxGames; i++) {
-                JLabel scoreLabel = createScoreLabel(i, r, true);
+                JLabel scoreLabel = createScoreLabel(i, r, true, scoreBoxSize, scoreFont);
                 scoreAPanel.add(scoreLabel);
                 // Không có khoảng cách giữa các ô điểm, viền sẽ tự nhiên chia ra
             }
@@ -1164,7 +1267,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             scoreBPanel.removeAll();
             scoreBPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); // Không có khoảng cách
             for (int i = 0; i < maxGames; i++) {
-                JLabel scoreLabel = createScoreLabel(i, r, false);
+                JLabel scoreLabel = createScoreLabel(i, r, false, scoreBoxSize, scoreFont);
                 scoreBPanel.add(scoreLabel);
                 // Không có khoảng cách giữa các ô điểm, viền sẽ tự nhiên chia ra
             }
@@ -1285,17 +1388,16 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             return s.trim();
         }
 
-        private JLabel createScoreLabel(int index, Row r, boolean isTeamA) {
+        private JLabel createScoreLabel(int index, Row r, boolean isTeamA, Dimension boxSize, float fontSize) {
             JLabel label = new JLabel();
-            label.setFont(label.getFont().deriveFont(Font.BOLD, 22f)); // Tăng font size từ 20f lên 22f để to hơn
+            label.setFont(label.getFont().deriveFont(Font.BOLD, fontSize));
             label.setForeground(Color.YELLOW); // Thay đổi chữ thành màu vàng
             label.setOpaque(true); // Bật background
             label.setBackground(Color.GRAY); // Thay đổi background thành màu xám
             label.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2)); // Viền đen dày 2px để chia rõ ràng
-            label.setPreferredSize(new Dimension(55, 45)); // Tăng kích thước từ 48x40 lên 55x45 để đảm bảo điểm 21
-                                                           // không bị cắt
-            label.setMinimumSize(new Dimension(55, 45)); // Kích thước tối thiểu
-            label.setMaximumSize(new Dimension(55, 45)); // Kích thước tối đa
+            label.setPreferredSize(boxSize);
+            label.setMinimumSize(boxSize);
+            label.setMaximumSize(boxSize);
             label.setHorizontalAlignment(JLabel.CENTER);
             label.setVerticalAlignment(JLabel.CENTER); // Căn giữa theo chiều dọc
             label.putClientProperty("JComponent.roundRect", true); // FlatLaf hint
