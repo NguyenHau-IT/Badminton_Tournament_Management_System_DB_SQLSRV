@@ -9,6 +9,9 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Point;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,14 +21,20 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JToggleButton;
+import javax.swing.JPopupMenu;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel;
 
 import com.example.btms.config.Prefs;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.draw.BocThamDoi;
+import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
@@ -35,6 +44,9 @@ import com.example.btms.service.bracket.SoDoDoiService;
 import com.example.btms.service.draw.BocThamDoiService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.team.DoiService;
+import com.example.btms.repository.result.KetQuaDoiRepository;
+import com.example.btms.service.result.KetQuaDoiService;
+import com.example.btms.model.result.KetQuaDoi;
 
 /**
  * Trang "Sơ đồ thi đấu" hiển thị bracket loại trực tiếp 16 -> 1 (5 cột)
@@ -56,10 +68,24 @@ public class SoDoThiDauPanel extends JPanel {
 
     private final BracketCanvas canvas = new BracketCanvas();
     private final JButton btnSave = new JButton("Lưu");
+    private final JButton btnSeedFromDraw = new JButton("Gán theo bốc thăm");
+    private final JButton btnReloadSaved = new JButton("Tải sơ đồ đã lưu");
+    private final JButton btnClearAll = new JButton("Xóa tất cả ô");
+    private final JToggleButton btnEdit = new JToggleButton("Chế độ sửa");
+    private final JButton btnSaveResults = new JButton("Lưu kết quả");
+    // Medals table (EAST)
+    private final JTable medalTable = new JTable();
+    private final DefaultTableModel medalModel = new DefaultTableModel(new Object[] { "Kết quả" }, 0) {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
+    // Track last saved medals to avoid redundant writes during auto-save
+    private String lastSavedMedalKey = null;
 
     // New: load from DB (BocThamDoi)
     private final JComboBox<NoiDung> cboNoiDung = new JComboBox<>();
-    private final JButton btnLoadDb = new JButton("Tải từ DB");
     private final JLabel lblGiai = new JLabel();
 
     // Services
@@ -69,6 +95,7 @@ public class SoDoThiDauPanel extends JPanel {
     private final SoDoDoiService soDoDoiService;
     private final DoiService doiService;
     private final CauLacBoService clbService;
+    private final KetQuaDoiService ketQuaDoiService;
 
     public SoDoThiDauPanel(Connection conn) { // giữ signature cũ để MainFrame không phải đổi nhiều
         Objects.requireNonNull(conn, "Connection null");
@@ -77,15 +104,17 @@ public class SoDoThiDauPanel extends JPanel {
         this.soDoDoiService = new SoDoDoiService(new SoDoDoiRepository((Connection) conn));
         this.doiService = new DoiService(conn);
         this.clbService = new CauLacBoService(new CauLacBoRepository((Connection) conn));
+        this.ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository((Connection) conn));
 
         setLayout(new BorderLayout(8, 8));
         add(buildTop(), BorderLayout.NORTH);
         add(new JScrollPane(canvas), BorderLayout.CENTER);
+        add(buildRightPanel(), BorderLayout.EAST);
         setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
         SwingUtilities.invokeLater(() -> {
             loadNoiDungOptions();
             updateGiaiLabel();
-            loadFromDb();
+            loadBestAvailable();
         });
     }
 
@@ -97,13 +126,36 @@ public class SoDoThiDauPanel extends JPanel {
         line.add(new JLabel(" | Nội dung:"));
         cboNoiDung.setPrototypeDisplayValue(new NoiDung(0, "XXXXXXXXXXXXXXXXXXXXX", null, null, null, true));
         line.add(cboNoiDung);
-        line.add(btnLoadDb);
+        line.add(btnReloadSaved);
+        line.add(btnSeedFromDraw);
+        line.add(btnClearAll);
+        line.add(btnEdit);
+        line.add(btnSaveResults);
         line.add(btnSave);
         p.add(line, BorderLayout.CENTER);
 
         btnSave.addActionListener(e -> saveBracket());
-        btnLoadDb.addActionListener(e -> loadFromDb());
-        cboNoiDung.addActionListener(e -> loadFromDb());
+        btnSaveResults.addActionListener(e -> saveMedalResults());
+        btnReloadSaved.addActionListener(e -> loadSavedSoDo());
+        btnSeedFromDraw.addActionListener(e -> loadFromBocTham());
+        btnClearAll.addActionListener(e -> clearAllSlots());
+        btnEdit.addActionListener(e -> canvas.setEditMode(btnEdit.isSelected()));
+        cboNoiDung.addActionListener(e -> loadBestAvailable());
+        return p;
+    }
+
+    private JPanel buildRightPanel() {
+        JPanel p = new JPanel(new BorderLayout());
+        p.setBorder(BorderFactory.createTitledBorder("Kết quả"));
+        medalTable.setModel(medalModel);
+        medalTable.setTableHeader(null); // ẩn header để đúng 1 cột đơn giản
+        medalTable.setRowHeight(26);
+        medalTable.setShowGrid(false);
+        JScrollPane sp = new JScrollPane(medalTable);
+        sp.setPreferredSize(new Dimension(240, 140));
+        p.add(sp, BorderLayout.CENTER);
+        // Khởi tạo 4 dòng rỗng
+        refreshMedalTable("", "", "", "");
         return p;
     }
 
@@ -117,21 +169,41 @@ public class SoDoThiDauPanel extends JPanel {
         }
         int idNoiDung = nd.getId();
         try {
+            // Xóa toàn bộ sơ đồ cũ cho đúng trạng thái hiện tại (idGiai, idNoiDung)
+            List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
+            for (SoDoDoi r : olds) {
+                try {
+                    soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
+                } catch (Exception ignore) {
+                }
+            }
+
             // Lưu các ô đang hiển thị (chỉ lưu ô có tên)
             java.time.LocalDateTime now = java.time.LocalDateTime.now();
             for (BracketCanvas.Slot s : canvas.getSlots()) {
                 if (s.text != null && !s.text.isBlank()) {
-                    int idClb = doiService.getIdClbByTeamName(s.text.trim(), idNoiDung, idGiai);
-                    int soDo = bocThamService.getSoDo(idGiai, idNoiDung, idClb);
+                    Integer idClb = null;
+                    try {
+                        idClb = doiService.getIdClbByTeamName(s.text.trim(), idNoiDung, idGiai);
+                    } catch (RuntimeException ignored) {
+                    }
+                    Integer soDo = null;
+                    try {
+                        if (idClb != null)
+                            soDo = bocThamService.getSoDo(idGiai, idNoiDung, idClb);
+                    } catch (RuntimeException ignored) {
+                        // fallback: dùng số cột làm soDo nếu cần
+                        soDo = s.col;
+                    }
                     soDoDoiService.create(
                             idGiai,
                             idNoiDung,
-                            idClb, // ID_CLB đã xác định
+                            idClb, // có thể null nếu không xác định được
                             s.text.trim(),
                             s.x,
                             s.y,
                             s.order, // VI_TRI là số thứ tự liên tục của slot
-                            soDo, // SO_DO: lưu cột để tham chiếu vòng/nhánh
+                            soDo, // SO_DO: lưu vòng/nhánh nếu có
                             now);
                 }
             }
@@ -175,7 +247,7 @@ public class SoDoThiDauPanel extends JPanel {
         }
     }
 
-    private void loadFromDb() {
+    private void loadFromBocTham() {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
         NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
         if (idGiai <= 0 || nd == null) {
@@ -268,6 +340,57 @@ public class SoDoThiDauPanel extends JPanel {
         }
         canvas.setParticipantsForColumn(namesByT, seedCol);
         canvas.repaint();
+        updateMedalsFromCanvas();
+    }
+
+    private boolean loadSavedSoDo() {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
+        if (idGiai <= 0 || nd == null)
+            return false;
+        List<SoDoDoi> list;
+        try {
+            list = soDoDoiService.list(idGiai, nd.getId());
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ đã lưu: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        if (list == null || list.isEmpty())
+            return false;
+        // Reset về trắng và gán theo VI_TRI -> Slot.order
+        List<String> blanks = new ArrayList<>();
+        for (int i = 0; i < 16; i++)
+            blanks.add("");
+        canvas.setParticipantsForColumn(blanks, 1);
+        canvas.clearTextOverrides();
+        for (SoDoDoi r : list) {
+            BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
+            if (slot != null) {
+                canvas.setTextOverride(slot.col, slot.thuTu, r.getTenTeam());
+            }
+        }
+        canvas.repaint();
+        updateMedalsFromCanvas();
+        return true;
+    }
+
+    private void loadBestAvailable() {
+        if (!loadSavedSoDo()) {
+            loadFromBocTham();
+        }
+        updateMedalsFromCanvas();
+    }
+
+    private void clearAllSlots() {
+        // Giữ cấu trúc, xóa text
+        List<String> blanks = new ArrayList<>();
+        for (int i = 0; i < 16; i++)
+            blanks.add("");
+        canvas.setParticipantsForColumn(blanks, 1);
+        canvas.clearTextOverrides();
+        canvas.repaint();
+        updateMedalsFromCanvas();
     }
 
     // Top-heavy fill: always put ceil(n/2) to top half first, then bottom half
@@ -291,8 +414,169 @@ public class SoDoThiDauPanel extends JPanel {
         fillTopHeavy(start + half, half, nBot, out);
     }
 
+    // ===== Medal logic =====
+    private void updateMedalsFromCanvas() {
+        // Gold: cột 5, ô duy nhất
+        String gold = getTextAt(5, 0);
+        // Silver: cột 4, ô có parent là gold; chọn ô nào có text khác gold
+        // Thực tế, ở vòng chung kết (cột 4, có 2 ô), silver là đội còn lại không phải
+        // gold
+        String semiA = getTextAt(4, 0);
+        String semiB = getTextAt(4, 1);
+        String silver = null;
+        if (gold != null && !gold.isBlank()) {
+            if (semiA != null && semiA.equals(gold))
+                silver = semiB;
+            else if (semiB != null && semiB.equals(gold))
+                silver = semiA;
+        }
+        // Bronzes: 2 đội thua ở bán kết: cột 3 có 4 ô, nhưng bán kết là cột 4 đầu vào
+        // từ cột 3.
+        // Ở đây cấu trúc đã mapping: cột 3 => 4 chỗ, cột 4 => 2 chỗ.
+        // Lấy 2 đội vào chung kết (semiA, semiB), mỗi đội có parent từ cột 3:
+        // cột 3 chỉ chứa text nếu người dùng đã điền/seed; nếu rỗng dùng textOverrides
+        // hiện có.
+        // Ta tìm 2 cặp bán kết: (col3 thuTu 0,1)->semiA; (col3 thuTu 2,3)->semiB
+        String semiA1 = getTextAt(3, 0);
+        String semiA2 = getTextAt(3, 1);
+        String semiB1 = getTextAt(3, 2);
+        String semiB2 = getTextAt(3, 3);
+        // Người thắng mỗi bán kết là semiA và semiB; bronze là người còn lại trong mỗi
+        // cặp
+        String bronze1 = null;
+        String bronze2 = null;
+        if (semiA != null && !semiA.isBlank()) {
+            if (semiA.equals(semiA1))
+                bronze1 = semiA2;
+            else if (semiA.equals(semiA2))
+                bronze1 = semiA1;
+        }
+        if (semiB != null && !semiB.isBlank()) {
+            if (semiB.equals(semiB1))
+                bronze2 = semiB2;
+            else if (semiB.equals(semiB2))
+                bronze2 = semiB1;
+        }
+        String g = safe(gold).trim();
+        String s = safe(silver).trim();
+        String b1 = safe(bronze1).trim();
+        String b2 = safe(bronze2).trim();
+        refreshMedalTable(g, s, b1, b2);
+
+        // Auto-save medals when a champion exists and the snapshot changed
+        String snapshotKey = String.join("|", g, s, b1, b2);
+        if (!g.isBlank() && !snapshotKey.equals(lastSavedMedalKey)) {
+            lastSavedMedalKey = snapshotKey;
+            persistMedals(true); // silent
+        }
+    }
+
+    private String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    private String getTextAt(int col, int thuTu) {
+        // Truy vấn slot hiện tại từ canvas
+        for (var s : canvas.getSlots()) {
+            if (s.col == col && s.thuTu == thuTu)
+                return s.text;
+        }
+        return null;
+    }
+
+    private void refreshMedalTable(String gold, String silver, String bronze1, String bronze2) {
+        medalModel.setRowCount(0);
+        medalModel.addRow(new Object[] { "Vàng: " + gold });
+        medalModel.addRow(new Object[] { "Bạc: " + silver });
+        medalModel.addRow(new Object[] { "Đồng: " + bronze1 });
+        medalModel.addRow(new Object[] { "Đồng: " + bronze2 });
+    }
+
+    // ===== Persist medals =====
+    private void saveMedalResults() {
+        persistMedals(false);
+    }
+
+    // Core implementation for persisting medals. When silent=true, suppress
+    // dialogs.
+    private void persistMedals(boolean silent) {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
+        if (idGiai <= 0 || nd == null) {
+            if (!silent) {
+                JOptionPane.showMessageDialog(this, "Chưa chọn giải hoặc nội dung", "Thông báo",
+                        JOptionPane.WARNING_MESSAGE);
+            }
+            return;
+        }
+        int idNoiDung = nd.getId();
+        try {
+            String vang = extractNameFromMedalRow(0);
+            String bac = extractNameFromMedalRow(1);
+            String dong1 = extractNameFromMedalRow(2);
+            String dong2 = extractNameFromMedalRow(3);
+
+            List<KetQuaDoi> items = new ArrayList<>();
+            if (!isBlank(vang))
+                items.add(buildKetQua(idGiai, idNoiDung, vang, 1));
+            if (!isBlank(bac))
+                items.add(buildKetQua(idGiai, idNoiDung, bac, 2));
+            if (!isBlank(dong1))
+                items.add(buildKetQua(idGiai, idNoiDung, dong1, 3));
+            if (!isBlank(dong2))
+                items.add(buildKetQua(idGiai, idNoiDung, dong2, 3));
+
+            ketQuaDoiService.replaceMedals(idGiai, idNoiDung, items);
+            if (!silent) {
+                JOptionPane.showMessageDialog(this, "Đã lưu kết quả huy chương", "Thông báo",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (RuntimeException ex) {
+            if (!silent) {
+                JOptionPane.showMessageDialog(this, "Lỗi lưu kết quả: " + ex.getMessage(), "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+            } else {
+                // best-effort silent mode: mark snapshot as unsaved so a next change can retry
+                lastSavedMedalKey = null;
+            }
+        }
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private String extractNameFromMedalRow(int row) {
+        if (row < 0 || row >= medalModel.getRowCount())
+            return "";
+        Object v = medalModel.getValueAt(row, 0);
+        if (v == null)
+            return "";
+        String s = v.toString();
+        int idx = s.indexOf(":");
+        if (idx >= 0 && idx + 1 < s.length())
+            return s.substring(idx + 1).trim();
+        return s.trim();
+    }
+
+    private KetQuaDoi buildKetQua(int idGiai, int idNoiDung, String teamDisplay, int thuHang) {
+        String teamName = teamDisplay;
+        int sep = teamDisplay.indexOf(" - ");
+        if (sep >= 0)
+            teamName = teamDisplay.substring(0, sep).trim();
+        Integer idClb = null;
+        try {
+            idClb = doiService.getIdClbByTeamName(teamName, idNoiDung, idGiai);
+        } catch (RuntimeException ignore) {
+        }
+        if (idClb == null || idClb <= 0) {
+            throw new IllegalStateException("Không xác định được CLB cho đội: " + teamDisplay);
+        }
+        return new KetQuaDoi(idGiai, idNoiDung, idClb, teamDisplay, thuHang);
+    }
+
     /* ===================== Canvas ===================== */
-    private static class BracketCanvas extends JPanel {
+    private class BracketCanvas extends JPanel {
         private static final int COLUMNS = 5; // 16 -> 1
         private static final int[] SPOTS = { 16, 8, 4, 2, 1 };
         private static final int CELL_WIDTH = 180; // tăng chiều ngang ô
@@ -308,6 +592,7 @@ public class SoDoThiDauPanel extends JPanel {
         private List<String> participants = new ArrayList<>(); // tên tại cột seedColumn
         private int seedColumn = 1; // cột sẽ hiển thị danh sách ban đầu (1..5)
         private final java.util.Map<Integer, String> textOverrides = new java.util.HashMap<>();
+        private boolean editMode = false;
 
         private static class Slot {
             int col; // 1..5
@@ -325,6 +610,138 @@ public class SoDoThiDauPanel extends JPanel {
             setBackground(Color.WHITE);
             setFont(getFont().deriveFont(Font.PLAIN, 12f));
             rebuildSlots();
+            // simple edit: double-click a slot to edit text when edit mode is on
+            MouseAdapter ma = new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (!editMode)
+                        return;
+                    if (e.getClickCount() >= 2 && e.getButton() == MouseEvent.BUTTON1) {
+                        Slot s = getSlotAt(e.getPoint());
+                        if (s != null) {
+                            String newText = JOptionPane.showInputDialog(BracketCanvas.this, "Sửa tên đội:", s.text);
+                            if (newText != null) {
+                                setTextOverride(s.col, s.thuTu, newText.trim());
+                                // cập nhật ngay cả trong cache slots
+                                s.text = newText.trim();
+                                repaint();
+                                SoDoThiDauPanel.this.updateMedalsFromCanvas();
+                            }
+                        }
+                    }
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    maybeShowContextMenu(e);
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    maybeShowContextMenu(e);
+                }
+
+                private void maybeShowContextMenu(MouseEvent e) {
+                    if (!editMode)
+                        return;
+                    if (!e.isPopupTrigger())
+                        return;
+                    Slot s = getSlotAt(e.getPoint());
+                    if (s == null)
+                        return;
+                    JPopupMenu menu = new JPopupMenu();
+                    JMenuItem mAdvance = new JMenuItem("Vẽ bản ghi");
+                    JMenuItem mBack = new JMenuItem("Xoá bản ghi");
+                    mAdvance.setEnabled(s.col < COLUMNS && s.text != null && !s.text.isBlank());
+                    mBack.setEnabled(s.col > 1 && s.text != null && !s.text.isBlank());
+                    mAdvance.addActionListener(ev -> {
+                        Slot parent = parentOf(s);
+                        if (parent != null) {
+                            setTextOverride(parent.col, parent.thuTu, s.text);
+                            parent.text = s.text;
+                            repaint();
+                            SoDoThiDauPanel.this.updateMedalsFromCanvas();
+                            // lưu vào db theo trạng thái hiện tại của panel
+                            int idGiai = SoDoThiDauPanel.this.prefs.getInt("selectedGiaiDauId", -1);
+                            NoiDung ndSel = (NoiDung) SoDoThiDauPanel.this.cboNoiDung.getSelectedItem();
+                            if (idGiai > 0 && ndSel != null) {
+                                int idNoiDung = ndSel.getId();
+                                Integer idClb = null;
+                                try {
+                                    idClb = SoDoThiDauPanel.this.doiService.getIdClbByTeamName(s.text.trim(), idNoiDung,
+                                            idGiai);
+                                } catch (RuntimeException ignored) {
+                                }
+                                Integer soDo = null;
+                                try {
+                                    if (idClb != null)
+                                        soDo = SoDoThiDauPanel.this.bocThamService.getSoDo(idGiai, idNoiDung, idClb);
+                                } catch (RuntimeException ignored) {
+                                    // fallback: dùng số cột làm soDo nếu cần
+                                    soDo = parent.col;
+                                }
+                                SoDoThiDauPanel.this.soDoDoiService.create(
+                                        idGiai,
+                                        idNoiDung,
+                                        idClb,
+                                        s.text.trim(),
+                                        parent.x,
+                                        parent.y,
+                                        parent.order,
+                                        soDo,
+                                        java.time.LocalDateTime.now());
+                            }
+                        }
+                    });
+                    mBack.addActionListener(ev -> {
+                        Slot[] ch = childrenOf(s);
+                        if (ch == null)
+                            return;
+                        Slot left = ch[0];
+                        Slot right = ch[1];
+                        // chọn vị trí con để lùi: ưu tiên ô trống, nếu cả hai trống chọn trái
+                        Slot target = null;
+                        boolean leftEmpty = (left != null) && (left.text == null || left.text.isBlank());
+                        boolean rightEmpty = (right != null) && (right.text == null || right.text.isBlank());
+                        if (leftEmpty && rightEmpty)
+                            target = left;
+                        else if (leftEmpty)
+                            target = left;
+                        else if (rightEmpty)
+                            target = right;
+                        else
+                            target = left; // nếu đều có dữ liệu, ghi đè trái
+                        if (target != null) {
+                            setTextOverride(target.col, target.thuTu, s.text);
+                            target.text = s.text;
+                            // xóa ở ô hiện tại
+                            setTextOverride(s.col, s.thuTu, "");
+                            s.text = "";
+                            // Xoá bản ghi trong DB cho ô hiện tại (theo VI_TRI = s.order)
+                            int idGiai = SoDoThiDauPanel.this.prefs.getInt("selectedGiaiDauId", -1);
+                            NoiDung ndSel = (NoiDung) SoDoThiDauPanel.this.cboNoiDung.getSelectedItem();
+                            if (idGiai > 0 && ndSel != null) {
+                                try {
+                                    SoDoThiDauPanel.this.soDoDoiService.delete(idGiai, ndSel.getId(), s.order);
+                                } catch (RuntimeException ignore) {
+                                }
+                            }
+                            repaint();
+                            SoDoThiDauPanel.this.updateMedalsFromCanvas();
+                        }
+                    });
+                    menu.add(mAdvance);
+                    menu.add(mBack);
+                    menu.show(BracketCanvas.this, e.getX(), e.getY());
+                }
+            };
+            addMouseListener(ma);
+        }
+
+        void setEditMode(boolean on) {
+            this.editMode = on;
+            setCursor(on ? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
+                    : java.awt.Cursor.getDefaultCursor());
         }
 
         void setParticipantsForColumn(List<String> names, int seedCol) {
@@ -350,6 +767,23 @@ public class SoDoThiDauPanel extends JPanel {
 
         List<Slot> getSlots() {
             return slots;
+        }
+
+        Slot findByOrder(int order) {
+            for (Slot s : slots) {
+                if (s.order == order)
+                    return s;
+            }
+            return null;
+        }
+
+        private Slot getSlotAt(Point p) {
+            for (Slot s : slots) {
+                int w = CELL_WIDTH, h = CELL_HEIGHT;
+                if (p.x >= s.x && p.x <= s.x + w && p.y >= s.y && p.y <= s.y + h)
+                    return s;
+            }
+            return null;
         }
 
         private void rebuildSlots() {
@@ -397,6 +831,24 @@ public class SoDoThiDauPanel extends JPanel {
             int maxY = START_Y + (lastColSpots) * (40) + 400; // dư chút để scroll
             setPreferredSize(new Dimension(maxX, maxY));
             revalidate();
+        }
+
+        private Slot parentOf(Slot s) {
+            if (s == null)
+                return null;
+            if (s.col >= COLUMNS)
+                return null;
+            return find(s.col + 1, s.thuTu / 2);
+        }
+
+        private Slot[] childrenOf(Slot s) {
+            if (s == null)
+                return null;
+            if (s.col <= 1)
+                return null;
+            Slot left = find(s.col - 1, s.thuTu * 2);
+            Slot right = find(s.col - 1, s.thuTu * 2 + 1);
+            return new Slot[] { left, right };
         }
 
         @Override
