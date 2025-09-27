@@ -96,4 +96,33 @@ public class DoiRepository {
         }
         return players.toArray(new VanDongVien[0]);
     }
+
+    /**
+     * Lấy tên đội theo ID.
+     * Nếu không tìm thấy, trả về null.
+     */
+    public String fetchClubNameById(int teamId) {
+        String clubName = null;
+
+        final String sql = "SELECT clb.TEN_CLB FROM dbo.DANG_KI_DOI dkd " +
+                "LEFT JOIN dbo.CAU_LAC_BO clb ON clb.ID = dkd.ID_CAU_LAC_BO " +
+                "WHERE dkd.ID_TEAM = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, teamId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    clubName = rs.getString("TEN_CLB");
+                }
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Đọc tên đội theo ID lỗi: " + ex.getMessage(),
+                    "Lỗi DB",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+        return clubName;
+    }
 }

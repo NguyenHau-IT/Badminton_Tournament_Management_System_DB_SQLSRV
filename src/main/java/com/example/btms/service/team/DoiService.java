@@ -26,4 +26,9 @@ public class DoiService {
     public VanDongVien[] getTeamPlayers(int teamId) {
         return teamRepo.fetchTeamPlayersDetailed(teamId);
     }
+
+    /** Lấy tên đội theo ID. */
+    public String getClubNameByTeamId(int teamId) {
+        return teamRepo.fetchClubNameById(teamId);
+    }
 }

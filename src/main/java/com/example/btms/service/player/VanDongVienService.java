@@ -56,6 +56,10 @@ public class VanDongVienService {
         return repo.loadSinglesNames(idNoiDung, idGiaiDau);
     }
 
+    public String getClubNameById(int vdvId) {
+        return repo.fetchClubNameById(vdvId);
+    }
+
     /* ========== private helpers ========== */
     private void validate(String hoTen, String gioiTinh) {
         if (hoTen == null || hoTen.trim().isEmpty()) {

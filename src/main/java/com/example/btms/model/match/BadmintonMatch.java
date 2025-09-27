@@ -29,6 +29,7 @@ public class BadmintonMatch {
     // ====== Ảnh chụp trạng thái ======
     public static class Snapshot {
         public final String[] names; // tên 2 bên
+        public final String[] clubs; // tên CLB 2 bên
         public final int[] score; // điểm game hiện tại
         public final int[] games; // số game đã thắng
         public final int gameNumber; // 1..bestOf
@@ -41,10 +42,11 @@ public class BadmintonMatch {
         public final long elapsedSec;
         public final int[][] gameScores; // điểm chi tiết của từng ván đã hoàn thành
 
-        Snapshot(String[] names, int[] score, int[] games, int gameNumber, int server, boolean doubles,
+        Snapshot(String[] names, String[] clubs, int[] score, int[] games, int gameNumber, int server, boolean doubles,
                 boolean betweenGamesInterval, boolean changedEndsThisGame, boolean matchFinished, int bestOf,
                 long elapsedSec, int[][] gameScores) {
             this.names = new String[] { names[0], names[1] };
+            this.clubs = new String[] { clubs[0], clubs[1] };
             this.score = new int[] { score[0], score[1] };
             this.games = new int[] { games[0], games[1] };
             this.gameNumber = gameNumber;
@@ -62,6 +64,7 @@ public class BadmintonMatch {
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
     private String[] names = new String[] { "Team A", "Team B" };
+    private String[] clubs = new String[] { "", "" };
     private int[] score = new int[] { 0, 0 };
     private int[] games = new int[] { 0, 0 };
     private int gameNumber = 1;
@@ -128,7 +131,8 @@ public class BadmintonMatch {
             }
         }
 
-        return new Snapshot(names, score, games, gameNumber, server, doubles, betweenGamesInterval, changedEndsThisGame,
+        return new Snapshot(names, clubs, score, games, gameNumber, server, doubles, betweenGamesInterval,
+                changedEndsThisGame,
                 matchFinished, bestOf, elapsed, gameScores);
     }
 
@@ -136,6 +140,12 @@ public class BadmintonMatch {
         names[0] = a == null || a.isBlank() ? "Team A" : a.trim();
         names[1] = b == null || b.isBlank() ? "Team B" : b.trim();
         pcs.firePropertyChange("names", null, snapshot());
+    }
+
+    public void setClubs(String clubA, String clubB) {
+        clubs[0] = clubA == null ? "" : clubA.trim();
+        clubs[1] = clubB == null ? "" : clubB.trim();
+        pcs.firePropertyChange("clubs", null, snapshot());
     }
 
     public void setBestOf(int bo) {
@@ -297,6 +307,11 @@ public class BadmintonMatch {
         names[0] = names[1];
         names[1] = tmpName;
 
+        // Đổi CLB
+        String tmpClub = clubs[0];
+        clubs[0] = clubs[1];
+        clubs[1] = tmpClub;
+
         // Đổi điểm hiện tại
         int tmpScore = score[0];
         score[0] = score[1];
@@ -388,6 +403,11 @@ public class BadmintonMatch {
     /** Trả về bản sao tên đội/vđv [A,B]. */
     public String[] getNames() {
         return new String[] { names[0], names[1] };
+    }
+
+    /** Trả về bản sao tên CLB [A,B]. */
+    public String[] getClubs() {
+        return new String[] { clubs[0], clubs[1] };
     }
 
     public int getServer() {

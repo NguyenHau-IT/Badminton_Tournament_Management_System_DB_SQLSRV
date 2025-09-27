@@ -139,4 +139,28 @@ public class VanDongVienRepository {
         }
         return nameToId;
     }
+
+    public String fetchClubNameById(int vdvId) {
+        String clubName = "";
+        final String sql = "SELECT COALESCE(c.TEN_CLB, CAST(v.ID_CLB AS NVARCHAR(50))) AS TEN_CLB " +
+                "FROM VAN_DONG_VIEN v " +
+                "LEFT JOIN CAU_LAC_BO c ON c.ID = v.ID_CLB " +
+                "WHERE v.ID = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, vdvId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    clubName = rs.getString("TEN_CLB");
+                }
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Lỗi tải tên CLB của VĐV: " + ex.getMessage(),
+                    "Lỗi DB",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+        return clubName;
+    }
 }

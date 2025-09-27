@@ -1114,6 +1114,19 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 || tb.getIdTeam() < 0)
             return;
         match.setNames(ta.getTenTeam(), tb.getTenTeam());
+        // Lấy tên CLB: ưu tiên CLB của đội; nếu trống thì rơi xuống CLB của VĐV trong
+        // đội
+        try {
+            DoiService doiService = new DoiService(conn);
+            VanDongVien[] pa = doiService.getTeamPlayers(ta.getIdTeam());
+            VanDongVien[] pb = doiService.getTeamPlayers(tb.getIdTeam());
+            String clubA = resolveClubForTeam(ta, pa);
+            String clubB = resolveClubForTeam(tb, pb);
+            match.setClubs(clubA, clubB);
+        } catch (Exception ex) {
+            // Fallback an toàn nếu có lỗi I/O
+            match.setClubs(getClubNameById(ta.getIdCauLacBo()), getClubNameById(tb.getIdCauLacBo()));
+        }
         logger.chooseTeamA(ta.getTenTeam(), ta.getIdTeam());
         logger.chooseTeamB(tb.getTenTeam(), tb.getIdTeam());
     }
@@ -1129,6 +1142,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         match.setNames(nameA, nameB);
         Integer idA = singlesNameToId.getOrDefault(nameA, -1);
         Integer idB = singlesNameToId.getOrDefault(nameB, -1);
+        // Lấy CLB từ VĐV và set vào match
+        String clubA = getClubNameByVdvId(idA);
+        String clubB = getClubNameByVdvId(idB);
+        match.setClubs(clubA, clubB);
         logger.choosePlayerA(nameA, idA);
         logger.choosePlayerB(nameB, idB);
     }
@@ -1237,6 +1254,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String fullNameB = buildFullTeamName(pb);
             match.setDoubles(true);
             match.setNames(fullNameA, fullNameB);
+            // Set CLB ưu tiên theo đội, nếu trống thì dùng CLB của VĐV trong đội
+            Integer idA = ta.getIdTeam();
+            Integer idB = tb.getIdTeam();
+            match.setClubs(doiService.getClubNameByTeamId(idA), doiService.getClubNameByTeamId(idB));
+            System.out.println("Club A: " + doiService.getClubNameByTeamId(idA) + ", Club B: "
+                    + doiService.getClubNameByTeamId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
             com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
@@ -1256,6 +1279,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             match.setDoubles(false);
             match.setNames(nameA, nameB);
+            // Set CLB theo VĐV
+            Integer idA = singlesNameToId.getOrDefault(nameA, -1);
+            Integer idB = singlesNameToId.getOrDefault(nameB, -1);
+            match.setClubs(getClubNameByVdvId(idA), getClubNameByVdvId(idB));
+            System.out.println("Club A: " + getClubNameByVdvId(idA) + ", Club B: " + getClubNameByVdvId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
             com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
@@ -1266,8 +1294,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
                     header, false, nameA, nameB, courtId);
             // Gắn match lên HTTP server theo port của sân
-            Integer idA = singlesNameToId.getOrDefault(nameA, -1);
-            Integer idB = singlesNameToId.getOrDefault(nameB, -1);
             logger.startSingles(header, nameA, idA, nameB, idB, bo);
             updateRemoteLinkUi();
         }
@@ -1427,6 +1453,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             String fullNameB = buildFullTeamName(pb);
             match.setDoubles(true);
             match.setNames(fullNameA, fullNameB);
+            // Set CLB ưu tiên theo đội, nếu trống thì dùng CLB của VĐV trong đội
+            match.setClubs(
+                    resolveClubForTeam(ta, pa),
+                    resolveClubForTeam(tb, pb));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
             hasStarted = true;
@@ -1449,6 +1479,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
             match.setDoubles(false);
             match.setNames(nameA, nameB);
+            // Set CLB theo VĐV
+            Integer idA = singlesNameToId.getOrDefault(nameA, -1);
+            Integer idB = singlesNameToId.getOrDefault(nameB, -1);
+            match.setClubs(getClubNameByVdvId(idA), getClubNameByVdvId(idB));
+            System.out.println("ClubA =" + getClubNameByVdvId(idA) + ", ClubB=" + getClubNameByVdvId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
 
@@ -1459,9 +1494,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     match, selectedIf, clientName, hostShown, displayKind,
                     header, false, nameA, nameB, courtId);
 
-            Integer idA = singlesNameToId.getOrDefault(nameA, -1);
-            Integer idB = singlesNameToId.getOrDefault(nameB, -1);
-            logger.logTs("ĐẶT LẠI ĐƠN: A=%s (NNR=%d) vs B=%s (NNR=%d)", nameA, idA, nameB, idB);
+            // idA/idB đã được khai báo ở trên để set CLB, tái sử dụng cho log
+            logger.logTs("ĐẶT LẠI ĐƠN: A=%s (NNR=%d) vs B=%s (NNR=%d)", nameA,
+                    singlesNameToId.getOrDefault(nameA, -1), nameB,
+                    singlesNameToId.getOrDefault(nameB, -1));
             updateRemoteLinkUi();
         }
     }
@@ -1975,6 +2011,41 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
     }
 
+    /**
+     * Lấy tên CLB theo ID_CLB của ĐỘI (DangKiDoi.idCauLacBo).
+     * Trả về chuỗi rỗng nếu không có hoặc không tìm thấy.
+     */
+    private String getClubNameById(Integer idClb) {
+        if (conn == null || idClb == null || idClb <= 0)
+            return "";
+        try {
+            // Dùng CauLacBoRepository trực tiếp để lấy tên CLB
+            var repo = new com.example.btms.repository.club.CauLacBoRepository(conn);
+            var clb = repo.findById(idClb);
+            return clb != null && clb.getTenClb() != null ? clb.getTenClb() : "";
+        } catch (Exception ex) {
+            logger.logTs("Lỗi lấy tên CLB theo ID=%s: %s", String.valueOf(idClb), ex.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * Lấy tên CLB theo ID của VĐV.
+     * Trả về chuỗi rỗng nếu không có hoặc không tìm thấy.
+     */
+    private String getClubNameByVdvId(Integer vdvId) {
+        if (conn == null || vdvId == null || vdvId <= 0)
+            return "";
+        try {
+            var repo = new com.example.btms.repository.player.VanDongVienRepository(conn);
+            String name = repo.fetchClubNameById(vdvId);
+            return name != null ? name : "";
+        } catch (Exception ex) {
+            logger.logTs("Lỗi lấy tên CLB của VĐV ID=%s: %s", String.valueOf(vdvId), ex.getMessage());
+            return "";
+        }
+    }
+
     /** Khôi phục & đưa các cửa sổ scoreboard ra trước */
     public void restoreDisplays() {
         try {
@@ -2014,5 +2085,43 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         return fullName.toString();
     }
 
-    // Không cần convert nữa: dùng trực tiếp VanDongVien[]
+    /**
+     * Xác định tên CLB cho một đội đôi:
+     * - Ưu tiên CLB gắn với đội (DangKiDoi.idCauLacBo)
+     * - Nếu trống, thử lấy CLB của VĐV trong đội:
+     * + Nếu cả 2 cùng CLB: trả về tên CLB đó
+     * + Nếu khác nhau: ghép "CLB1 / CLB2" (bỏ trùng, bỏ rỗng)
+     */
+    private String resolveClubForTeam(DangKiDoi team, VanDongVien[] players) {
+        if (team != null) {
+            String teamClub = getClubNameById(team.getIdCauLacBo());
+            if (teamClub != null && !teamClub.isBlank())
+                return teamClub;
+        }
+        if (players == null || players.length == 0)
+            return "";
+
+        String c1 = "";
+        String c2 = "";
+        try {
+            if (players[0] != null) {
+                c1 = getClubNameById(players[0].getIdClb());
+            }
+            if (players.length > 1 && players[1] != null) {
+                c2 = getClubNameById(players[1].getIdClb());
+            }
+        } catch (Exception ignore) {
+        }
+        if (c1 == null)
+            c1 = "";
+        if (c2 == null)
+            c2 = "";
+        if (!c1.isBlank() && (c2.isBlank() || c1.equalsIgnoreCase(c2)))
+            return c1;
+        if (!c2.isBlank() && c1.isBlank())
+            return c2;
+        if (!c1.isBlank() && !c2.isBlank() && !c1.equalsIgnoreCase(c2))
+            return c1 + " / " + c2;
+        return "";
+    }
 }

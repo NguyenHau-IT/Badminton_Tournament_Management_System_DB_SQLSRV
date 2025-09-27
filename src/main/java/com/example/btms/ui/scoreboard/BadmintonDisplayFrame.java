@@ -148,11 +148,31 @@ public class BadmintonDisplayFrame extends JFrame implements PropertyChangeListe
         serveA.setForeground(Color.YELLOW);
         serveB.setForeground(Color.YELLOW);
 
-        setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
+        // Đóng riêng cửa sổ này, không ảnh hưởng các bảng điểm khác
+        setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH); // Mở rộng toàn màn hình khi chạy
         setLocationRelativeTo(null);
         setAlwaysOnTop(true); // Luôn hiển thị trên cùng
         refresh();
+    }
+
+    /**
+     * Tháo đăng ký lắng nghe và dừng đồng bộ khi đóng cửa sổ để tránh rò rỉ bộ nhớ.
+     */
+    public void detach() {
+        try {
+            if (match != null) {
+                match.removePropertyChangeListener(this);
+            }
+        } catch (Exception ignore) {
+        }
+        if (syncTimer != null) {
+            try {
+                syncTimer.cancel();
+            } catch (Exception ignore) {
+            }
+            syncTimer = null;
+        }
     }
 
     public void refresh() {
