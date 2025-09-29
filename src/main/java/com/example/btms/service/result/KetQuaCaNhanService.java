@@ -76,4 +76,28 @@ public class KetQuaCaNhanService {
         if (thuHang <= 0)
             throw new IllegalArgumentException("THU_HANG phải > 0");
     }
+
+    // Bulk replace medals for singles: delete ranks 1,2,3 then add provided rows.
+    // This allows two entries for rank=3 (two bronzes).
+    public void replaceMedals(int idGiai, int idNoiDung, List<KetQuaCaNhan> items) {
+        // delete existing for ranks 1,2,3
+        for (int rank : new int[] { 1, 2, 3 }) {
+            try {
+                repo.delete(idGiai, idNoiDung, rank);
+            } catch (RuntimeException ignore) {
+            }
+        }
+        if (items == null)
+            return;
+        // optional: prevent duplicate VDV within the same replacement batch
+        java.util.HashSet<Integer> seenVdv = new java.util.HashSet<>();
+        for (KetQuaCaNhan r : items) {
+            if (r == null)
+                continue;
+            validate(r.getIdVdv(), r.getThuHang());
+            if (!seenVdv.add(r.getIdVdv()))
+                continue; // skip duplicates silently
+            repo.add(r);
+        }
+    }
 }

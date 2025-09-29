@@ -31,6 +31,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
 import com.example.btms.config.Prefs;
+import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.draw.BocThamDoi;
@@ -41,6 +42,8 @@ import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
 import com.example.btms.repository.draw.BocThamCaNhanRepository;
 import com.example.btms.repository.draw.BocThamDoiRepository;
+import com.example.btms.repository.player.VanDongVienRepository;
+import com.example.btms.repository.result.KetQuaCaNhanRepository;
 import com.example.btms.repository.result.KetQuaDoiRepository;
 import com.example.btms.service.bracket.SoDoCaNhanService;
 import com.example.btms.service.bracket.SoDoDoiService;
@@ -48,6 +51,8 @@ import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.draw.BocThamCaNhanService;
 import com.example.btms.service.draw.BocThamDoiService;
+import com.example.btms.service.player.VanDongVienService;
+import com.example.btms.service.result.KetQuaCaNhanService;
 import com.example.btms.service.result.KetQuaDoiService;
 import com.example.btms.service.team.DoiService;
 
@@ -105,6 +110,8 @@ public class SoDoThiDauPanel extends JPanel {
     private final DoiService doiService;
     private final CauLacBoService clbService;
     private final KetQuaDoiService ketQuaDoiService;
+    private final KetQuaCaNhanService ketQuaCaNhanService;
+    private final VanDongVienService vdvService;
 
     public SoDoThiDauPanel(Connection conn) { // giữ signature cũ để MainFrame không phải đổi nhiều
         Objects.requireNonNull(conn, "Connection null");
@@ -116,6 +123,8 @@ public class SoDoThiDauPanel extends JPanel {
         this.ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository((Connection) conn));
         this.bocThamCaNhanService = new BocThamCaNhanService(new BocThamCaNhanRepository((Connection) conn));
         this.soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository((Connection) conn));
+        this.ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository((Connection) conn));
+        this.vdvService = new VanDongVienService(new VanDongVienRepository((Connection) conn));
 
         setLayout(new BorderLayout(8, 8));
         add(buildTop(), BorderLayout.NORTH);
@@ -227,41 +236,60 @@ public class SoDoThiDauPanel extends JPanel {
         }
         int idNoiDung = nd.getId();
         try {
-            // Xóa toàn bộ sơ đồ cũ cho đúng trạng thái hiện tại (idGiai, idNoiDung)
-            List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
-            for (SoDoDoi r : olds) {
-                try {
-                    soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
-                } catch (Exception ignore) {
+            boolean isTeam = Boolean.TRUE.equals(nd.getTeam());
+            if (isTeam) {
+                // Xóa toàn bộ sơ đồ cũ (đội)
+                List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
+                for (SoDoDoi r : olds) {
+                    try {
+                        soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
+                    } catch (Exception ignore) {
+                    }
                 }
-            }
-            // Lưu các ô đang hiển thị (chỉ lưu ô có tên)
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
-            for (BracketCanvas.Slot s : canvas.getSlots()) {
-                if (s.text != null && !s.text.isBlank()) {
-                    Integer idClb = null;
-                    try {
-                        idClb = doiService.getIdClbByTeamName(s.text.trim(), idNoiDung, idGiai);
-                    } catch (RuntimeException ignored) {
+                // Lưu các ô đang hiển thị (đội)
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                for (BracketCanvas.Slot s : canvas.getSlots()) {
+                    if (s.text != null && !s.text.isBlank()) {
+                        Integer idClb = null;
+                        try {
+                            idClb = doiService.getIdClbByTeamName(s.text.trim(), idNoiDung, idGiai);
+                        } catch (RuntimeException ignored) {
+                        }
+                        Integer soDo = s.col;
+                        try {
+                            if (idClb != null)
+                                soDo = bocThamService.getSoDo(idGiai, idNoiDung, idClb);
+                        } catch (RuntimeException ignored) {
+                        }
+                        soDoDoiService.create(idGiai, idNoiDung, idClb, s.text.trim(), s.x, s.y, s.order, soDo, now);
                     }
-                    Integer soDo = null;
+                }
+            } else {
+                // Xóa toàn bộ sơ đồ cũ (cá nhân)
+                List<SoDoCaNhan> olds = soDoCaNhanService.list(idGiai, idNoiDung);
+                for (SoDoCaNhan r : olds) {
                     try {
-                        if (idClb != null)
-                            soDo = bocThamService.getSoDo(idGiai, idNoiDung, idClb);
-                    } catch (RuntimeException ignored) {
-                        // fallback: dùng số cột làm soDo nếu cần
-                        soDo = s.col;
+                        soDoCaNhanService.delete(idGiai, idNoiDung, r.getViTri());
+                    } catch (Exception ignore) {
                     }
-                    soDoDoiService.create(
-                            idGiai,
-                            idNoiDung,
-                            idClb, // có thể null nếu không xác định được
-                            s.text.trim(),
-                            s.x,
-                            s.y,
-                            s.order, // VI_TRI là số thứ tự liên tục của slot
-                            soDo, // SO_DO: lưu vòng/nhánh nếu có
-                            now);
+                }
+                // Map name -> idVdv từ đăng kí cá nhân
+                java.util.Map<String, Integer> nameToId = vdvService.loadSinglesNames(idNoiDung, idGiai);
+                java.time.LocalDateTime now = java.time.LocalDateTime.now();
+                for (BracketCanvas.Slot s : canvas.getSlots()) {
+                    if (s.text != null && !s.text.isBlank()) {
+                        Integer idVdv = resolveVdvIdFromDisplay(nameToId, s.text.trim());
+                        if (idVdv == null)
+                            continue; // bỏ qua nếu không xác định được
+                        Integer soDo = s.col;
+                        try {
+                            var bt = bocThamCaNhanService.getOne(idGiai, idNoiDung, idVdv);
+                            if (bt != null && bt.getSoDo() != null)
+                                soDo = bt.getSoDo();
+                        } catch (RuntimeException ignore) {
+                        }
+                        soDoCaNhanService.create(idGiai, idNoiDung, idVdv, s.x, s.y, s.order, soDo, now);
+                    }
                 }
             }
             JOptionPane.showMessageDialog(this, "Đã lưu sơ đồ vào CSDL", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
@@ -316,94 +344,161 @@ public class SoDoThiDauPanel extends JPanel {
         if (idGiai <= 0 || nd == null) {
             return;
         }
-        List<BocThamDoi> list;
-        try {
-            list = bocThamService.list(idGiai, nd.getId());
-        } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ từ DB: " + ex.getMessage(), "Lỗi",
-                    JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        // Decide seeding column and block size based on number of participants
-        int N = list.size();
-        int M; // block size in that column
-        int seedCol; // 1..5
-        if (N >= 9) {
-            M = 16;
-            seedCol = 1;
-        } else if (N >= 5) {
-            M = 8;
-            seedCol = 2;
-        } else if (N >= 3) {
-            M = 4;
-            seedCol = 3;
-        } else if (N >= 2) {
-            M = 2;
-            seedCol = 4;
-        } else {
-            M = 1;
-            seedCol = 4;
-        } // 1 người: không có trận; hiển thị ở nhánh gần cuối
-
-        if (N > 16) {
-            JOptionPane.showMessageDialog(this, "Số đội vượt quá 16 – chưa hỗ trợ trong sơ đồ 16.", "Thông báo",
-                    JOptionPane.WARNING_MESSAGE);
-            N = 16;
-            M = 16;
-            seedCol = 1;
-        }
-
-        List<Integer> pos = computeTopHeavyPositionsWithinBlock(Math.min(N, M), M);
-        List<String> namesByT = new ArrayList<>();
-        for (int t = 0; t < M; t++)
-            namesByT.add(null);
-        for (int i = 0; i < Math.min(N, M); i++) {
-            int t = pos.get(i);
-            BocThamDoi row = list.get(i);
-            String team = row.getTenTeam() != null ? row.getTenTeam().trim() : "";
-            String club = "";
+        boolean isTeam = Boolean.TRUE.equals(nd.getTeam());
+        if (isTeam) {
+            List<BocThamDoi> list;
             try {
-                Integer idClb = row.getIdClb();
-                if (idClb == null && team != null && !team.isBlank()) {
-                    // Fallback: try resolve club by team name for this tournament/category
-                    idClb = doiService.getIdClbByTeamName(team, nd.getId(), idGiai);
-                }
-                if (idClb != null) {
-                    var c = clbService.findOne(idClb);
-                    if (c != null && c.getTenClb() != null)
-                        club = c.getTenClb().trim();
-                }
-            } catch (RuntimeException ignore) {
+                list = bocThamService.list(idGiai, nd.getId());
+            } catch (RuntimeException ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ từ DB: " + ex.getMessage(), "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
             }
-            String display = club.isBlank() ? team : (team + " - " + club);
-            namesByT.set(t, display);
-        }
-        // BYE auto-advance for first round: scan all pairs in the seeded column.
-        // For each pair that has exactly one participant, clear both leaves and
-        // place the winner into the next column at the corresponding parent index.
-        canvas.clearTextOverrides();
-        if (M >= 2) {
-            int pairCount = M / 2;
-            for (int p = 0; p < pairCount; p++) {
-                String a = namesByT.get(2 * p);
-                String b = namesByT.get(2 * p + 1);
-                boolean hasA = a != null && !a.isBlank();
-                boolean hasB = b != null && !b.isBlank();
-                if (hasA ^ hasB) { // exactly one participant present -> BYE
-                    String winner = hasA ? a : b;
-                    // Clear outer leaves
-                    namesByT.set(2 * p, null);
-                    namesByT.set(2 * p + 1, null);
-                    // Place winner into inner column slot matching this pair index
-                    if (seedCol < 5) {
-                        canvas.setTextOverride(seedCol + 1, p, winner);
+            // Decide seeding column and block size based on number of participants
+            int N = list.size();
+            int M; // block size in that column
+            int seedCol; // 1..5
+            if (N >= 9) {
+                M = 16;
+                seedCol = 1;
+            } else if (N >= 5) {
+                M = 8;
+                seedCol = 2;
+            } else if (N >= 3) {
+                M = 4;
+                seedCol = 3;
+            } else if (N >= 2) {
+                M = 2;
+                seedCol = 4;
+            } else {
+                M = 1;
+                seedCol = 4;
+            }
+            if (N > 16) {
+                JOptionPane.showMessageDialog(this, "Số đội vượt quá 16 – chưa hỗ trợ trong sơ đồ 16.", "Thông báo",
+                        JOptionPane.WARNING_MESSAGE);
+                N = 16;
+                M = 16;
+                seedCol = 1;
+            }
+            List<Integer> pos = computeTopHeavyPositionsWithinBlock(Math.min(N, M), M);
+            List<String> namesByT = new ArrayList<>();
+            for (int t = 0; t < M; t++)
+                namesByT.add(null);
+            for (int i = 0; i < Math.min(N, M); i++) {
+                int t = pos.get(i);
+                BocThamDoi row = list.get(i);
+                String team = row.getTenTeam() != null ? row.getTenTeam().trim() : "";
+                String club = "";
+                try {
+                    Integer idClb = row.getIdClb();
+                    if (idClb == null && team != null && !team.isBlank()) {
+                        idClb = doiService.getIdClbByTeamName(team, nd.getId(), idGiai);
+                    }
+                    if (idClb != null) {
+                        var c = clbService.findOne(idClb);
+                        if (c != null && c.getTenClb() != null)
+                            club = c.getTenClb().trim();
+                    }
+                } catch (RuntimeException ignore) {
+                }
+                String display = club.isBlank() ? team : (team + " - " + club);
+                namesByT.set(t, display);
+            }
+            canvas.clearTextOverrides();
+            if (M >= 2) {
+                int pairCount = M / 2;
+                for (int p = 0; p < pairCount; p++) {
+                    String a = namesByT.get(2 * p);
+                    String b = namesByT.get(2 * p + 1);
+                    boolean hasA = a != null && !a.isBlank();
+                    boolean hasB = b != null && !b.isBlank();
+                    if (hasA ^ hasB) {
+                        String winner = hasA ? a : b;
+                        namesByT.set(2 * p, null);
+                        namesByT.set(2 * p + 1, null);
+                        if (seedCol < 5)
+                            canvas.setTextOverride(seedCol + 1, p, winner);
                     }
                 }
             }
+            canvas.setParticipantsForColumn(namesByT, seedCol);
+            canvas.repaint();
+            updateMedalsFromCanvas();
+        } else {
+            List<com.example.btms.model.draw.BocThamCaNhan> list;
+            try {
+                list = bocThamCaNhanService.list(idGiai, nd.getId());
+            } catch (RuntimeException ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi tải bốc thăm cá nhân: " + ex.getMessage(), "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            int N = list.size();
+            int M;
+            int seedCol;
+            if (N >= 9) {
+                M = 16;
+                seedCol = 1;
+            } else if (N >= 5) {
+                M = 8;
+                seedCol = 2;
+            } else if (N >= 3) {
+                M = 4;
+                seedCol = 3;
+            } else if (N >= 2) {
+                M = 2;
+                seedCol = 4;
+            } else {
+                M = 1;
+                seedCol = 4;
+            }
+            if (N > 16) {
+                JOptionPane.showMessageDialog(this, "Số VĐV vượt quá 16 – chưa hỗ trợ trong sơ đồ 16.", "Thông báo",
+                        JOptionPane.WARNING_MESSAGE);
+                N = 16;
+                M = 16;
+                seedCol = 1;
+            }
+            List<Integer> pos = computeTopHeavyPositionsWithinBlock(Math.min(N, M), M);
+            List<String> namesByT = new ArrayList<>();
+            for (int t = 0; t < M; t++)
+                namesByT.add(null);
+            for (int i = 0; i < Math.min(N, M); i++) {
+                int t = pos.get(i);
+                var row = list.get(i);
+                String display;
+                try {
+                    var vdv = vdvService.findOne(row.getIdVdv());
+                    String name = vdv.getHoTen() != null ? vdv.getHoTen().trim() : ("VDV#" + row.getIdVdv());
+                    String club = vdvService.getClubNameById(row.getIdVdv());
+                    display = (club != null && !club.isBlank()) ? (name + " - " + club.trim()) : name;
+                } catch (RuntimeException ignore) {
+                    display = "VDV#" + row.getIdVdv();
+                }
+                namesByT.set(t, display);
+            }
+            canvas.clearTextOverrides();
+            if (M >= 2) {
+                int pairCount = M / 2;
+                for (int p = 0; p < pairCount; p++) {
+                    String a = namesByT.get(2 * p);
+                    String b = namesByT.get(2 * p + 1);
+                    boolean hasA = a != null && !a.isBlank();
+                    boolean hasB = b != null && !b.isBlank();
+                    if (hasA ^ hasB) {
+                        String winner = hasA ? a : b;
+                        namesByT.set(2 * p, null);
+                        namesByT.set(2 * p + 1, null);
+                        if (seedCol < 5)
+                            canvas.setTextOverride(seedCol + 1, p, winner);
+                    }
+                }
+            }
+            canvas.setParticipantsForColumn(namesByT, seedCol);
+            canvas.repaint();
+            updateMedalsFromCanvas();
         }
-        canvas.setParticipantsForColumn(namesByT, seedCol);
-        canvas.repaint();
-        updateMedalsFromCanvas();
     }
 
     private boolean loadSavedSoDo() {
@@ -411,31 +506,67 @@ public class SoDoThiDauPanel extends JPanel {
         NoiDung nd = selectedNoiDung;
         if (idGiai <= 0 || nd == null)
             return false;
-        List<SoDoDoi> list;
-        try {
-            list = soDoDoiService.list(idGiai, nd.getId());
-        } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ đã lưu: " + ex.getMessage(), "Lỗi",
-                    JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        if (list == null || list.isEmpty())
-            return false;
-        // Reset về trắng và gán theo VI_TRI -> Slot.order
-        List<String> blanks = new ArrayList<>();
-        for (int i = 0; i < 16; i++)
-            blanks.add("");
-        canvas.setParticipantsForColumn(blanks, 1);
-        canvas.clearTextOverrides();
-        for (SoDoDoi r : list) {
-            BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
-            if (slot != null) {
-                canvas.setTextOverride(slot.col, slot.thuTu, r.getTenTeam());
+        boolean isTeam = Boolean.TRUE.equals(nd.getTeam());
+        if (isTeam) {
+            List<SoDoDoi> list;
+            try {
+                list = soDoDoiService.list(idGiai, nd.getId());
+            } catch (RuntimeException ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ đã lưu: " + ex.getMessage(), "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+                return false;
             }
+            if (list == null || list.isEmpty())
+                return false;
+            List<String> blanks = new ArrayList<>();
+            for (int i = 0; i < 16; i++)
+                blanks.add("");
+            canvas.setParticipantsForColumn(blanks, 1);
+            canvas.clearTextOverrides();
+            for (SoDoDoi r : list) {
+                BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
+                if (slot != null) {
+                    canvas.setTextOverride(slot.col, slot.thuTu, r.getTenTeam());
+                }
+            }
+            canvas.repaint();
+            updateMedalsFromCanvas();
+            return true;
+        } else {
+            List<SoDoCaNhan> list;
+            try {
+                list = soDoCaNhanService.list(idGiai, nd.getId());
+            } catch (RuntimeException ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi tải sơ đồ (cá nhân) đã lưu: " + ex.getMessage(), "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+            if (list == null || list.isEmpty())
+                return false;
+            List<String> blanks = new ArrayList<>();
+            for (int i = 0; i < 16; i++)
+                blanks.add("");
+            canvas.setParticipantsForColumn(blanks, 1);
+            canvas.clearTextOverrides();
+            for (SoDoCaNhan r : list) {
+                BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
+                if (slot != null) {
+                    String display;
+                    try {
+                        var vdv = vdvService.findOne(r.getIdVdv());
+                        String name = vdv.getHoTen() != null ? vdv.getHoTen().trim() : ("VDV#" + r.getIdVdv());
+                        String club = vdvService.getClubNameById(r.getIdVdv());
+                        display = (club != null && !club.isBlank()) ? (name + " - " + club.trim()) : name;
+                    } catch (RuntimeException ignore) {
+                        display = "VDV#" + r.getIdVdv();
+                    }
+                    canvas.setTextOverride(slot.col, slot.thuTu, display);
+                }
+            }
+            canvas.repaint();
+            updateMedalsFromCanvas();
+            return true;
         }
-        canvas.repaint();
-        updateMedalsFromCanvas();
-        return true;
     }
 
     private void loadBestAvailable() {
@@ -574,22 +705,53 @@ public class SoDoThiDauPanel extends JPanel {
         }
         int idNoiDung = nd.getId();
         try {
-            String vang = extractNameFromMedalRow(0);
-            String bac = extractNameFromMedalRow(1);
-            String dong1 = extractNameFromMedalRow(2);
-            String dong2 = extractNameFromMedalRow(3);
-
-            List<KetQuaDoi> items = new ArrayList<>();
-            if (!isBlank(vang))
-                items.add(buildKetQua(idGiai, idNoiDung, vang, 1));
-            if (!isBlank(bac))
-                items.add(buildKetQua(idGiai, idNoiDung, bac, 2));
-            if (!isBlank(dong1))
-                items.add(buildKetQua(idGiai, idNoiDung, dong1, 3));
-            if (!isBlank(dong2))
-                items.add(buildKetQua(idGiai, idNoiDung, dong2, 3));
-
-            ketQuaDoiService.replaceMedals(idGiai, idNoiDung, items);
+            String vangRaw = extractNameFromMedalRow(0);
+            String bacRaw = extractNameFromMedalRow(1);
+            String dong1Raw = extractNameFromMedalRow(2);
+            String dong2Raw = extractNameFromMedalRow(3);
+            MedalSet medals = sanitizeMedals(vangRaw, bacRaw, dong1Raw, dong2Raw);
+            String vang = medals.gold;
+            String bac = medals.silver;
+            String dong1 = medals.bronze1;
+            String dong2 = medals.bronze2;
+            boolean isTeam = Boolean.TRUE.equals(nd.getTeam());
+            if (isTeam) {
+                List<KetQuaDoi> items = new ArrayList<>();
+                if (!isBlank(vang))
+                    items.add(buildKetQua(idGiai, idNoiDung, vang, 1));
+                if (!isBlank(bac))
+                    items.add(buildKetQua(idGiai, idNoiDung, bac, 2));
+                if (!isBlank(dong1))
+                    items.add(buildKetQua(idGiai, idNoiDung, dong1, 3));
+                if (!isBlank(dong2))
+                    items.add(buildKetQua(idGiai, idNoiDung, dong2, 3));
+                ketQuaDoiService.replaceMedals(idGiai, idNoiDung, items);
+            } else {
+                // Singles: replace medals in bulk to allow two bronzes
+                java.util.Map<String, Integer> map = vdvService.loadSinglesNames(idNoiDung, idGiai);
+                List<com.example.btms.model.result.KetQuaCaNhan> items = new ArrayList<>();
+                if (!isBlank(vang)) {
+                    Integer idVang = resolveVdvIdFromDisplay(map, vang);
+                    if (idVang != null)
+                        items.add(new com.example.btms.model.result.KetQuaCaNhan(idGiai, idNoiDung, idVang, 1));
+                }
+                if (!isBlank(bac)) {
+                    Integer idBac = resolveVdvIdFromDisplay(map, bac);
+                    if (idBac != null)
+                        items.add(new com.example.btms.model.result.KetQuaCaNhan(idGiai, idNoiDung, idBac, 2));
+                }
+                if (!isBlank(dong1)) {
+                    Integer idD1 = resolveVdvIdFromDisplay(map, dong1);
+                    if (idD1 != null)
+                        items.add(new com.example.btms.model.result.KetQuaCaNhan(idGiai, idNoiDung, idD1, 3));
+                }
+                if (!isBlank(dong2)) {
+                    Integer idD2 = resolveVdvIdFromDisplay(map, dong2);
+                    if (idD2 != null)
+                        items.add(new com.example.btms.model.result.KetQuaCaNhan(idGiai, idNoiDung, idD2, 3));
+                }
+                ketQuaCaNhanService.replaceMedals(idGiai, idNoiDung, items);
+            }
             if (!silent) {
                 JOptionPane.showMessageDialog(this, "Đã lưu kết quả huy chương", "Thông báo",
                         JOptionPane.INFORMATION_MESSAGE);
@@ -599,7 +761,6 @@ public class SoDoThiDauPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Lỗi lưu kết quả: " + ex.getMessage(), "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
             } else {
-                // best-effort silent mode: mark snapshot as unsaved so a next change can retry
                 lastSavedMedalKey = null;
             }
         }
@@ -622,6 +783,66 @@ public class SoDoThiDauPanel extends JPanel {
         return s.trim();
     }
 
+    // Enforce: max 1 gold, 1 silver, 2 bronzes for one nội dung; also remove blanks
+    // and duplicates across ranks.
+    private static class MedalSet {
+        final String gold;
+        final String silver;
+        final String bronze1;
+        final String bronze2;
+
+        MedalSet(String g, String s, String b1, String b2) {
+            this.gold = g;
+            this.silver = s;
+            this.bronze1 = b1;
+            this.bronze2 = b2;
+        }
+    }
+
+    private MedalSet sanitizeMedals(String rawGold, String rawSilver, String rawBronze1, String rawBronze2) {
+        String g = safe(rawGold).trim();
+        String s = safe(rawSilver).trim();
+        String b1 = safe(rawBronze1).trim();
+        String b2 = safe(rawBronze2).trim();
+        // Remove blanks
+        if (g.isBlank())
+            g = "";
+        if (s.isBlank())
+            s = "";
+        if (b1.isBlank())
+            b1 = "";
+        if (b2.isBlank())
+            b2 = "";
+        // Deduplicate across different ranks: priority order gold > silver > bronze1 >
+        // bronze2
+        if (!g.isBlank()) {
+            if (s.equals(g))
+                s = "";
+            if (b1.equals(g))
+                b1 = "";
+            if (b2.equals(g))
+                b2 = "";
+        }
+        if (!s.isBlank()) {
+            if (b1.equals(s))
+                b1 = "";
+            if (b2.equals(s))
+                b2 = "";
+        }
+        // Ensure at most two distinct bronzes
+        if (b1.isBlank() && !b2.isBlank()) {
+            // normalize to fill bronze1 first
+            b1 = b2;
+            b2 = "";
+        } else if (!b1.isBlank() && !b2.isBlank() && b1.equals(b2)) {
+            // drop duplicate
+            b2 = "";
+        }
+        // Update the UI table to reflect sanitized values
+        refreshMedalTable(g, s, b1, b2);
+        return new MedalSet(g, s, b1, b2);
+    }
+
     private KetQuaDoi buildKetQua(int idGiai, int idNoiDung, String teamDisplay, int thuHang) {
         String teamName = teamDisplay;
         int sep = teamDisplay.indexOf(" - ");
@@ -636,6 +857,16 @@ public class SoDoThiDauPanel extends JPanel {
             throw new IllegalStateException("Không xác định được CLB cho đội: " + teamDisplay);
         }
         return new KetQuaDoi(idGiai, idNoiDung, idClb, teamDisplay, thuHang);
+    }
+
+    private Integer resolveVdvIdFromDisplay(java.util.Map<String, Integer> nameToId, String display) {
+        if (display == null)
+            return null;
+        String name = display;
+        int sep = display.indexOf(" - ");
+        if (sep >= 0)
+            name = display.substring(0, sep).trim();
+        return nameToId.get(name);
     }
 
     /* ===================== Canvas ===================== */
@@ -729,69 +960,81 @@ public class SoDoThiDauPanel extends JPanel {
                             NoiDung ndSel = SoDoThiDauPanel.this.selectedNoiDung;
                             if (idGiai > 0 && ndSel != null) {
                                 int idNoiDung = ndSel.getId();
-                                Integer idClb = null;
-                                try {
-                                    idClb = SoDoThiDauPanel.this.doiService.getIdClbByTeamName(s.text.trim(), idNoiDung,
-                                            idGiai);
-                                } catch (RuntimeException ignored) {
+                                if (Boolean.TRUE.equals(ndSel.getTeam())) {
+                                    Integer idClb = null;
+                                    try {
+                                        idClb = SoDoThiDauPanel.this.doiService.getIdClbByTeamName(s.text.trim(),
+                                                idNoiDung,
+                                                idGiai);
+                                    } catch (RuntimeException ignored) {
+                                    }
+                                    Integer soDo = parent.col;
+                                    try {
+                                        if (idClb != null)
+                                            soDo = SoDoThiDauPanel.this.bocThamService.getSoDo(idGiai, idNoiDung,
+                                                    idClb);
+                                    } catch (RuntimeException ignored) {
+                                    }
+                                    SoDoThiDauPanel.this.soDoDoiService.create(
+                                            idGiai,
+                                            idNoiDung,
+                                            idClb,
+                                            s.text.trim(),
+                                            parent.x,
+                                            parent.y,
+                                            parent.order,
+                                            soDo,
+                                            java.time.LocalDateTime.now());
+                                } else {
+                                    java.util.Map<String, Integer> map = SoDoThiDauPanel.this.vdvService
+                                            .loadSinglesNames(idNoiDung, idGiai);
+                                    Integer idVdv = SoDoThiDauPanel.this.resolveVdvIdFromDisplay(map, s.text.trim());
+                                    if (idVdv != null) {
+                                        Integer soDo = parent.col;
+                                        try {
+                                            var bt = SoDoThiDauPanel.this.bocThamCaNhanService.getOne(idGiai, idNoiDung,
+                                                    idVdv);
+                                            if (bt != null && bt.getSoDo() != null)
+                                                soDo = bt.getSoDo();
+                                        } catch (RuntimeException ignored) {
+                                        }
+                                        SoDoThiDauPanel.this.soDoCaNhanService.create(
+                                                idGiai,
+                                                idNoiDung,
+                                                idVdv,
+                                                parent.x,
+                                                parent.y,
+                                                parent.order,
+                                                soDo,
+                                                java.time.LocalDateTime.now());
+                                    }
                                 }
-                                Integer soDo = null;
-                                try {
-                                    if (idClb != null)
-                                        soDo = SoDoThiDauPanel.this.bocThamService.getSoDo(idGiai, idNoiDung, idClb);
-                                } catch (RuntimeException ignored) {
-                                    // fallback: dùng số cột làm soDo nếu cần
-                                    soDo = parent.col;
-                                }
-                                SoDoThiDauPanel.this.soDoDoiService.create(
-                                        idGiai,
-                                        idNoiDung,
-                                        idClb,
-                                        s.text.trim(),
-                                        parent.x,
-                                        parent.y,
-                                        parent.order,
-                                        soDo,
-                                        java.time.LocalDateTime.now());
                             }
                         }
                     });
                     mBack.addActionListener(ev -> {
-                        Slot[] ch = childrenOf(s);
-                        if (ch == null)
+                        // Xoá bản ghi: chỉ xoá dữ liệu tại ô hiện tại, KHÔNG đẩy về nhánh trước
+                        if (s.text == null || s.text.isBlank()) {
                             return;
-                        Slot left = ch[0];
-                        Slot right = ch[1];
-                        // chọn vị trí con để lùi: ưu tiên ô trống, nếu cả hai trống chọn trái
-                        Slot target = null;
-                        boolean leftEmpty = (left != null) && (left.text == null || left.text.isBlank());
-                        boolean rightEmpty = (right != null) && (right.text == null || right.text.isBlank());
-                        if (leftEmpty && rightEmpty)
-                            target = left;
-                        else if (leftEmpty)
-                            target = left;
-                        else if (rightEmpty)
-                            target = right;
-                        else
-                            target = left; // nếu đều có dữ liệu, ghi đè trái
-                        if (target != null) {
-                            setTextOverride(target.col, target.thuTu, s.text);
-                            target.text = s.text;
-                            // xóa ở ô hiện tại
-                            setTextOverride(s.col, s.thuTu, "");
-                            s.text = "";
-                            // Xoá bản ghi trong DB cho ô hiện tại (theo VI_TRI = s.order)
-                            int idGiai = SoDoThiDauPanel.this.prefs.getInt("selectedGiaiDauId", -1);
-                            NoiDung ndSel = SoDoThiDauPanel.this.selectedNoiDung;
-                            if (idGiai > 0 && ndSel != null) {
-                                try {
-                                    SoDoThiDauPanel.this.soDoDoiService.delete(idGiai, ndSel.getId(), s.order);
-                                } catch (RuntimeException ignore) {
-                                }
-                            }
-                            repaint();
-                            SoDoThiDauPanel.this.updateMedalsFromCanvas();
                         }
+                        // Xoá text ở ô hiện tại
+                        setTextOverride(s.col, s.thuTu, "");
+                        s.text = "";
+                        // Xoá bản ghi trong DB cho ô hiện tại (theo VI_TRI = s.order)
+                        int idGiai = SoDoThiDauPanel.this.prefs.getInt("selectedGiaiDauId", -1);
+                        NoiDung ndSel = SoDoThiDauPanel.this.selectedNoiDung;
+                        if (idGiai > 0 && ndSel != null) {
+                            try {
+                                if (Boolean.TRUE.equals(ndSel.getTeam())) {
+                                    SoDoThiDauPanel.this.soDoDoiService.delete(idGiai, ndSel.getId(), s.order);
+                                } else {
+                                    SoDoThiDauPanel.this.soDoCaNhanService.delete(idGiai, ndSel.getId(), s.order);
+                                }
+                            } catch (RuntimeException ignore) {
+                            }
+                        }
+                        repaint();
+                        SoDoThiDauPanel.this.updateMedalsFromCanvas();
                     });
                     menu.add(mAdvance);
                     menu.add(mBack);
@@ -904,15 +1147,7 @@ public class SoDoThiDauPanel extends JPanel {
             return find(s.col + 1, s.thuTu / 2);
         }
 
-        private Slot[] childrenOf(Slot s) {
-            if (s == null)
-                return null;
-            if (s.col <= 1)
-                return null;
-            Slot left = find(s.col - 1, s.thuTu * 2);
-            Slot right = find(s.col - 1, s.thuTu * 2 + 1);
-            return new Slot[] { left, right };
-        }
+        // childrenOf not used; parentOf is sufficient for our flows
 
         @Override
         protected void paintComponent(Graphics g) {
