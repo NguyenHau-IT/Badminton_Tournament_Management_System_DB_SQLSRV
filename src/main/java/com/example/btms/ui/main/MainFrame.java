@@ -82,9 +82,12 @@ public class MainFrame extends JFrame {
     private com.example.btms.ui.player.DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
     private com.example.btms.ui.category.ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
     private com.example.btms.ui.draw.BocThamThiDau bocThamThiDauPanel; // bốc thăm thi đấu (đơn/đôi) 0-based
-    private com.example.btms.ui.draw.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
+    private com.example.btms.ui.bracket.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
     // Cửa sổ nổi cho "Sơ đồ thi đấu"
     private JFrame soDoThiDauFrame;
+    // Dạng tab: mỗi nội dung là 1 tab riêng
+    private javax.swing.JTabbedPane soDoTabbedPane;
+    private final java.util.LinkedHashMap<Integer, com.example.btms.ui.bracket.SoDoThiDauPanel> soDoPanelsByNoiDung = new java.util.LinkedHashMap<>();
     // Cửa sổ nổi cho "Thi đấu"/"Nhiều sân"
     private JFrame thiDauFrame;
 
@@ -445,7 +448,7 @@ public class MainFrame extends JFrame {
                         contentParticipantsPanel = new com.example.btms.ui.category.ContentParticipantsPanel(conn);
                         // Bốc thăm thi đấu (0-based order)
                         bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
-                        soDoThiDauPanel = new com.example.btms.ui.draw.SoDoThiDauPanel(conn);
+                        soDoThiDauPanel = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
                         // Tổng sắp huy chương (kết quả toàn đoàn)
                         try {
                             com.example.btms.ui.result.TongSapHuyChuongPanel tongSapHuyChuongPanel = new com.example.btms.ui.result.TongSapHuyChuongPanel(
@@ -690,6 +693,18 @@ public class MainFrame extends JFrame {
                     new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
                 } catch (Exception ignore) {
                 }
+                // Đóng cửa sổ Sơ đồ thi đấu (nếu đang mở) để lần mở sau build tabs theo giải
+                // mới
+                if (soDoThiDauFrame != null) {
+                    try {
+                        soDoThiDauFrame.dispose();
+                    } catch (Exception ignored) {
+                    }
+                    soDoThiDauFrame = null;
+                    if (soDoTabbedPane != null)
+                        soDoTabbedPane = null;
+                    soDoPanelsByNoiDung.clear();
+                }
                 updateNavigationRootTitleFromSelection();
                 if (navModel != null)
                     navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
@@ -725,6 +740,10 @@ public class MainFrame extends JFrame {
                         contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
                         showView("Danh sách đăng kí");
                     }
+                } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
+                    // Mở cửa sổ Sơ đồ thi đấu (dạng tabs) và chỉ mở tab cho nội dung được bấm
+                    openSoDoThiDauWindow();
+                    ensureSoDoTab(cn.idNoiDung, cn.label);
                 } else if ("Nội dung của giải".equals(parentLabel)) {
                     if (dangKyNoiDungPanel != null) {
                         ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
@@ -739,13 +758,14 @@ public class MainFrame extends JFrame {
                 return;
             }
             if (uo instanceof String label) {
-                // Khi chọn "Sơ đồ thi đấu" trong cây điều hướng, mở cửa sổ riêng
+                // Khi chọn "Sơ đồ thi đấu" trong cây điều hướng, mở cửa sổ tabs
                 if ("Sơ đồ thi đấu".equals(label)) {
                     openSoDoThiDauWindow();
                     return;
                 }
                 if ("Bốc thăm thi đấu".equals(label)) {
-                    if (bocThamThiDauPanel != null) ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+                    if (bocThamThiDauPanel != null)
+                        ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
                 }
                 if (views.containsKey(label))
                     showView(label);
@@ -819,7 +839,24 @@ public class MainFrame extends JFrame {
             // 3) Bốc thăm
             DefaultMutableTreeNode draw = new DefaultMutableTreeNode("Bốc thăm");
             draw.add(new DefaultMutableTreeNode("Bốc thăm thi đấu"));
-            draw.add(new DefaultMutableTreeNode("Sơ đồ thi đấu"));
+            // Sơ đồ thi đấu + xổ danh sách nội dung của giải
+            DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
+            try {
+                if (service != null && service.current() != null) {
+                    var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                    java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                    java.util.Map<String, Integer> singles = maps[0];
+                    java.util.Map<String, Integer> doubles = maps[1];
+                    for (var entry : singles.entrySet()) {
+                        soDoNode.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                    }
+                    for (var entry : doubles.entrySet()) {
+                        soDoNode.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            draw.add(soDoNode);
             root.add(draw);
 
             // 4) Kết quả
@@ -994,8 +1031,22 @@ public class MainFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            // Tạo panel mới cho cửa sổ nổi để không ảnh hưởng card center
-            com.example.btms.ui.draw.SoDoThiDauPanel panel = new com.example.btms.ui.draw.SoDoThiDauPanel(conn);
+            // Cửa sổ tabs – tạo JTabbedPane, chưa thêm tab nào (chỉ thêm theo yêu cầu)
+            javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
+            // Khi chuyển tab, tự reload data của tab đang chọn
+            tabs.addChangeListener(e -> {
+                try {
+                    int sel = tabs.getSelectedIndex();
+                    if (sel >= 0) {
+                        java.awt.Component c = tabs.getComponentAt(sel);
+                        if (c instanceof com.example.btms.ui.bracket.SoDoThiDauPanel p) {
+                            p.reloadData();
+                        }
+                    }
+                } catch (Exception ignore) {
+                }
+            });
+            this.soDoTabbedPane = tabs;
             JFrame f = new JFrame();
             String title = "Sơ đồ thi đấu";
             try {
@@ -1007,7 +1058,7 @@ public class MainFrame extends JFrame {
             f.setTitle(title);
             f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             f.setLayout(new BorderLayout());
-            f.add(panel, BorderLayout.CENTER);
+            f.add(tabs, BorderLayout.CENTER);
             IconUtil.applyTo(f);
             f.setExtendedState(JFrame.MAXIMIZED_BOTH);
             f.setLocationRelativeTo(this);
@@ -1015,11 +1066,15 @@ public class MainFrame extends JFrame {
                 @Override
                 public void windowClosed(WindowEvent e) {
                     soDoThiDauFrame = null;
+                    soDoPanelsByNoiDung.clear();
+                    soDoTabbedPane = null;
                 }
 
                 @Override
                 public void windowClosing(WindowEvent e) {
                     soDoThiDauFrame = null;
+                    soDoPanelsByNoiDung.clear();
+                    soDoTabbedPane = null;
                 }
             });
             soDoThiDauFrame = f;
@@ -1028,6 +1083,116 @@ public class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Không thể mở Sơ đồ thi đấu: " + ex.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /** Đảm bảo có tab cho idNoiDung, nếu chưa có thì tạo; sau đó chọn tab đó. */
+    private void ensureSoDoTab(Integer idNoiDung, String title) {
+        try {
+            if (soDoThiDauFrame == null)
+                return;
+            if (soDoTabbedPane == null)
+                return;
+            com.example.btms.ui.bracket.SoDoThiDauPanel existing = soDoPanelsByNoiDung.get(idNoiDung);
+            if (existing != null) {
+                // đã có -> focus
+                int count = soDoTabbedPane.getTabCount();
+                for (int i = 0; i < count; i++) {
+                    if (soDoTabbedPane.getComponentAt(i) == existing) {
+                        soDoTabbedPane.setSelectedIndex(i);
+                        break;
+                    }
+                }
+            } else {
+                Connection conn = (service != null) ? service.current() : null;
+                if (conn == null) {
+                    JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                com.example.btms.ui.bracket.SoDoThiDauPanel p = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
+                try {
+                    p.selectNoiDungById(idNoiDung);
+                    p.setNoiDungLabelMode(true);
+                    p.reloadData(); // tự động load khi tab vừa được tạo
+                } catch (Throwable ignore) {
+                }
+                soDoPanelsByNoiDung.put(idNoiDung, p);
+                soDoTabbedPane.addTab(title, p);
+                int idx = soDoTabbedPane.indexOfComponent(p);
+                makeTabClosable(soDoTabbedPane, idx, title, () -> {
+                    // remove mapping and tab when closing
+                    soDoPanelsByNoiDung.remove(idNoiDung);
+                    int i = soDoTabbedPane.indexOfComponent(p);
+                    if (i >= 0)
+                        soDoTabbedPane.removeTabAt(i);
+                    // Nếu sau khi đóng tab mà không còn tab nào nữa, đóng luôn cửa sổ chung
+                    try {
+                        if (soDoTabbedPane.getTabCount() == 0 && soDoThiDauFrame != null) {
+                            soDoThiDauFrame.dispose();
+                            // Các listener windowClosing/windowClosed sẽ dọn dẹp map & refs
+                        }
+                    } catch (Exception ignore) {
+                    }
+                });
+                soDoTabbedPane.setSelectedComponent(p);
+            }
+            // bring window to front
+            soDoThiDauFrame.setVisible(true);
+            soDoThiDauFrame.toFront();
+            soDoThiDauFrame.requestFocus();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không thể mở tab Sơ đồ: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Đặt tab header có nút đóng. */
+    private void makeTabClosable(javax.swing.JTabbedPane tabs, int index, String title, Runnable onClose) {
+        JPanel tabHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
+        tabHeader.setOpaque(false);
+        JLabel lbl = new JLabel(title);
+        javax.swing.JButton btn = new javax.swing.JButton("x");
+        btn.setMargin(new java.awt.Insets(0, 4, 0, 4));
+        btn.setBorder(javax.swing.BorderFactory.createEmptyBorder());
+        btn.setFocusable(false);
+        btn.addActionListener(e -> {
+            try {
+                if (onClose != null)
+                    onClose.run();
+            } catch (Exception ignore) {
+            }
+        });
+        tabHeader.add(lbl);
+        tabHeader.add(btn);
+        tabs.setTabComponentAt(index, tabHeader);
+    }
+
+    /** Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại. */
+    private void showSoDoTabForNoiDung(Integer idNoiDung) {
+        if (soDoThiDauFrame == null)
+            return;
+        if (soDoTabbedPane == null)
+            return;
+        if (idNoiDung == null) {
+            soDoThiDauFrame.setVisible(true);
+            soDoThiDauFrame.toFront();
+            soDoThiDauFrame.requestFocus();
+            return;
+        }
+        // Tìm index tab theo panel map
+        com.example.btms.ui.bracket.SoDoThiDauPanel target = soDoPanelsByNoiDung.get(idNoiDung);
+        if (target != null) {
+            int count = soDoTabbedPane.getTabCount();
+            for (int i = 0; i < count; i++) {
+                if (soDoTabbedPane.getComponentAt(i) == target) {
+                    soDoTabbedPane.setSelectedIndex(i);
+                    break;
+                }
+            }
+        }
+        // đảm bảo cửa sổ hiện lên
+        soDoThiDauFrame.setVisible(true);
+        soDoThiDauFrame.toFront();
+        soDoThiDauFrame.requestFocus();
     }
 
     /**

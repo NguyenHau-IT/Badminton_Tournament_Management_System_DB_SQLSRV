@@ -53,6 +53,23 @@ public class NoiDungRepository {
         return list;
     }
 
+    public List<NoiDung> findByTournament(Integer idGiai) throws SQLException {
+        List<NoiDung> list = new ArrayList<>();
+        String sql = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM " +
+                "FROM NOI_DUNG nd " +
+                "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
+                "WHERE ctgd.ID_GIAI_DAU = ?";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, idGiai);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next())
+                    list.add(mapResultSetToNoiDung(rs));
+            }
+        }
+        return list;
+    }
+
     public Optional<NoiDung> findById(Integer id) throws SQLException {
         String sql = "SELECT * FROM NOI_DUNG WHERE ID = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {

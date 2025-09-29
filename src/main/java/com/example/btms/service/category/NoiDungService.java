@@ -33,4 +33,8 @@ public class NoiDungService {
     public boolean deleteNoiDung(Integer id) throws SQLException {
         return repository.delete(id);
     }
+
+    public List<NoiDung> getNoiDungByTuornament(Integer idGiai) throws SQLException {
+        return repository.findByTournament(idGiai);
+    }
 }

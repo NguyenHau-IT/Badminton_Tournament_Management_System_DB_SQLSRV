@@ -167,35 +167,35 @@ spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.SQLServerDialect
 
 ### 🚀 Chạy ứng dụng
 
-#### Từ source code:
-```bash
-# Clone repository
+#### Từ source code (Windows CMD):
+```bat
+:: Clone repository
 git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
 cd Badminton_Tournament_Management_System_DB_SQLSRV
 
-# Build và chạy
+:: Build và chạy
 mvn clean package -DskipTests
-java -jar target/btms-2.0.0.jar
+java -jar target\btms-2.0.0.jar
 
-# Hoặc chạy trực tiếp với Maven
+:: Hoặc chạy trực tiếp với Maven
 mvn spring-boot:run
 ```
 
 #### Từ MSI installer:
-```bash
-# Build MSI package
+```bat
+:: Build MSI package
 mvn clean package jpackage:jpackage
 
-# MSI file sẽ được tạo trong target/dist/
-# Cài đặt bằng cách double-click file MSI
+:: MSI file sẽ được tạo trong target\dist\
+:: Cài đặt bằng cách double-click file MSI
 ```
 
 ### 🎛️ Tối ưu JVM (tùy chọn)
-```bash
-# Chạy với memory optimization
+```bat
+:: Chạy với memory optimization
 java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
 
-# Hoặc sử dụng file cấu hình jvm-optimization.conf
+:: Hoặc sử dụng file cấu hình jvm-optimization.conf
 ```
 
 ---
@@ -251,7 +251,7 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
 
 ## 🔌 REST API Documentation
 
-### Base URL
+### Base URL (PIN mode)
 - **Local**: `http://localhost:2345/api/court`
 - **Network**: `http://[YOUR_IP]:2345/api/court`
 
@@ -281,6 +281,27 @@ POST /api/court/{pin}/next          # Next game
 POST /api/court/{pin}/swap          # Swap court ends
 POST /api/court/{pin}/change-server # Change server
 POST /api/court/{pin}/undo          # Undo last action
+```
+
+### Base URL (No-PIN mode)
+- **Local**: `http://localhost:2345/api/scoreboard`
+- **Network**: `http://[YOUR_IP]:2345/api/scoreboard`
+
+### Endpoints (No-PIN mode)
+```http
+GET  /api/scoreboard                # Basic scoreboard info
+GET  /api/scoreboard/sync           # Complete match snapshot
+GET  /api/scoreboard/stream         # SSE stream for real-time updates
+
+POST /api/scoreboard/increaseA      # Increase team A score
+POST /api/scoreboard/decreaseA      # Decrease team A score
+POST /api/scoreboard/increaseB      # Increase team B score
+POST /api/scoreboard/decreaseB      # Decrease team B score
+POST /api/scoreboard/reset          # Reset match
+POST /api/scoreboard/next           # Next game
+POST /api/scoreboard/swap           # Swap court ends
+POST /api/scoreboard/change-server  # Change server
+POST /api/scoreboard/undo           # Undo last action
 ```
 
 ### Response Format
@@ -408,23 +429,23 @@ java -Xmx4g \
 ### 🏗️ Building từ Source
 
 #### Prerequisites
-```bash
-# Java 17+ và Maven 3.6+ required
-java --version    # Kiểm tra Java version
-mvn --version     # Kiểm tra Maven version
+```bat
+:: Java 17+ và Maven 3.6+ required
+java --version    
+mvn --version     
 ```
 
 #### Build Commands
-```bash
-# 1. Clean build (bỏ qua tests)
+```bat
+:: 1. Clean build (bỏ qua tests)
 mvn clean package -DskipTests
 
-# 2. Run tests trước khi build
+:: 2. Run tests trước khi build
 mvn clean test package
 
-# 3. Build với specific profile
-mvn clean package -Pdefault-d  # Với ổ D:
-mvn clean package -Pfallback-c # Không có ổ D:
+:: 3. Build với specific profile
+mvn clean package -Pdefault-d  
+mvn clean package -Pfallback-c 
 ```
 
 ### 📦 MSI Package Creation
@@ -448,13 +469,13 @@ mvn clean package jpackage:jpackage
 ### 🚀 Deployment Options
 
 #### Option 1: JAR Distribution
-```bash
-# Copy file WAR/JAR và required files
-cp target/btms-2.0.0.jar production/
-cp application.properties.copy production/application.properties
-cp jvm-optimization.conf production/
+```bat
+:: Copy file JAR và required files
+copy /Y target\btms-2.0.0.jar production\
+copy /Y application.properties.copy production\application.properties
+copy /Y jvm-optimization.conf production\
 
-# Run trên target machine
+:: Run trên target machine (từ thư mục production)
 java -jar btms-2.0.0.jar
 ```
 
@@ -474,13 +495,13 @@ CMD ["java", "-jar", "app.jar"]
 ### 🔧 Configuration Management
 
 #### Production Configuration
-```bash
-# Copy và edit configuration
-cp application.properties.copy src/main/resources/application.properties
+```bat
+:: Copy và edit configuration
+copy /Y application.properties.copy src\main\resources\application.properties
 
-# Cập nhật database settings
-# Cập nhật server port nếu cần
-# Cập nhật security settings
+:: Cập nhật database settings
+:: Cập nhật server port nếu cần
+:: Cập nhật security settings
 ```
 
 #### Environment-specific Profiles
@@ -501,14 +522,14 @@ server.port=2345
 ### ❗ Các vấn đề thường gặp
 
 #### 1. Không thể khởi động ứng dụng
-```bash
-# Kiểm tra Java version
-java --version  # Cần Java 17+
+```bat
+:: Kiểm tra Java version (cần Java 17+)
+java --version
 
-# Kiểm tra port conflict
+:: Kiểm tra port conflict
 netstat -an | findstr 2345
 
-# Run với debug log
+:: Run với debug log
 java -jar btms-2.0.0.jar --debug
 ```
 
@@ -633,6 +654,7 @@ mvn spring-boot:run
 - [`HUONG_DAN_SU_DUNG.md`](HUONG_DAN_SU_DUNG.md) - Detailed user guide (Vietnamese)
 - [`BAO_CAO_CONG_NGHE_VA_TINH_NANG_v2.md`](BAO_CAO_CONG_NGHE_VA_TINH_NANG_v2.md) - Technical report
 - [`jvm-optimization.conf`](jvm-optimization.conf) - JVM tuning parameters
+- [`SETTINGS.md`](SETTINGS.md) - Cấu hình chi tiết trong ứng dụng (màn hình Settings)
 
 ---
 

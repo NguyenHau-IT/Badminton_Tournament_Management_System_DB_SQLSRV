@@ -1,4 +1,4 @@
-package com.example.btms.ui.draw;
+package com.example.btms.ui.bracket;
 
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
@@ -8,8 +8,8 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.Connection;
@@ -19,34 +19,37 @@ import java.util.Objects;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
-import javax.swing.JToggleButton;
-import javax.swing.JPopupMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-import javax.swing.SwingUtilities;
 import javax.swing.JTable;
+import javax.swing.JToggleButton;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
 import com.example.btms.config.Prefs;
+import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.draw.BocThamDoi;
-import com.example.btms.model.bracket.SoDoDoi;
+import com.example.btms.model.result.KetQuaDoi;
+import com.example.btms.repository.bracket.SoDoCaNhanRepository;
+import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
-import com.example.btms.repository.bracket.SoDoDoiRepository;
+import com.example.btms.repository.draw.BocThamCaNhanRepository;
 import com.example.btms.repository.draw.BocThamDoiRepository;
-import com.example.btms.service.category.NoiDungService;
-import com.example.btms.service.bracket.SoDoDoiService;
-import com.example.btms.service.draw.BocThamDoiService;
-import com.example.btms.service.club.CauLacBoService;
-import com.example.btms.service.team.DoiService;
 import com.example.btms.repository.result.KetQuaDoiRepository;
+import com.example.btms.service.bracket.SoDoCaNhanService;
+import com.example.btms.service.bracket.SoDoDoiService;
+import com.example.btms.service.category.NoiDungService;
+import com.example.btms.service.club.CauLacBoService;
+import com.example.btms.service.draw.BocThamCaNhanService;
+import com.example.btms.service.draw.BocThamDoiService;
 import com.example.btms.service.result.KetQuaDoiService;
-import com.example.btms.model.result.KetQuaDoi;
+import com.example.btms.service.team.DoiService;
 
 /**
  * Trang "Sơ đồ thi đấu" hiển thị bracket loại trực tiếp 16 -> 1 (5 cột)
@@ -84,14 +87,20 @@ public class SoDoThiDauPanel extends JPanel {
     // Track last saved medals to avoid redundant writes during auto-save
     private String lastSavedMedalKey = null;
 
-    // New: load from DB (BocThamDoi)
-    private final JComboBox<NoiDung> cboNoiDung = new JComboBox<>();
+    // Nội dung được chọn (không dùng combobox nữa)
+    private final java.util.List<NoiDung> noiDungList = new java.util.ArrayList<>();
+    private NoiDung selectedNoiDung = null;
     private final JLabel lblGiai = new JLabel();
+    // Remember a pending selection when combo items haven't loaded yet
+    private Integer pendingSelectNoiDungId = null;
+    private final JLabel lblNoiDungValue = new JLabel(); // hiển thị tên nội dung khi dùng chế độ label
 
     // Services
     private final Prefs prefs = new Prefs();
     private final NoiDungService noiDungService;
     private final BocThamDoiService bocThamService;
+    private final BocThamCaNhanService bocThamCaNhanService;
+    private final SoDoCaNhanService soDoCaNhanService;
     private final SoDoDoiService soDoDoiService;
     private final DoiService doiService;
     private final CauLacBoService clbService;
@@ -105,6 +114,8 @@ public class SoDoThiDauPanel extends JPanel {
         this.doiService = new DoiService(conn);
         this.clbService = new CauLacBoService(new CauLacBoRepository((Connection) conn));
         this.ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository((Connection) conn));
+        this.bocThamCaNhanService = new BocThamCaNhanService(new BocThamCaNhanRepository((Connection) conn));
+        this.soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository((Connection) conn));
 
         setLayout(new BorderLayout(8, 8));
         add(buildTop(), BorderLayout.NORTH);
@@ -118,14 +129,62 @@ public class SoDoThiDauPanel extends JPanel {
         });
     }
 
+    /**
+     * Programmatically select a specific Nội dung by its id in the combo box.
+     * If found, it will trigger the existing action listener to reload the bracket.
+     */
+    public void selectNoiDungById(Integer id) {
+        if (id == null)
+            return;
+        for (NoiDung it : noiDungList) {
+            if (it != null && it.getId() != null && it.getId().equals(id)) {
+                selectedNoiDung = it;
+                updateNoiDungLabelText();
+                loadBestAvailable();
+                return;
+            }
+        }
+        // Not found now; remember for when options are (re)loaded
+        pendingSelectNoiDungId = id;
+    }
+
+    /**
+     * Bật/tắt chế độ chỉ-hiển-thị bằng label cho trường Nội dung.
+     * Khi bật, ẩn combobox và hiện label với tên nội dung đang chọn.
+     */
+    public void setNoiDungLabelMode(boolean on) {
+        lblNoiDungValue.setVisible(true);
+        updateNoiDungLabelText();
+        revalidate();
+        repaint();
+    }
+
+    /**
+     * Public method for parent containers to force data reload (e.g., when tab is
+     * selected).
+     */
+    public void reloadData() {
+        try {
+            updateGiaiLabel();
+            loadBestAvailable();
+        } catch (Exception ignore) {
+        }
+    }
+
+    private void updateNoiDungLabelText() {
+        NoiDung nd = selectedNoiDung;
+        String name = (nd != null && nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
+        lblNoiDungValue.setText(name);
+    }
+
     private JPanel buildTop() {
         JPanel p = new JPanel(new BorderLayout());
         JPanel line = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        line.add(new JLabel("Sơ đồ 16 đội"));
         line.add(lblGiai);
         line.add(new JLabel(" | Nội dung:"));
-        cboNoiDung.setPrototypeDisplayValue(new NoiDung(0, "XXXXXXXXXXXXXXXXXXXXX", null, null, null, true));
-        line.add(cboNoiDung);
+        // Luôn dùng label để hiển thị tên nội dung; không hiển thị combobox
+        lblNoiDungValue.setVisible(true);
+        line.add(lblNoiDungValue);
         line.add(btnReloadSaved);
         line.add(btnSeedFromDraw);
         line.add(btnClearAll);
@@ -140,7 +199,6 @@ public class SoDoThiDauPanel extends JPanel {
         btnSeedFromDraw.addActionListener(e -> loadFromBocTham());
         btnClearAll.addActionListener(e -> clearAllSlots());
         btnEdit.addActionListener(e -> canvas.setEditMode(btnEdit.isSelected()));
-        cboNoiDung.addActionListener(e -> loadBestAvailable());
         return p;
     }
 
@@ -161,7 +219,7 @@ public class SoDoThiDauPanel extends JPanel {
 
     private void saveBracket() {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
+        NoiDung nd = selectedNoiDung;
         if (idGiai <= 0 || nd == null) {
             JOptionPane.showMessageDialog(this, "Chưa chọn giải hoặc nội dung", "Thông báo",
                     JOptionPane.WARNING_MESSAGE);
@@ -177,7 +235,6 @@ public class SoDoThiDauPanel extends JPanel {
                 } catch (Exception ignore) {
                 }
             }
-
             // Lưu các ô đang hiển thị (chỉ lưu ô có tên)
             java.time.LocalDateTime now = java.time.LocalDateTime.now();
             for (BracketCanvas.Slot s : canvas.getSlots()) {
@@ -220,17 +277,23 @@ public class SoDoThiDauPanel extends JPanel {
     /* ===================== DB wiring ===================== */
     private void loadNoiDungOptions() {
         try {
-            List<NoiDung> all = noiDungService.getAllNoiDung();
-            java.util.List<NoiDung> doublesOnly = new java.util.ArrayList<>();
-            for (NoiDung nd : all) {
-                if (Boolean.TRUE.equals(nd.getTeam()))
-                    doublesOnly.add(nd);
+            Integer idGiai = prefs.getInt("selectedGiaiDauId", -1);
+            List<NoiDung> all = noiDungService.getNoiDungByTuornament(idGiai);
+            noiDungList.clear();
+            if (all != null)
+                noiDungList.addAll(all);
+            if (!noiDungList.isEmpty())
+                selectedNoiDung = noiDungList.get(0);
+            if (pendingSelectNoiDungId != null) {
+                for (NoiDung it : noiDungList) {
+                    if (it != null && it.getId() != null && it.getId().equals(pendingSelectNoiDungId)) {
+                        selectedNoiDung = it;
+                        break;
+                    }
+                }
+                pendingSelectNoiDungId = null;
             }
-            cboNoiDung.removeAllItems();
-            for (NoiDung nd : doublesOnly)
-                cboNoiDung.addItem(nd);
-            if (cboNoiDung.getItemCount() > 0)
-                cboNoiDung.setSelectedIndex(0);
+            updateNoiDungLabelText();
         } catch (java.sql.SQLException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -249,7 +312,7 @@ public class SoDoThiDauPanel extends JPanel {
 
     private void loadFromBocTham() {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
+        NoiDung nd = selectedNoiDung;
         if (idGiai <= 0 || nd == null) {
             return;
         }
@@ -345,7 +408,7 @@ public class SoDoThiDauPanel extends JPanel {
 
     private boolean loadSavedSoDo() {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
+        NoiDung nd = selectedNoiDung;
         if (idGiai <= 0 || nd == null)
             return false;
         List<SoDoDoi> list;
@@ -501,7 +564,7 @@ public class SoDoThiDauPanel extends JPanel {
     // dialogs.
     private void persistMedals(boolean silent) {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
+        NoiDung nd = selectedNoiDung;
         if (idGiai <= 0 || nd == null) {
             if (!silent) {
                 JOptionPane.showMessageDialog(this, "Chưa chọn giải hoặc nội dung", "Thông báo",
@@ -663,7 +726,7 @@ public class SoDoThiDauPanel extends JPanel {
                             SoDoThiDauPanel.this.updateMedalsFromCanvas();
                             // lưu vào db theo trạng thái hiện tại của panel
                             int idGiai = SoDoThiDauPanel.this.prefs.getInt("selectedGiaiDauId", -1);
-                            NoiDung ndSel = (NoiDung) SoDoThiDauPanel.this.cboNoiDung.getSelectedItem();
+                            NoiDung ndSel = SoDoThiDauPanel.this.selectedNoiDung;
                             if (idGiai > 0 && ndSel != null) {
                                 int idNoiDung = ndSel.getId();
                                 Integer idClb = null;
@@ -719,7 +782,7 @@ public class SoDoThiDauPanel extends JPanel {
                             s.text = "";
                             // Xoá bản ghi trong DB cho ô hiện tại (theo VI_TRI = s.order)
                             int idGiai = SoDoThiDauPanel.this.prefs.getInt("selectedGiaiDauId", -1);
-                            NoiDung ndSel = (NoiDung) SoDoThiDauPanel.this.cboNoiDung.getSelectedItem();
+                            NoiDung ndSel = SoDoThiDauPanel.this.selectedNoiDung;
                             if (idGiai > 0 && ndSel != null) {
                                 try {
                                     SoDoThiDauPanel.this.soDoDoiService.delete(idGiai, ndSel.getId(), s.order);
