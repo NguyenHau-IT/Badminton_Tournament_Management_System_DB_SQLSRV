@@ -125,6 +125,9 @@ public class MainFrame extends JFrame {
     // Left navigation tree
     private JTree navTree;
     private DefaultTreeModel navModel;
+    // Lưu lựa chọn gần nhất dưới mục "Danh sách đăng kí" để dùng cho popup của
+    // chính mục cha
+    private ContentNode lastSelectedRegListContent;
 
     // Icons
     // (Icons kept if later needed for menu entries – currently omitted to simplify)
@@ -542,6 +545,10 @@ public class MainFrame extends JFrame {
         JMenuItem miLogin = new JMenuItem("Đăng nhập...");
         miLogin.addActionListener(e -> forceLoginAndTournamentSelection());
         mSystem.add(miLogin);
+        // Làm mới dữ liệu ứng dụng mà không cần đăng nhập lại/chọn giải lại
+        JMenuItem miRefresh = new JMenuItem("Làm mới dữ liệu");
+        miRefresh.addActionListener(e -> refreshApplicationData());
+        mSystem.add(miRefresh);
         if (currentRole != null) {
             JMenuItem miLogout = new JMenuItem("Đăng xuất");
             miLogout.addActionListener(e -> doLogout());
@@ -623,6 +630,82 @@ public class MainFrame extends JFrame {
         setJMenuBar(mb);
         revalidate();
         repaint();
+    }
+
+    /**
+     * Làm mới dữ liệu toàn ứng dụng dựa trên kết nối và giải hiện tại, không yêu
+     * cầu login/chọn lại.
+     * - Cập nhật TournamentTabPanel connection.
+     * - Yêu cầu các panel tự reload.
+     * - Làm mới cây điều hướng và tiêu đề.
+     */
+    private void refreshApplicationData() {
+        try {
+            // Cập nhật tiêu đề root theo giải đang chọn
+            updateNavigationRootTitleFromSelection();
+            // Cập nhật connection cho panel giải đấu
+            try {
+                tournamentTabPanel.updateConnection();
+            } catch (Throwable ignore) {
+            }
+            // Gọi reload cho các panel quản lý
+            try {
+                if (noiDungPanel != null)
+                    noiDungPanel.requestFocus();
+            } catch (Throwable ignore) {
+            }
+            try {
+                if (cauLacBoPanel != null) {
+                    /* panel tự quản lý reload khi mở */ }
+            } catch (Throwable ignore) {
+            }
+            try {
+                if (vanDongVienPanel != null) {
+                    /* có nút làm mới riêng */ }
+            } catch (Throwable ignore) {
+            }
+            try {
+                if (dangKyNoiDungPanel != null) {
+                    /* có reloadAsync trong panel */ }
+            } catch (Throwable ignore) {
+            }
+            try {
+                if (dangKyDoiPanel != null) {
+                    /* có reload() internal, sẽ reload khi mở lại */ }
+            } catch (Throwable ignore) {
+            }
+            try {
+                if (dangKyCaNhanPanel != null) {
+                    /* có reload() internal */ }
+            } catch (Throwable ignore) {
+            }
+            // Làm mới Nội dung đăng ký hiển thị theo nội dung (nếu đang mở)
+            try {
+                if (contentParticipantsPanel != null)
+                    contentParticipantsPanel.selectNoiDungById(null);
+            } catch (Throwable ignore) {
+            }
+            // Làm mới Sơ đồ thi đấu: tab đang mở reloadData(); danh sách trong cây cũng
+            // được rebuild
+            try {
+                if (soDoTabbedPane != null) {
+                    int count = soDoTabbedPane.getTabCount();
+                    for (int i = 0; i < count; i++) {
+                        java.awt.Component c = soDoTabbedPane.getComponentAt(i);
+                        if (c instanceof com.example.btms.ui.bracket.SoDoThiDauPanel p) {
+                            p.reloadData();
+                        }
+                    }
+                }
+            } catch (Throwable ignore) {
+            }
+            // Làm mới cây điều hướng (bao gồm lọc Sơ đồ theo bốc thăm đã có)
+            rebuildNavigationTree();
+            JOptionPane.showMessageDialog(this, "Đã làm mới dữ liệu.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Throwable ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi làm mới dữ liệu: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**
@@ -728,54 +811,263 @@ public class MainFrame extends JFrame {
             Object comp = navTree.getLastSelectedPathComponent();
             if (!(comp instanceof DefaultMutableTreeNode node))
                 return;
-            if (node.getChildCount() > 0)
-                return; // only handle leaf items
-            Object uo = node.getUserObject();
-            if (uo instanceof ContentNode cn) {
-                DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
-                String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
-                if ("Danh sách đăng kí".equals(parentLabel)) {
-                    if (contentParticipantsPanel != null) {
-                        ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
-                        contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
-                        showView("Danh sách đăng kí");
-                    }
-                } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
-                    // Mở cửa sổ Sơ đồ thi đấu (dạng tabs) và chỉ mở tab cho nội dung được bấm
-                    openSoDoThiDauWindow();
-                    ensureSoDoTab(cn.idNoiDung, cn.label);
-                } else if ("Nội dung của giải".equals(parentLabel)) {
-                    if (dangKyNoiDungPanel != null) {
-                        ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
-                        // Focus the selected nội dung inside the registration panel
-                        try {
-                            dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
-                        } catch (Throwable ignore) {
-                        }
-                        showView("Nội dung của giải");
+            activateNavNode(node);
+            // Ghi nhớ nội dung đang chọn nếu nó nằm dưới "Danh sách đăng kí"
+            try {
+                Object uo = node.getUserObject();
+                if (uo instanceof ContentNode cn) {
+                    DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
+                    String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
+                    if ("Danh sách đăng kí".equals(parentLabel)) {
+                        lastSelectedRegListContent = cn;
                     }
                 }
-                return;
+            } catch (Exception ignore) {
             }
-            if (uo instanceof String label) {
-                // Khi chọn "Sơ đồ thi đấu" trong cây điều hướng, mở cửa sổ tabs
-                if ("Sơ đồ thi đấu".equals(label)) {
-                    openSoDoThiDauWindow();
+        });
+
+        // Cho phép click lại cùng một mục vẫn kích hoạt (khi selection không đổi)
+        navTree.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getButton() != java.awt.event.MouseEvent.BUTTON1)
                     return;
+                int row = navTree.getRowForLocation(e.getX(), e.getY());
+                if (row < 0)
+                    return;
+                javax.swing.tree.TreePath path = navTree.getPathForRow(row);
+                if (path == null)
+                    return;
+                // Chỉ kích hoạt khi click lại đúng node đang được chọn để tránh kích hoạt 2 lần
+                javax.swing.tree.TreePath selected = navTree.getSelectionPath();
+                if (selected == null || !selected.equals(path))
+                    return;
+                Object comp = path.getLastPathComponent();
+                if (comp instanceof DefaultMutableTreeNode node) {
+                    activateNavNode(node);
                 }
-                if ("Bốc thăm thi đấu".equals(label)) {
-                    if (bocThamThiDauPanel != null)
-                        ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+            }
+        });
+
+        // Context menu động theo node được click
+        navTree.addMouseListener(new java.awt.event.MouseAdapter() {
+            private void selectNodeAt(java.awt.event.MouseEvent e) {
+                int row = navTree.getRowForLocation(e.getX(), e.getY());
+                if (row >= 0) {
+                    javax.swing.tree.TreePath path = navTree.getPathForRow(row);
+                    if (path != null)
+                        navTree.setSelectionPath(path);
                 }
-                if (views.containsKey(label))
-                    showView(label);
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                if (e.isPopupTrigger() || javax.swing.SwingUtilities.isRightMouseButton(e)) {
+                    selectNodeAt(e);
+                    showTreeContextMenu(e);
+                }
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    selectNodeAt(e);
+                    showTreeContextMenu(e);
+                }
             }
         });
 
         JScrollPane sp = new JScrollPane(navTree);
+        // Header với nút Mở rộng/Thu gọn tất cả
+        javax.swing.JPanel header = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+        header.setOpaque(false);
+        javax.swing.JButton btnExpandAll = new javax.swing.JButton("Mở rộng");
+        javax.swing.JButton btnCollapseAll = new javax.swing.JButton("Thu gọn");
+        btnExpandAll.setFocusable(false);
+        btnCollapseAll.setFocusable(false);
+        btnExpandAll.setToolTipText("Mở rộng tất cả các mục");
+        btnCollapseAll.setToolTipText("Thu gọn tất cả các mục");
+        btnExpandAll.addActionListener(e -> {
+            try {
+                int i = 0;
+                while (i < navTree.getRowCount()) {
+                    navTree.expandRow(i);
+                    i++;
+                }
+            } catch (Exception ignore) {
+            }
+        });
+        btnCollapseAll.addActionListener(e -> {
+            try {
+                // Thu gọn từ dưới lên, giữ root
+                for (int i = navTree.getRowCount() - 1; i >= 1; i--) {
+                    navTree.collapseRow(i);
+                }
+            } catch (Exception ignore) {
+            }
+        });
+        header.add(btnExpandAll);
+        header.add(btnCollapseAll);
+        sp.setColumnHeaderView(header);
         sp.setPreferredSize(new java.awt.Dimension(240, 10));
         rebuildNavigationTree();
         return sp;
+    }
+
+    /** Hiển thị menu chuột phải theo node hiện tại trong cây điều hướng. */
+    private void showTreeContextMenu(java.awt.event.MouseEvent e) {
+        try {
+            javax.swing.tree.TreePath selPath = navTree.getSelectionPath();
+            if (selPath == null)
+                return;
+            Object last = selPath.getLastPathComponent();
+            if (!(last instanceof DefaultMutableTreeNode node))
+                return;
+            Object uo = node.getUserObject();
+            javax.swing.JPopupMenu pm = new javax.swing.JPopupMenu();
+
+            if (uo instanceof ContentNode cn) {
+                // Với mỗi nội dung: "Bốc thăm, lưu và mở sơ đồ"
+                javax.swing.JMenuItem mi = new javax.swing.JMenuItem("Bốc thăm, lưu và mở sơ đồ");
+                mi.addActionListener(ev -> doAutoDrawSaveAndOpenForContent(cn));
+                pm.add(mi);
+            } else if (uo instanceof String label) {
+                if ("Danh sách đăng kí".equals(label)) {
+                    javax.swing.JMenuItem mi1 = new javax.swing.JMenuItem("Bốc thăm theo nội dung đang chọn");
+                    mi1.setEnabled(lastSelectedRegListContent != null);
+                    mi1.addActionListener(ev -> {
+                        if (lastSelectedRegListContent == null)
+                            return;
+                        try {
+                            boolean ok = doAutoDrawSave(lastSelectedRegListContent.idNoiDung);
+                            if (ok) {
+                                rebuildNavigationTree();
+                                JOptionPane.showMessageDialog(this, "Đã bốc thăm: " + lastSelectedRegListContent.label,
+                                        "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                            }
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    pm.add(mi1);
+
+                    javax.swing.JMenuItem mi2 = new javax.swing.JMenuItem("Bốc thăm tất cả");
+                    mi2.addActionListener(ev -> {
+                        try {
+                            int okCount = 0;
+                            for (int i = 0; i < node.getChildCount(); i++) {
+                                Object ch = node.getChildAt(i);
+                                if (ch instanceof DefaultMutableTreeNode cnode) {
+                                    Object cuo = cnode.getUserObject();
+                                    if (cuo instanceof ContentNode ccn) {
+                                        if (doAutoDrawSave(ccn.idNoiDung))
+                                            okCount++;
+                                    }
+                                }
+                            }
+                            rebuildNavigationTree();
+                            JOptionPane.showMessageDialog(this, "Đã bốc thăm " + okCount + " nội dung.", "Hoàn tất",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    pm.add(mi2);
+                }
+                // Thêm menu cho nút phải tại mục "Đăng ký đội" để xuất PDF
+                if ("Đăng ký đội".equals(label)) {
+                    pm.addSeparator();
+                    javax.swing.JMenu mExport = new javax.swing.JMenu("Xuất danh sách đăng ký (PDF)");
+                    javax.swing.JMenuItem miAll = new javax.swing.JMenuItem("Tất cả");
+                    miAll.addActionListener(ev -> doExportTeamRegistrationsPdf(ExportMode.ALL));
+                    javax.swing.JMenuItem miByClub = new javax.swing.JMenuItem("Theo CLB");
+                    miByClub.addActionListener(ev -> doExportTeamRegistrationsPdf(ExportMode.BY_CLUB));
+                    javax.swing.JMenuItem miByContent = new javax.swing.JMenuItem("Theo nội dung");
+                    miByContent.addActionListener(ev -> doExportTeamRegistrationsPdf(ExportMode.BY_CONTENT));
+                    mExport.add(miAll);
+                    mExport.add(miByClub);
+                    mExport.add(miByContent);
+                    pm.add(mExport);
+                }
+            }
+
+            if (pm.getComponentCount() > 0)
+                pm.show(navTree, e.getX(), e.getY());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không thể hiển thị menu: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Bốc thăm + lưu (không mở sơ đồ). Trả về true nếu thành công. */
+    private boolean doAutoDrawSave(int idNoiDung) throws Exception {
+        Connection conn = (service != null) ? service.current() : null;
+        if (conn == null) {
+            JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        int idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId()
+                : new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        var ndOpt = new NoiDungService(new NoiDungRepository(conn)).getNoiDungById(idNoiDung);
+        boolean isTeam = ndOpt.isPresent() && Boolean.TRUE.equals(ndOpt.get().getTeam());
+
+        if (isTeam) {
+            var doiSvc = new com.example.btms.service.team.DangKiDoiService(
+                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
+            var bocSvc = new com.example.btms.service.draw.BocThamDoiService(
+                    conn, new com.example.btms.repository.draw.BocThamDoiRepository(conn));
+            java.util.List<com.example.btms.model.team.DangKiDoi> teams = doiSvc.listTeams(idGiai, idNoiDung);
+            java.util.Collections.shuffle(teams);
+            java.util.List<com.example.btms.model.draw.BocThamDoi> rows = new java.util.ArrayList<>();
+            for (int i = 0; i < teams.size(); i++) {
+                var t = teams.get(i);
+                Integer idClb = t.getIdCauLacBo();
+                rows.add(new com.example.btms.model.draw.BocThamDoi(idGiai, idNoiDung,
+                        idClb == null ? 0 : idClb, t.getTenTeam(), i, 1));
+            }
+            bocSvc.resetWithOrder(idGiai, idNoiDung, rows);
+        } else {
+            var dkSvc = new com.example.btms.service.player.DangKiCaNhanService(
+                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+            var bocSvc = new com.example.btms.service.draw.BocThamCaNhanService(
+                    new com.example.btms.repository.draw.BocThamCaNhanRepository(conn));
+            var regs = dkSvc.listByGiaiAndNoiDung(idGiai, idNoiDung);
+            java.util.Collections.shuffle(regs);
+            var existed = bocSvc.list(idGiai, idNoiDung);
+            for (var r : existed)
+                bocSvc.delete(idGiai, idNoiDung, r.getIdVdv());
+            for (int i = 0; i < regs.size(); i++) {
+                var r = regs.get(i);
+                bocSvc.create(idGiai, idNoiDung, r.getIdVdv(), i, 1);
+            }
+        }
+        return true;
+    }
+
+    /** Bốc thăm + lưu và mở sơ đồ, auto seed + lưu sơ đồ. */
+    private void doAutoDrawSaveAndOpenForContent(ContentNode cn) {
+        try {
+            if (!doAutoDrawSave(cn.idNoiDung))
+                return;
+            openSoDoThiDauWindow();
+            ensureSoDoTab(cn.idNoiDung, cn.label);
+            com.example.btms.ui.bracket.SoDoThiDauPanel p = soDoPanelsByNoiDung.get(cn.idNoiDung);
+            if (p != null) {
+                p.selectNoiDungById(cn.idNoiDung);
+                p.autoSeedFromDrawAndSave();
+            }
+            rebuildNavigationTree();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không thể thực hiện: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /** Recreate the tree nodes according to current role and available views. */
@@ -838,7 +1130,6 @@ public class MainFrame extends JFrame {
 
             // 3) Bốc thăm
             DefaultMutableTreeNode draw = new DefaultMutableTreeNode("Bốc thăm");
-            draw.add(new DefaultMutableTreeNode("Bốc thăm thi đấu"));
             // Sơ đồ thi đấu + xổ danh sách nội dung của giải
             DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
             try {
@@ -847,11 +1138,36 @@ public class MainFrame extends JFrame {
                     java.util.Map<String, Integer>[] maps = repo.loadCategories();
                     java.util.Map<String, Integer> singles = maps[0];
                     java.util.Map<String, Integer> doubles = maps[1];
+
+                    // Chỉ hiển thị các nội dung đã có bốc thăm rồi
+                    int idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : -1;
+                    var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
+                            service.current(),
+                            new com.example.btms.repository.draw.BocThamDoiRepository(service.current()));
+                    var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
+                            new com.example.btms.repository.draw.BocThamCaNhanRepository(service.current()));
+
+                    // Cá nhân
                     for (var entry : singles.entrySet()) {
-                        soDoNode.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                        try {
+                            var list = bocThamCaNhanSvc.list(idGiai, entry.getValue());
+                            if (list != null && !list.isEmpty()) {
+                                soDoNode.add(
+                                        new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                            }
+                        } catch (Exception ignore2) {
+                        }
                     }
+                    // Đội/Đôi
                     for (var entry : doubles.entrySet()) {
-                        soDoNode.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                        try {
+                            var list = bocThamDoiSvc.list(idGiai, entry.getValue());
+                            if (list != null && !list.isEmpty()) {
+                                soDoNode.add(
+                                        new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                            }
+                        } catch (Exception ignore2) {
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -869,6 +1185,54 @@ public class MainFrame extends JFrame {
         navModel.reload();
         for (int i = 0; i < navTree.getRowCount(); i++) {
             navTree.expandRow(i);
+        }
+    }
+
+    /**
+     * Kích hoạt hành động cho một node trong cây điều hướng (dùng chung cho
+     * listener & mouse).
+     */
+    private void activateNavNode(DefaultMutableTreeNode node) {
+        if (node == null)
+            return;
+        if (node.getChildCount() > 0)
+            return; // chỉ xử lý leaf items
+        Object uo = node.getUserObject();
+        if (uo instanceof ContentNode cn) {
+            DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
+            String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
+            if ("Danh sách đăng kí".equals(parentLabel)) {
+                if (contentParticipantsPanel != null) {
+                    ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
+                    contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
+                    showView("Danh sách đăng kí");
+                }
+            } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
+                openSoDoThiDauWindow();
+                ensureSoDoTab(cn.idNoiDung, cn.label);
+            } else if ("Nội dung của giải".equals(parentLabel)) {
+                if (dangKyNoiDungPanel != null) {
+                    ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
+                    try {
+                        dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
+                    } catch (Throwable ignore) {
+                    }
+                    showView("Nội dung của giải");
+                }
+            }
+            return;
+        }
+        if (uo instanceof String label) {
+            if ("Sơ đồ thi đấu".equals(label)) {
+                openSoDoThiDauWindow();
+                return;
+            }
+            if ("Bốc thăm thi đấu".equals(label)) {
+                if (bocThamThiDauPanel != null)
+                    ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+            }
+            if (views.containsKey(label))
+                showView(label);
         }
     }
 
@@ -1193,6 +1557,63 @@ public class MainFrame extends JFrame {
         soDoThiDauFrame.setVisible(true);
         soDoThiDauFrame.toFront();
         soDoThiDauFrame.requestFocus();
+    }
+
+    /* -------------------- Export đăng ký đội (PDF) -------------------- */
+    private enum ExportMode {
+        ALL, BY_CLUB, BY_CONTENT
+    }
+
+    private void doExportTeamRegistrationsPdf(ExportMode mode) {
+        try {
+            Connection conn = (service != null) ? service.current() : null;
+            if (conn == null) {
+                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            int idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId()
+                    : new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+            if (idGiai <= 0) {
+                JOptionPane.showMessageDialog(this, "Chưa chọn giải.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            String giaiName = (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null)
+                    ? selectedGiaiDau.getTenGiai()
+                    : "Giải đấu";
+
+            javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+            fc.setDialogTitle("Xuất PDF danh sách đăng ký đội");
+            fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF", "pdf"));
+            String baseName = switch (mode) {
+                case ALL -> "dangky-doi_all";
+                case BY_CLUB -> "dangky-doi_theo-clb";
+                case BY_CONTENT -> "dangky-doi_theo-noidung";
+            };
+            fc.setSelectedFile(new java.io.File(baseName + ".pdf"));
+            int r = fc.showSaveDialog(this);
+            if (r != javax.swing.JFileChooser.APPROVE_OPTION)
+                return;
+            java.io.File f = fc.getSelectedFile();
+            if (f == null)
+                return;
+            if (!f.getName().toLowerCase().endsWith(".pdf")) {
+                f = new java.io.File(f.getAbsolutePath() + ".pdf");
+            }
+
+            switch (mode) {
+                case ALL ->
+                    com.example.btms.util.report.TeamRegistrationPdfExporter.exportAll(conn, idGiai, f, giaiName);
+                case BY_CLUB ->
+                    com.example.btms.util.report.TeamRegistrationPdfExporter.exportByClub(conn, idGiai, f, giaiName);
+                case BY_CONTENT ->
+                    com.example.btms.util.report.TeamRegistrationPdfExporter.exportByNoiDung(conn, idGiai, f, giaiName);
+            }
+            JOptionPane.showMessageDialog(this, "Đã xuất: " + f.getAbsolutePath(), "Thành công",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Xuất PDF thất bại: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**

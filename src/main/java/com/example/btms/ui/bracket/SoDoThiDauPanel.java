@@ -131,11 +131,11 @@ public class SoDoThiDauPanel extends JPanel {
         add(new JScrollPane(canvas), BorderLayout.CENTER);
         add(buildRightPanel(), BorderLayout.EAST);
         setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
-        SwingUtilities.invokeLater(() -> {
-            loadNoiDungOptions();
-            updateGiaiLabel();
-            loadBestAvailable();
-        });
+        // Load ngay (đồng bộ) để tránh race khi caller gọi selectNoiDungById rồi
+        // auto-save
+        loadNoiDungOptions();
+        updateGiaiLabel();
+        loadBestAvailable();
     }
 
     /**
@@ -177,6 +177,26 @@ public class SoDoThiDauPanel extends JPanel {
             updateGiaiLabel();
             loadBestAvailable();
         } catch (Exception ignore) {
+        }
+    }
+
+    /**
+     * Tự động nạp sơ đồ từ dữ liệu bốc thăm và lưu ngay vào CSDL.
+     * Dùng cho workflow tự động (chuột phải ở cây điều hướng).
+     */
+    public void autoSeedFromDrawAndSave() {
+        try {
+            // Nếu nội dung chưa sẵn sàng (vừa được set pending), cố gắng nạp lại ngay
+            if (selectedNoiDung == null && pendingSelectNoiDungId != null) {
+                loadNoiDungOptions();
+            }
+            loadFromBocTham();
+            saveBracket();
+        } catch (Throwable ex) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Không thể tự động tạo & lưu sơ đồ: " + ex.getMessage(),
+                    "Lỗi",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -250,9 +270,13 @@ public class SoDoThiDauPanel extends JPanel {
                 java.time.LocalDateTime now = java.time.LocalDateTime.now();
                 for (BracketCanvas.Slot s : canvas.getSlots()) {
                     if (s.text != null && !s.text.isBlank()) {
+                        // Hiển thị đang ở dạng "TEN_TEAM - TEN_CLB" => tách lấy TEN_TEAM để tra ID_CLB
+                        String teamName = extractTeamNameFromDisplay(s.text.trim());
                         Integer idClb = null;
                         try {
-                            idClb = doiService.getIdClbByTeamName(s.text.trim(), idNoiDung, idGiai);
+                            int found = doiService.getIdClbByTeamName(teamName, idNoiDung, idGiai);
+                            if (found > 0)
+                                idClb = found;
                         } catch (RuntimeException ignored) {
                         }
                         Integer soDo = s.col;
@@ -529,6 +553,7 @@ public class SoDoThiDauPanel extends JPanel {
                     canvas.setTextOverride(slot.col, slot.thuTu, r.getTenTeam());
                 }
             }
+            canvas.refreshAfterOverrides();
             canvas.repaint();
             updateMedalsFromCanvas();
             return true;
@@ -563,6 +588,7 @@ public class SoDoThiDauPanel extends JPanel {
                     canvas.setTextOverride(slot.col, slot.thuTu, display);
                 }
             }
+            canvas.refreshAfterOverrides();
             canvas.repaint();
             updateMedalsFromCanvas();
             return true;
@@ -570,10 +596,12 @@ public class SoDoThiDauPanel extends JPanel {
     }
 
     private void loadBestAvailable() {
-        if (!loadSavedSoDo()) {
+        boolean have = loadSavedSoDo();
+        if (!have) {
             loadFromBocTham();
         }
         updateMedalsFromCanvas();
+        canvas.repaint();
     }
 
     private void clearAllSlots() {
@@ -844,10 +872,7 @@ public class SoDoThiDauPanel extends JPanel {
     }
 
     private KetQuaDoi buildKetQua(int idGiai, int idNoiDung, String teamDisplay, int thuHang) {
-        String teamName = teamDisplay;
-        int sep = teamDisplay.indexOf(" - ");
-        if (sep >= 0)
-            teamName = teamDisplay.substring(0, sep).trim();
+        String teamName = extractTeamNameFromDisplay(teamDisplay);
         Integer idClb = null;
         try {
             idClb = doiService.getIdClbByTeamName(teamName, idNoiDung, idGiai);
@@ -857,6 +882,16 @@ public class SoDoThiDauPanel extends JPanel {
             throw new IllegalStateException("Không xác định được CLB cho đội: " + teamDisplay);
         }
         return new KetQuaDoi(idGiai, idNoiDung, idClb, teamDisplay, thuHang);
+    }
+
+    private String extractTeamNameFromDisplay(String display) {
+        if (display == null)
+            return "";
+        String teamName = display.trim();
+        int sep = teamName.indexOf(" - ");
+        if (sep >= 0)
+            teamName = teamName.substring(0, sep).trim();
+        return teamName;
     }
 
     private Integer resolveVdvIdFromDisplay(java.util.Map<String, Integer> nameToId, String display) {
@@ -882,6 +917,7 @@ public class SoDoThiDauPanel extends JPanel {
         private static final int BASE_INNER_RIGHT_OFFSET = 40; // px mỗi cột
         // Giảm khoảng trống phía trên (trước đây dùng 62)
         private static final int START_Y = 10; // px
+        // Canvas width will be expanded dynamically based on the longest name
 
         private List<String> participants = new ArrayList<>(); // tên tại cột seedColumn
         private int seedColumn = 1; // cột sẽ hiển thị danh sách ban đầu (1..5)
@@ -963,9 +999,12 @@ public class SoDoThiDauPanel extends JPanel {
                                 if (Boolean.TRUE.equals(ndSel.getTeam())) {
                                     Integer idClb = null;
                                     try {
-                                        idClb = SoDoThiDauPanel.this.doiService.getIdClbByTeamName(s.text.trim(),
-                                                idNoiDung,
-                                                idGiai);
+                                        String teamName = SoDoThiDauPanel.this
+                                                .extractTeamNameFromDisplay(s.text.trim());
+                                        int found = SoDoThiDauPanel.this.doiService.getIdClbByTeamName(teamName,
+                                                idNoiDung, idGiai);
+                                        if (found > 0)
+                                            idClb = found;
                                     } catch (RuntimeException ignored) {
                                     }
                                     Integer soDo = parent.col;
@@ -1075,6 +1114,11 @@ public class SoDoThiDauPanel extends JPanel {
             return slots;
         }
 
+        void refreshAfterOverrides() {
+            // Rebuild slots so newly set overrides are reflected in cached Slot.text
+            rebuildSlots();
+        }
+
         Slot findByOrder(int order) {
             for (Slot s : slots) {
                 if (s.order == order)
@@ -1131,8 +1175,21 @@ public class SoDoThiDauPanel extends JPanel {
                     slots.add(s);
                 }
             }
-            // Cập nhật preferred size dựa trên xa nhất
-            int maxX = 35 + (COLUMNS - 1) * 160 + CELL_WIDTH + 40;
+            // Cập nhật preferred size dựa trên xa nhất, gồm cả phần tràn tên ở bên phải
+            int baseMaxX = 35 + (COLUMNS - 1) * 160 + CELL_WIDTH + 40;
+            int fontSize = getBracketNameFontSize();
+            Font f = getFont().deriveFont(Font.PLAIN, (float) fontSize);
+            java.awt.FontMetrics fm = getFontMetrics(f);
+            int maxRight = baseMaxX;
+            for (Slot s : slots) {
+                if (s.text != null && !s.text.isBlank()) {
+                    int textW = fm.stringWidth(s.text);
+                    int right = s.x + 10 + textW; // x + padding + text width
+                    if (right > maxRight)
+                        maxRight = right;
+                }
+            }
+            int maxX = Math.max(baseMaxX, maxRight + 40); // thêm 40px để có khoảng trống
             int lastColSpots = SPOTS[0];
             int maxY = START_Y + (lastColSpots) * (40) + 400; // dư chút để scroll
             setPreferredSize(new Dimension(maxX, maxY));
@@ -1162,16 +1219,30 @@ public class SoDoThiDauPanel extends JPanel {
             for (Slot s : slots) {
                 int w = CELL_WIDTH;
                 int h = CELL_HEIGHT;
+                // Fill with light background
                 g2.setColor(new Color(250, 250, 250));
                 g2.fillRoundRect(s.x, s.y, w, h, 8, 8);
+                // Draw border on three sides (left, top, bottom) — remove right border
                 g2.setColor(new Color(120, 120, 120));
-                g2.drawRoundRect(s.x, s.y, w, h, 8, 8);
+                // top
+                g2.drawLine(s.x, s.y, s.x + w, s.y);
+                // bottom
+                g2.drawLine(s.x, s.y + h, s.x + w, s.y + h);
+                // left
+                g2.drawLine(s.x, s.y, s.x, s.y + h);
                 // Text (ẩn số thứ tự slot để gọn gàng)
                 if (s.text != null && !s.text.isBlank()) {
                     g2.setColor(Color.BLACK);
-                    String txt = truncate(s.text, 28); // cho phép tên dài hơn vì ô rộng hơn
-                    // Căn trái vừa phải trong ô
-                    g2.drawString(txt, s.x + 10, s.y + 18);
+                    // Đọc cỡ chữ từ prefs (10..24), mặc định 12
+                    int fontSize = getBracketNameFontSize();
+                    Font nameFont = getFont().deriveFont(Font.PLAIN, (float) fontSize);
+                    g2.setFont(nameFont);
+                    // Hiển thị toàn bộ tên, cho phép tràn ra ngoài ô (không dùng …)
+                    String txt = s.text;
+                    // baseline y: padding top 6 + ascent
+                    int ascent = g2.getFontMetrics().getAscent();
+                    int textY = s.y + Math.max(18, 6 + ascent);
+                    g2.drawString(txt, s.x + 10, textY);
                 }
             }
 
@@ -1186,20 +1257,30 @@ public class SoDoThiDauPanel extends JPanel {
                     Slot parent = find(col + 1, t / 2);
                     if (a == null || b == null || parent == null)
                         continue;
-                    int ax = a.x + CELL_WIDTH;
+                    int rx = a.x + CELL_WIDTH; // right edge of child slots (same for a and b)
                     int ay = a.y + CELL_HEIGHT / 2;
-                    int bx = b.x + CELL_WIDTH;
                     int by = b.y + CELL_HEIGHT / 2;
                     int px = parent.x;
                     int py = parent.y + CELL_HEIGHT / 2;
-                    // ngang phải của a -> mid -> xuống/up -> ngang tới parent
-                    int midX = ax + 20;
-                    g2.drawLine(ax, ay, midX, ay);
-                    g2.drawLine(bx, by, midX, by);
-                    // dọc nối hai nhánh
-                    g2.drawLine(midX, ay, midX, by);
-                    // sang parent
-                    g2.drawLine(midX, (ay + by) / 2, px, py);
+                    int yTop = Math.min(ay, by);
+                    int yBot = Math.max(ay, by);
+                    int midY = (ay + by) / 2;
+                    // Vertical spine at the right edge of child slots, trimmed 15px at both ends
+                    int trim = 15;
+                    int vTop = yTop + trim;
+                    int vBot = yBot - trim;
+                    if (vBot < vTop) { // guard in case spacing is too tight
+                        int m = (yTop + yBot) / 2;
+                        vTop = m;
+                        vBot = m;
+                    }
+                    g2.drawLine(rx, vTop, rx, vBot);
+                    // Single horizontal from spine to the parent's x at the middle Y
+                    g2.drawLine(rx, midY, px, midY);
+                    // Short vertical at the parent side to meet parent's center
+                    if (py != midY) {
+                        g2.drawLine(px, Math.min(py, midY), px, Math.max(py, midY));
+                    }
                 }
             }
 
@@ -1214,10 +1295,39 @@ public class SoDoThiDauPanel extends JPanel {
             return null;
         }
 
-        private String truncate(String s, int max) {
+        private String truncateToFit(Graphics2D g2, String s, int maxWidth) {
             if (s == null)
                 return "";
-            return s.length() <= max ? s : s.substring(0, max - 1) + "…";
+            String text = s;
+            var fm = g2.getFontMetrics();
+            if (fm.stringWidth(text) <= maxWidth)
+                return text;
+            String ell = "…";
+            int low = 0, high = text.length();
+            while (low < high) {
+                int mid = (low + high + 1) >>> 1;
+                String candidate = text.substring(0, mid) + ell;
+                if (fm.stringWidth(candidate) <= maxWidth)
+                    low = mid;
+                else
+                    high = mid - 1;
+            }
+            if (low <= 0)
+                return ell; // quá hẹp
+            return text.substring(0, low) + ell;
+        }
+
+        private int getBracketNameFontSize() {
+            try {
+                int v = SoDoThiDauPanel.this.prefs.getInt("bracket.nameFontSize", 12);
+                if (v < 10)
+                    v = 10;
+                if (v > 24)
+                    v = 24;
+                return v;
+            } catch (RuntimeException ignore) {
+                return 12;
+            }
         }
     }
 }

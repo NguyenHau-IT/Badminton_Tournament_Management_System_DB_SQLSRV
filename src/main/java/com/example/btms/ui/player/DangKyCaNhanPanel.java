@@ -65,6 +65,7 @@ public class DangKyCaNhanPanel extends JPanel {
     private final JButton btnAdd = new JButton("Thêm");
     private final JButton btnEdit = new JButton("Sửa");
     private final JButton btnDelete = new JButton("Xóa");
+    private final JButton btnTransfer = new JButton("Chuyển nội dung");
     private final JLabel lblCount = new JLabel("0 đăng ký");
     private final javax.swing.JTextField txtSearch = new javax.swing.JTextField(14);
     private final JComboBox<String> cboFilterField = new JComboBox<>(new String[] { "Nội dung", "VĐV" });
@@ -97,6 +98,7 @@ public class DangKyCaNhanPanel extends JPanel {
         row2.add(btnAdd);
         row2.add(btnEdit);
         row2.add(btnDelete);
+        row2.add(btnTransfer);
         top.add(row1, BorderLayout.NORTH);
         top.add(row2, BorderLayout.CENTER);
 
@@ -109,6 +111,7 @@ public class DangKyCaNhanPanel extends JPanel {
         btnAdd.addActionListener(e -> onAdd());
         btnEdit.addActionListener(e -> onEdit());
         btnDelete.addActionListener(e -> onDelete());
+        btnTransfer.addActionListener(e -> onOpenTransferDialog());
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -316,5 +319,70 @@ public class DangKyCaNhanPanel extends JPanel {
             }
         } catch (Exception ignored) {
         }
+    }
+
+    // Load danh sách nội dung ĐƠN đã đăng ký từ CHI_TIET_GIAI_DAU
+    private java.util.List<NoiDung> loadRegisteredSinglesCategories() throws java.sql.SQLException {
+        java.util.List<NoiDung> singles = new java.util.ArrayList<>();
+        var repo = new NoiDungRepository(conn);
+        java.util.Map<String, Integer>[] maps = repo.loadCategories(); // [0]=singles
+        java.util.Set<Integer> singleIds = new java.util.LinkedHashSet<>(maps[0].values());
+        for (NoiDung nd : noiDungService.getAllNoiDung()) {
+            if (nd.getId() != null && singleIds.contains(nd.getId()) && !Boolean.TRUE.equals(nd.getTeam())) {
+                singles.add(nd);
+            }
+        }
+        singles.sort(java.util.Comparator.comparing(NoiDung::getId));
+        return singles;
+    }
+
+    private void onOpenTransferDialog() {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+            return;
+        }
+        java.util.List<NoiDung> categories;
+        try {
+            categories = loadRegisteredSinglesCategories();
+        } catch (java.sql.SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
+            return;
+        }
+        if (categories.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Không có nội dung ĐƠN đã đăng ký.");
+            return;
+        }
+        // ưu tiên lấy ND từ filter đang chọn, nếu null thì lấy theo dòng đang chọn,
+        // else lấy phần tử đầu
+        NoiDung initial = (NoiDung) cboNoiDungFilter.getSelectedItem();
+        if (initial == null && table.getSelectedRow() >= 0) {
+            int mRow = table.convertRowIndexToModel(table.getSelectedRow());
+            Integer idNd = (Integer) model.getValueAt(mRow, 1);
+            for (NoiDung nd : categories) {
+                if (nd.getId() != null && nd.getId().equals(idNd)) {
+                    initial = nd;
+                    break;
+                }
+            }
+        }
+        if (initial == null)
+            initial = categories.get(0);
+
+        com.example.btms.ui.category.ChangeCategoryTransferDialog dlg = new com.example.btms.ui.category.ChangeCategoryTransferDialog(
+                javax.swing.SwingUtilities.getWindowAncestor(this),
+                prefs,
+                false, // singles mode
+                categories,
+                initial,
+                // singles services
+                dkService,
+                vdvService,
+                // teams services (unused in singles mode)
+                null,
+                null,
+                clbService,
+                this::reload);
+        dlg.setVisible(true);
     }
 }

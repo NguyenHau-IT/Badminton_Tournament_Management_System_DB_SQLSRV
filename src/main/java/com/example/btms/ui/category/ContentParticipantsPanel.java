@@ -35,6 +35,7 @@ import com.example.btms.repository.team.DangKiDoiRepository;
 import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.player.VanDongVienService;
+import com.example.btms.service.player.DangKiCaNhanService;
 import com.example.btms.service.team.ChiTietDoiService;
 import com.example.btms.service.team.DangKiDoiService;
 import com.example.btms.ui.team.DangKyDoiDialog;
@@ -49,6 +50,7 @@ public class ContentParticipantsPanel extends JPanel {
     private final Connection conn; // lưu lại connection để dùng cho dialog & repo trực tiếp
     private final NoiDungService noiDungService;
     private final VanDongVienService vdvService;
+    private final DangKiCaNhanService dkCaNhanService;
     private final DangKiDoiService doiService;
     private final ChiTietDoiService chiTietDoiService;
     private final CauLacBoService clbService;
@@ -69,12 +71,15 @@ public class ContentParticipantsPanel extends JPanel {
     private final JButton btnReload = new JButton("Tải lại");
     private final javax.swing.JTextField txtSearch = new javax.swing.JTextField(16);
     private final JButton btnEditTeam = new JButton("Sửa đội");
-    private final JButton btnChangeCategory = new JButton("Đổi nội dung đội");
+    private final JButton btnDelete = new JButton("Xóa");
+    private final JButton btnTransfer = new JButton("Chuyển nội dung");
 
     public ContentParticipantsPanel(Connection conn) {
         this.conn = conn;
         this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
         this.vdvService = new VanDongVienService(new VanDongVienRepository(conn));
+        this.dkCaNhanService = new DangKiCaNhanService(
+                new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
         // dùng 2 instance repo team (độc lập) vì service cần
         DangKiDoiRepository doiRepo = new DangKiDoiRepository(conn);
         this.doiService = new DangKiDoiService(doiRepo);
@@ -117,8 +122,10 @@ public class ContentParticipantsPanel extends JPanel {
         line.add(cboNoiDung);
         line.add(btnReload);
         btnReload.addActionListener(e -> reloadParticipants());
+        // Nhóm thao tác chính: Chuyển ND (mới), Sửa đội (chỉ ĐÔI), Xóa
+        line.add(btnTransfer);
         line.add(btnEditTeam);
-        line.add(btnChangeCategory);
+        line.add(btnDelete);
         line.add(new JLabel("Tìm:"));
         line.add(txtSearch);
         line.add(lblInfo);
@@ -141,7 +148,9 @@ public class ContentParticipantsPanel extends JPanel {
         p.add(line, BorderLayout.CENTER);
         p.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
         btnEditTeam.addActionListener(e -> onEditTeam());
-        btnChangeCategory.addActionListener(e -> onChangeCategory());
+        btnTransfer.addActionListener(e -> onOpenTransferDialog());
+        btnDelete.addActionListener(e -> onDelete());
+        // Both singles/team change actions will open the unified transfer dialog
         updateButtonsState();
         cboNoiDung.addActionListener(e -> {
             reloadParticipants();
@@ -280,7 +289,8 @@ public class ContentParticipantsPanel extends JPanel {
         boolean isDoi = nd != null && Boolean.TRUE.equals(nd.getTeam());
         boolean hasSelection = table.getSelectedRow() >= 0;
         btnEditTeam.setEnabled(isDoi && hasSelection);
-        btnChangeCategory.setEnabled(isDoi && hasSelection);
+        btnDelete.setEnabled(hasSelection);
+        btnTransfer.setEnabled(true);
     }
 
     private void onEditTeam() {
@@ -355,40 +365,7 @@ public class ContentParticipantsPanel extends JPanel {
         reloadParticipants();
     }
 
-    private void onChangeCategory() {
-        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
-        if (nd == null || !Boolean.TRUE.equals(nd.getTeam()))
-            return;
-        int viewRow = table.getSelectedRow();
-        if (viewRow < 0) {
-            JOptionPane.showMessageDialog(this, "Chọn đội cần chuyển nội dung.");
-            return;
-        }
-        int modelRow = table.convertRowIndexToModel(viewRow);
-        Integer idTeam = (Integer) model.getValueAt(modelRow, 0);
-        try {
-            var team = doiService.getTeam(idTeam);
-            // Chọn nội dung mới (chỉ nội dung đôi)
-            List<NoiDung> doubles = loadRegisteredDoubles();
-            if (doubles.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Không có nội dung đôi đã đăng ký.");
-                return;
-            }
-            NoiDung selected = (NoiDung) JOptionPane.showInputDialog(this, "Chọn nội dung mới:", "Đổi nội dung đội",
-                    JOptionPane.PLAIN_MESSAGE, null, doubles.toArray(), nd);
-            if (selected == null || selected.getId().equals(team.getIdNoiDung()))
-                return;
-            team.setIdNoiDung(selected.getId());
-            new com.example.btms.repository.team.DangKiDoiRepository(getConnectionFromServices()).update(team);
-            reloadParticipants();
-        } catch (java.sql.SQLException | RuntimeException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi đổi nội dung: " + ex.getMessage());
-        }
-    }
-
-    private java.sql.Connection getConnectionFromServices() {
-        return this.conn; // đơn giản: chúng ta đã lưu connection
-    }
+    // Đã thay bằng nút Chuyển nội dung (btnTransfer)
 
     private List<NoiDung> loadRegisteredDoubles() throws java.sql.SQLException {
         var repo = new com.example.btms.repository.category.NoiDungRepository(conn);
@@ -402,5 +379,100 @@ public class ContentParticipantsPanel extends JPanel {
         }
         doubles.sort(java.util.Comparator.comparing(NoiDung::getId));
         return doubles;
+    }
+
+    private List<NoiDung> loadRegisteredSingles() throws java.sql.SQLException {
+        var repo = new com.example.btms.repository.category.NoiDungRepository(conn);
+        java.util.Map<String, Integer>[] maps = repo.loadCategories(); // [0]=singles
+        java.util.Set<Integer> ids = new java.util.LinkedHashSet<>(maps[0].values());
+        List<NoiDung> all = noiDungService.getAllNoiDung();
+        java.util.List<NoiDung> singles = new java.util.ArrayList<>();
+        for (NoiDung nd : all) {
+            if (nd.getId() != null && ids.contains(nd.getId()) && !Boolean.TRUE.equals(nd.getTeam()))
+                singles.add(nd);
+        }
+        singles.sort(java.util.Comparator.comparing(NoiDung::getId));
+        return singles;
+    }
+
+    // Đã thay bằng nút Chuyển nội dung (btnTransfer)
+
+    private void onOpenTransferDialog() {
+        NoiDung curNd = (NoiDung) cboNoiDung.getSelectedItem();
+        if (curNd == null) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn nội dung.");
+            return;
+        }
+        boolean teamMode = Boolean.TRUE.equals(curNd.getTeam());
+        try {
+            java.util.List<NoiDung> list = teamMode ? loadRegisteredDoubles() : loadRegisteredSingles();
+            if (list.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        teamMode ? "Không có nội dung ĐÔI đã đăng ký." : "Không có nội dung ĐƠN đã đăng ký.");
+                return;
+            }
+            ChangeCategoryTransferDialog dlg = new ChangeCategoryTransferDialog(
+                    javax.swing.SwingUtilities.getWindowAncestor(this),
+                    prefs,
+                    teamMode,
+                    list,
+                    curNd,
+                    // singles services
+                    dkCaNhanService,
+                    vdvService,
+                    // teams services
+                    doiService,
+                    chiTietDoiService,
+                    clbService,
+                    () -> reloadParticipants());
+            dlg.setVisible(true);
+        } catch (java.sql.SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Xóa đăng ký: nếu ND đôi thì xóa đội (và thành viên), nếu ND đơn thì xóa đăng
+     * ký cá nhân.
+     */
+    private void onDelete() {
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) {
+            JOptionPane.showMessageDialog(this, "Chọn một dòng để xóa.");
+            return;
+        }
+        NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
+        if (nd == null) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn nội dung.");
+            return;
+        }
+        int c = JOptionPane.showConfirmDialog(this, "Bạn có chắc muốn xóa đăng ký này?", "Xác nhận",
+                JOptionPane.YES_NO_OPTION);
+        if (c != JOptionPane.YES_OPTION)
+            return;
+
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        try {
+            if (Boolean.TRUE.equals(nd.getTeam())) {
+                // Xóa đội đăng ký: ID cột 0 là ID_TEAM
+                Integer idTeam = (Integer) model.getValueAt(modelRow, 0);
+                chiTietDoiService.removeAll(idTeam);
+                doiService.deleteTeam(idTeam);
+            } else {
+                // Xóa đăng ký cá nhân: cần (idGiai, idNoiDung, idVdv)
+                int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+                if (idGiai <= 0) {
+                    JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                    return;
+                }
+                Integer idVdv = (Integer) model.getValueAt(modelRow, 0); // cột 0 là ID_VDV với đơn
+                dkCaNhanService.delete(idGiai, nd.getId(), idVdv);
+            }
+            JOptionPane.showMessageDialog(this, "Đã xóa thành công.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+            reloadParticipants();
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, "Xóa thất bại: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

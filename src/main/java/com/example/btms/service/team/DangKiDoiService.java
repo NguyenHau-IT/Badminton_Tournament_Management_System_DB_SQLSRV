@@ -51,6 +51,13 @@ public class DangKiDoiService {
         return teamRepo.findAllBy(idGiai, idNoiDung);
     }
 
+    /** Đổi nội dung (category) cho một đội đã đăng ký. */
+    public void updateTeamCategory(int idTeam, int newIdNoiDung) {
+        DangKiDoi current = requireTeam(idTeam);
+        current.setIdNoiDung(newIdNoiDung);
+        teamRepo.update(current);
+    }
+
     /* ===== helpers ===== */
     private DangKiDoi requireTeam(int idTeam) {
         DangKiDoi t = teamRepo.findById(idTeam);

@@ -8,7 +8,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.util.prefs.Preferences;
-import com.example.btms.util.sound.SoundLibrary;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -23,6 +22,7 @@ import javax.swing.SwingUtilities;
 
 import com.example.btms.config.Prefs;
 import com.example.btms.ui.main.MainFrame;
+import com.example.btms.util.sound.SoundLibrary;
 
 /** Trang cài đặt chung của ứng dụng. */
 public class SettingsPanel extends JPanel {
@@ -38,6 +38,7 @@ public class SettingsPanel extends JPanel {
     private JLabel lblEndSound;
     private Preferences soundPrefs;
     private JLabel lblReportLogo;
+    private JComboBox<String> cboBracketNameFont;
 
     public SettingsPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -111,6 +112,29 @@ public class SettingsPanel extends JPanel {
             mainFrame.applyGlobalFontScale();
         });
         panel.add(rowLabelWithComp("Font scale (%):", spFontScale), gc);
+
+        // Bracket name font size (SoDoThiDau)
+        gc.gridy++;
+        String[] sizes = new String[15]; // 10..24
+        for (int i = 0; i < sizes.length; i++)
+            sizes[i] = String.valueOf(10 + i);
+        cboBracketNameFont = new JComboBox<>(sizes);
+        int savedSize = prefs.getInt("bracket.nameFontSize", 12);
+        if (savedSize < 10 || savedSize > 24)
+            savedSize = 12;
+        cboBracketNameFont.setSelectedItem(String.valueOf(savedSize));
+        cboBracketNameFont.addActionListener(e -> {
+            Object sel = cboBracketNameFont.getSelectedItem();
+            if (sel instanceof String s && s.chars().allMatch(Character::isDigit)) {
+                int v = Integer.parseInt(s);
+                if (v >= 10 && v <= 24) {
+                    prefs.putInt("bracket.nameFontSize", v);
+                    // Repaint UI to reflect font change where applicable
+                    SwingUtilities.invokeLater(() -> mainFrame.repaint());
+                }
+            }
+        });
+        panel.add(rowLabelWithComp("Cỡ chữ tên VĐV/Đội (Sơ đồ thi đấu):", cboBracketNameFont), gc);
 
         // Always on top for floating windows (monitor viewers / control?)
         gc.gridy++;

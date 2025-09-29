@@ -73,6 +73,7 @@ public class DangKyDoiPanel extends JPanel {
     private final JButton btnAdd = new JButton("Thêm đội");
     private final JButton btnEdit = new JButton("Sửa đội");
     private final JButton btnDelete = new JButton("Xóa đội");
+    private final JButton btnTransfer = new JButton("Chuyển nội dung");
     private final JLabel lblCount = new JLabel("0 đội");
     private final javax.swing.JTextField txtSearch = new javax.swing.JTextField(16);
     private final JComboBox<String> cboFilterField = new JComboBox<>(new String[] { "Tên đội", "CLB", "Nội dung" });
@@ -103,6 +104,7 @@ public class DangKyDoiPanel extends JPanel {
         row2.add(btnAdd);
         row2.add(btnEdit);
         row2.add(btnDelete);
+        row2.add(btnTransfer);
         top.add(row1, BorderLayout.NORTH);
         top.add(row2, BorderLayout.CENTER);
 
@@ -116,6 +118,7 @@ public class DangKyDoiPanel extends JPanel {
         btnAdd.addActionListener(e -> onAdd());
         btnEdit.addActionListener(e -> onEdit());
         btnDelete.addActionListener(e -> onDelete());
+        btnTransfer.addActionListener(e -> onOpenTransferDialog());
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -368,6 +371,55 @@ public class DangKyDoiPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Xóa thất bại: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void onOpenTransferDialog() {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+            return;
+        }
+        java.util.List<NoiDung> doubles;
+        try {
+            doubles = loadRegisteredDoubleCategories();
+        } catch (java.sql.SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
+            return;
+        }
+        if (doubles.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Không có nội dung ĐÔI đã đăng ký.");
+            return;
+        }
+        // Lấy nội dung theo dòng đang chọn, nếu không có thì chọn phần tử đầu
+        NoiDung initial = null;
+        if (table.getSelectedRow() >= 0) {
+            int mr = table.convertRowIndexToModel(table.getSelectedRow());
+            Integer idNd = (Integer) model.getValueAt(mr, 3); // col 3 = ID_Nội dung (ẩn)
+            for (NoiDung nd : doubles) {
+                if (nd.getId() != null && nd.getId().equals(idNd)) {
+                    initial = nd;
+                    break;
+                }
+            }
+        }
+        if (initial == null)
+            initial = doubles.get(0);
+
+        com.example.btms.ui.category.ChangeCategoryTransferDialog dlg = new com.example.btms.ui.category.ChangeCategoryTransferDialog(
+                javax.swing.SwingUtilities.getWindowAncestor(this),
+                prefs,
+                true, // team mode
+                doubles,
+                initial,
+                // singles services (unused)
+                null,
+                null,
+                // teams services
+                teamService,
+                detailService,
+                clbService,
+                this::reload);
+        dlg.setVisible(true);
     }
 
     // chooseDoublesCategory() không còn dùng sau khi lọc bằng loadCategories()
