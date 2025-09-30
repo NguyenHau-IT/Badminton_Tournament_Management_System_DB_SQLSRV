@@ -68,8 +68,8 @@ Spring Boot (Web + REST API + SSE)  ←→  SQL Server (JDBC/Hikari/JPA)
 - Maven + Spring Boot Maven Plugin (fat-jar)
 - jpackage-maven-plugin 1.6.6 (đóng gói MSI cho Windows)
 - Profiles build tự động chọn thư mục cài đặt dựa theo ổ D:
-  - Có ổ D: `install.dir=D:\BT-OVR`
-  - Không có ổ D: `install.dir=C:\Program Files\BT-OVR`
+  - Có ổ D: `install.dir=D:\BTMS`
+  - Không có ổ D: `install.dir=C:\Program Files\BTMS`
 - Icon, shortcut, menu group Windows được cấu hình trong plugin
 
 ---

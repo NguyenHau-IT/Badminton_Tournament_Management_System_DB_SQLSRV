@@ -33,20 +33,21 @@ Web Interface ←→ ScoreboardPinController ←→ BadmintonMatch
 ## 🚀 Cài đặt và khởi động
 
 ### Yêu cầu hệ thống
-- **Java 11+** hoặc **Java 17+** (khuyến nghị)
+- **Java 17+** (bắt buộc cho Spring Boot 3.2.x)
 - **RAM**: Tối thiểu 4GB, khuyến nghị 8GB+
 - **Mạng LAN**: Để kết nối giữa các thiết bị
 
 ### Khởi động ứng dụng
-```bash
-# Cách 1: Sử dụng JAR file
-java -jar BadmintonEventTechnology.jar
+```bat
+:: Cách 1: Chạy JAR (Windows)
+mvn clean package -DskipTests
+java -jar target\btms-2.0.0.jar
 
-# Cách 2: Sử dụng Maven
+:: Cách 2: Chạy trực tiếp bằng Maven (dev)
 mvn spring-boot:run
 
-# Cách 3: Với JVM optimization
-java -Xmx4g -XX:+UseG1GC -jar BadmintonEventTechnology.jar
+:: Cách 3: Với JVM optimization
+java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar target\btms-2.0.0.jar
 ```
 
 ### Cấu hình JVM (tùy chọn)
@@ -118,7 +119,7 @@ Tạo file `jvm-optimization.conf`:
 - **Hiển thị trong giao diện** BadmintonControlPanel
 
 ### Trang nhập PIN (PIN Entry)
-- **URL chính**: `/` hoặc `/pin`
+- **URL chính**: `/pin`
 - **Giao diện thân thiện** với mobile và desktop
 - **QR Code tự động** để truy cập nhanh
 - **Link chia sẻ** có thể copy và gửi cho người khác
@@ -130,8 +131,8 @@ Tạo file `jvm-optimization.conf`:
 #### Cách 1: Trang nhập PIN (Khuyến nghị)
 1. **Lấy IP máy chủ** từ giao diện ứng dụng
 2. **Mở trình duyệt** trên thiết bị di động/tablet
-3. **Nhập URL chính**: `http://IP:PORT/` hoặc `http://IP:PORT/pin`
-   - Ví dụ: `http://192.168.1.100:8080/`
+3. **Nhập URL chính**: `http://IP:2345/` hoặc `http://IP:2345/pin` (port mặc định 2345)
+   - Ví dụ: `http://192.168.1.100:2345/`
 4. **Giao diện PIN entry** sẽ hiển thị:
    - **QR Code**: Quét bằng camera để truy cập nhanh
    - **Link truy cập**: Copy và chia sẻ cho người khác
@@ -140,12 +141,9 @@ Tạo file `jvm-optimization.conf`:
 6. **Click "Truy Cập Bảng Điểm"** để vào trang điều khiển
 
 #### Cách 2: Truy cập trực tiếp
-1. **Nhập URL trực tiếp**: `http://IP:PORT/scoreboard/PIN`
-   - Ví dụ: `http://192.168.1.100:8080/scoreboard/1234`
+1. **Nhập URL trực tiếp**: `http://IP:2345/scoreboard/PIN`
+   - Ví dụ: `http://192.168.1.100:2345/scoreboard/1234`
 
-#### Trang demo (chỉ để test)
-- **URL demo**: `http://IP:PORT/demo`
-- **Chứa các PIN mẫu** để test nhanh
 
 ### Điều khiển từ web
 - **Giao diện responsive** tối ưu cho mobile
