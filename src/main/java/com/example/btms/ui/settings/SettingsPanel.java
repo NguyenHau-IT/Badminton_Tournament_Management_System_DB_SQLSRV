@@ -38,6 +38,7 @@ public class SettingsPanel extends JPanel {
     private JLabel lblEndSound;
     private Preferences soundPrefs;
     private JLabel lblReportLogo;
+    private JLabel lblSponsorLogo;
     private JComboBox<String> cboBracketNameFont;
 
     public SettingsPanel(MainFrame frame) {
@@ -157,6 +158,19 @@ public class SettingsPanel extends JPanel {
             lblReportLogo.setText("(chưa chọn)");
         });
         panel.add(rowLabelWithComp("Logo báo cáo:", wrapTriple(lblReportLogo, btnPickLogo, btnClearLogo)), gc);
+
+        // ================== Logo nhà tài trợ (PDF) ==================
+        gc.gridy++;
+        lblSponsorLogo = new JLabel(getShortPath(prefs.get("report.sponsor.logo.path", "(chưa chọn)")));
+        JButton btnPickSponsorLogo = new JButton("Chọn...");
+        btnPickSponsorLogo.addActionListener(e -> chooseSponsorLogoFile());
+        JButton btnClearSponsorLogo = new JButton("Xóa");
+        btnClearSponsorLogo.addActionListener(e -> {
+            prefs.remove("report.sponsor.logo.path");
+            lblSponsorLogo.setText("(chưa chọn)");
+        });
+        panel.add(rowLabelWithComp("Logo nhà tài trợ:",
+                wrapTriple(lblSponsorLogo, btnPickSponsorLogo, btnClearSponsorLogo)), gc);
 
         // === Âm thanh trận đấu ===
         gc.gridy++;
@@ -308,6 +322,33 @@ public class SettingsPanel extends JPanel {
                 }
                 prefs.put("report.logo.path", f.getAbsolutePath());
                 lblReportLogo.setText(getShortPath(f.getAbsolutePath()));
+            }
+        }
+    }
+
+    private void chooseSponsorLogoFile() {
+        JFileChooser fc = new JFileChooser();
+        fc.setDialogTitle("Chọn ảnh logo nhà tài trợ (PNG/JPG)");
+        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Ảnh (PNG, JPG)", "png", "jpg", "jpeg"));
+        String current = prefs.get("report.sponsor.logo.path", "");
+        if (current != null && !current.isBlank()) {
+            java.io.File cur = new java.io.File(current);
+            if (cur.getParentFile() != null && cur.getParentFile().exists()) {
+                fc.setCurrentDirectory(cur.getParentFile());
+            }
+        }
+        int r = fc.showOpenDialog(this);
+        if (r == JFileChooser.APPROVE_OPTION) {
+            var f = fc.getSelectedFile();
+            if (f != null && f.isFile()) {
+                String lower = f.getName().toLowerCase();
+                if (!(lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg"))) {
+                    javax.swing.JOptionPane.showMessageDialog(this, "Chỉ hỗ trợ PNG/JPG.", "Logo nhà tài trợ",
+                            javax.swing.JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                prefs.put("report.sponsor.logo.path", f.getAbsolutePath());
+                lblSponsorLogo.setText(getShortPath(f.getAbsolutePath()));
             }
         }
     }

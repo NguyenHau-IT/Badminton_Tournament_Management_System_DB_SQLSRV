@@ -63,10 +63,10 @@ public class BadmintonMatch {
 
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
 
-    private String[] names = new String[] { "Team A", "Team B" };
-    private String[] clubs = new String[] { "", "" };
-    private int[] score = new int[] { 0, 0 };
-    private int[] games = new int[] { 0, 0 };
+    private final String[] names = new String[] { "Team A", "Team B" };
+    private final String[] clubs = new String[] { "", "" };
+    private final int[] score = new int[] { 0, 0 };
+    private final int[] games = new int[] { 0, 0 };
     private int gameNumber = 1;
     private int bestOf = 3;
     private int server = 0; // 0 hoặc 1

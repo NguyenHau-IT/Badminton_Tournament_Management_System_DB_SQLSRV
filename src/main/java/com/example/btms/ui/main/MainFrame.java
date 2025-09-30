@@ -24,11 +24,11 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTree;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
-import javax.swing.JTree;
-import javax.swing.JScrollPane;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
@@ -36,6 +36,7 @@ import javax.swing.tree.TreeSelectionModel;
 
 import com.example.btms.config.ConnectionConfig;
 import com.example.btms.model.db.SQLSRVConnectionManager;
+import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
@@ -59,8 +60,8 @@ import com.example.btms.ui.net.NetworkConfig;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;
-import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.ui.tournament.TournamentTabPanel;
+import com.example.btms.util.report.RegistrationPdfExporter;
 import com.example.btms.util.ui.IconUtil;
 import com.example.btms.util.ui.Ui;
 import com.formdev.flatlaf.FlatDarkLaf;
@@ -977,7 +978,7 @@ public class MainFrame extends JFrame {
                     pm.add(mi2);
                 }
                 // Thêm menu cho nút phải tại mục "Đăng ký đội" để xuất PDF
-                if ("Đăng ký đội".equals(label)) {
+                if ("Đăng ký thi đấu".equals(label)) {
                     pm.addSeparator();
                     javax.swing.JMenu mExport = new javax.swing.JMenu("Xuất danh sách đăng ký (PDF)");
                     javax.swing.JMenuItem miAll = new javax.swing.JMenuItem("Tất cả");
@@ -1602,11 +1603,11 @@ public class MainFrame extends JFrame {
 
             switch (mode) {
                 case ALL ->
-                    com.example.btms.util.report.TeamRegistrationPdfExporter.exportAll(conn, idGiai, f, giaiName);
+                    RegistrationPdfExporter.exportAll(conn, idGiai, f, giaiName);
                 case BY_CLUB ->
-                    com.example.btms.util.report.TeamRegistrationPdfExporter.exportByClub(conn, idGiai, f, giaiName);
+                    RegistrationPdfExporter.exportByClub(conn, idGiai, f, giaiName);
                 case BY_CONTENT ->
-                    com.example.btms.util.report.TeamRegistrationPdfExporter.exportByNoiDung(conn, idGiai, f, giaiName);
+                    RegistrationPdfExporter.exportByNoiDung(conn, idGiai, f, giaiName);
             }
             JOptionPane.showMessageDialog(this, "Đã xuất: " + f.getAbsolutePath(), "Thành công",
                     JOptionPane.INFORMATION_MESSAGE);

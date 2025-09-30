@@ -22,9 +22,9 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
-import javax.swing.table.DefaultTableCellRenderer;
 
 import com.example.btms.config.Prefs;
 import com.example.btms.model.category.NoiDung;
@@ -477,7 +477,8 @@ public class TongSapHuyChuongPanel extends JPanel {
                 // Ensure a Unicode base font is initialized before page event uses it (for
                 // Vietnamese diacritics)
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
-                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), ensureBaseFont(), tournament));
+                writer.setPageEvent(
+                        new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(), tournament));
                 doc.open();
 
                 // Page 1: only tally table (no body title)
@@ -811,7 +812,7 @@ public class TongSapHuyChuongPanel extends JPanel {
         }
     }
 
-    // Load logo from settings, scale to header height
+    // Load left logo (tournament/org) from settings, scale to header height
     private com.lowagie.text.Image tryLoadReportLogo() {
         try {
             String logoPath = new Prefs().get("report.logo.path", "");
@@ -836,17 +837,45 @@ public class TongSapHuyChuongPanel extends JPanel {
         }
     }
 
+    // Load right logo (sponsor) from settings, scale to header height
+    private com.lowagie.text.Image tryLoadSponsorLogo() {
+        try {
+            String logoPath = new Prefs().get("report.sponsor.logo.path", "");
+            if (logoPath == null || logoPath.isBlank())
+                return null;
+            java.io.File f = new java.io.File(logoPath);
+            if (!f.exists())
+                return null;
+            com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
+            float maxH = 40f; // align visual height with left logo
+            if (img.getScaledHeight() > maxH) {
+                float k = maxH / img.getScaledHeight();
+                img.scalePercent(k * 100f);
+            }
+            return img;
+        } catch (com.lowagie.text.BadElementException e) {
+            System.err.println("Sponsor logo load BadElementException: " + e.getMessage());
+            return null;
+        } catch (java.io.IOException e) {
+            System.err.println("Sponsor logo load IOException: " + e.getMessage());
+            return null;
+        }
+    }
+
     // Page event for header/footer
     private static final class ReportPageEvent extends com.lowagie.text.pdf.PdfPageEventHelper {
-        private final com.lowagie.text.Image logo;
+        private final com.lowagie.text.Image leftLogo;
+        private final com.lowagie.text.Image rightLogo;
         private final com.lowagie.text.pdf.BaseFont baseFont;
         private final String tournamentName;
         private final java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
         private final java.util.Date printDate = new java.util.Date();
 
         @SuppressWarnings("unused")
-        ReportPageEvent(com.lowagie.text.Image logo, com.lowagie.text.pdf.BaseFont baseFont, String tournamentName) {
-            this.logo = logo;
+        ReportPageEvent(com.lowagie.text.Image leftLogo, com.lowagie.text.Image rightLogo,
+                com.lowagie.text.pdf.BaseFont baseFont, String tournamentName) {
+            this.leftLogo = leftLogo;
+            this.rightLogo = rightLogo;
             this.baseFont = baseFont;
             this.tournamentName = tournamentName;
         }
@@ -859,15 +888,27 @@ public class TongSapHuyChuongPanel extends JPanel {
             float top = document.top();
             float bottom = document.bottom();
 
-            // Header logo at top-left, drawn ABOVE the content area to avoid overlap
-            if (logo != null) {
+            // Header left logo at top-left, drawn above the content area to avoid overlap
+            if (leftLogo != null) {
                 try {
                     float x = left;
                     float y = top + 6f; // place image fully in header area
-                    logo.setAbsolutePosition(x, y);
-                    cb.addImage(logo);
+                    leftLogo.setAbsolutePosition(x, y);
+                    cb.addImage(leftLogo);
                 } catch (com.lowagie.text.DocumentException e) {
                     System.err.println("addImage DocumentException: " + e.getMessage());
+                }
+            }
+
+            // Header right logo at top-right
+            if (rightLogo != null) {
+                try {
+                    float x = right - rightLogo.getScaledWidth();
+                    float y = top + 6f; // align with left logo
+                    rightLogo.setAbsolutePosition(x, y);
+                    cb.addImage(rightLogo);
+                } catch (com.lowagie.text.DocumentException e) {
+                    System.err.println("addImage sponsor DocumentException: " + e.getMessage());
                 }
             }
 
