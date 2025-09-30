@@ -70,6 +70,8 @@ public class TongSapHuyChuongPanel extends JPanel {
     private final JComboBox<Object> cboNoiDung = new JComboBox<>();
     private final JButton btnRefresh = new JButton("Làm mới");
     private final JButton btnExportPdf = new JButton("Xuất PDF");
+    private final JButton btnExportTally = new JButton("Xuất tổng sắp");
+    private final JButton btnExportMedalist = new JButton("Xuất danh sách");
     private final JButton btnEditRanks = new JButton("Sửa thứ hạng");
 
     private final DefaultTableModel tallyModel = new DefaultTableModel(
@@ -127,11 +129,15 @@ public class TongSapHuyChuongPanel extends JPanel {
         p.add(cboNoiDung);
         p.add(btnRefresh);
         p.add(btnEditRanks);
+        p.add(btnExportTally);
+        p.add(btnExportMedalist);
         p.add(btnExportPdf);
         btnRefresh.addActionListener(e -> reloadData());
         cboNoiDung.addActionListener(e -> reloadData());
         // Trước khi xuất, mở hộp thoại xem trước
         btnExportPdf.addActionListener(e -> showPreviewDialog());
+        btnExportTally.addActionListener(e -> doExportPdfTally());
+        btnExportMedalist.addActionListener(e -> doExportPdfMedalist());
         btnEditRanks.addActionListener(e -> openUnifiedRankDialog());
         return p;
     }
@@ -514,6 +520,100 @@ public class TongSapHuyChuongPanel extends JPanel {
         }
     }
 
+    private void doExportPdfTally() {
+        try {
+            javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+            chooser.setDialogTitle("Lưu báo cáo PDF - Tổng sắp");
+            chooser.setSelectedFile(new java.io.File(suggestPdfFileNameTally()));
+            int res = chooser.showSaveDialog(this);
+            if (res != javax.swing.JFileChooser.APPROVE_OPTION)
+                return;
+            java.io.File file = chooser.getSelectedFile();
+            String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
+                    : file.getAbsolutePath() + ".pdf";
+
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36, 36,
+                    84, 36);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
+                com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
+                String tournament = new Prefs().get("selectedGiaiDauName", null);
+                if (tournament == null || tournament.isBlank()) {
+                    String giaiLbl = lblGiai.getText();
+                    if (giaiLbl != null)
+                        tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
+                    if (tournament == null || tournament.isBlank())
+                        tournament = "Giải đấu";
+                }
+                pdfFont(12f, com.lowagie.text.Font.NORMAL);
+                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                        tournament));
+                doc.open();
+
+                com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(
+                        "TỔNG SẮP HUY CHƯƠNG TOÀN ĐOÀN", titleFont);
+                title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                title.setSpacingAfter(12f);
+                doc.add(title);
+
+                writePdfTableFromSwing(doc, tallyTable, null);
+                doc.close();
+            }
+            JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path, "Xuất PDF - Tổng sắp",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi xuất PDF (Tổng sắp): " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void doExportPdfMedalist() {
+        try {
+            javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+            chooser.setDialogTitle("Lưu báo cáo PDF - Danh sách VĐV");
+            chooser.setSelectedFile(new java.io.File(suggestPdfFileNameMedalist()));
+            int res = chooser.showSaveDialog(this);
+            if (res != javax.swing.JFileChooser.APPROVE_OPTION)
+                return;
+            java.io.File file = chooser.getSelectedFile();
+            String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
+                    : file.getAbsolutePath() + ".pdf";
+
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4, 36, 36,
+                    84, 36);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
+                com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
+                String tournament = new Prefs().get("selectedGiaiDauName", null);
+                if (tournament == null || tournament.isBlank()) {
+                    String giaiLbl = lblGiai.getText();
+                    if (giaiLbl != null)
+                        tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
+                    if (tournament == null || tournament.isBlank())
+                        tournament = "Giải đấu";
+                }
+                pdfFont(12f, com.lowagie.text.Font.NORMAL);
+                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                        tournament));
+                doc.open();
+
+                com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(
+                        "DANH SÁCH VDV ĐẠT HUY CHƯƠNG", titleFont);
+                title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                title.setSpacingAfter(12f);
+                doc.add(title);
+
+                writePdfTableFromSwing(doc, medalistTable, null);
+                doc.close();
+            }
+            JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path, "Xuất PDF - Danh sách VĐV",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi xuất PDF (Danh sách): " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private String suggestPdfFileName() {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
         String ndLabel = "tat-ca-don-doi";
@@ -522,6 +622,26 @@ public class TongSapHuyChuongPanel extends JPanel {
             ndLabel = ni.id == null ? "tat-ca-don-doi" : normalizeFileName(ni.label);
         }
         return normalizeFileName(ten) + "_tong-sap-huy-chuong_" + ndLabel + ".pdf";
+    }
+
+    private String suggestPdfFileNameTally() {
+        String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
+        String ndLabel = "tat-ca-don-doi";
+        Object sel = cboNoiDung.getSelectedItem();
+        if (sel instanceof NoiDungItem ni && ni.label != null && !ni.label.isBlank()) {
+            ndLabel = ni.id == null ? "tat-ca-don-doi" : normalizeFileName(ni.label);
+        }
+        return normalizeFileName(ten) + "_tong-sap-huy-chuong_" + ndLabel + ".pdf";
+    }
+
+    private String suggestPdfFileNameMedalist() {
+        String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
+        String ndLabel = "tat-ca-don-doi";
+        Object sel = cboNoiDung.getSelectedItem();
+        if (sel instanceof NoiDungItem ni && ni.label != null && !ni.label.isBlank()) {
+            ndLabel = ni.id == null ? "tat-ca-don-doi" : normalizeFileName(ni.label);
+        }
+        return normalizeFileName(ten) + "_danh-sach-vdv-dat-huy-chuong_" + ndLabel + ".pdf";
     }
 
     private void showPreviewDialog() {

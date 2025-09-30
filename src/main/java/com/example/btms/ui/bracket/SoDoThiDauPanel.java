@@ -77,9 +77,10 @@ public class SoDoThiDauPanel extends JPanel {
     private final JButton btnSave = new JButton("Lưu");
     private final JButton btnSeedFromDraw = new JButton("Gán theo bốc thăm");
     private final JButton btnReloadSaved = new JButton("Tải sơ đồ đã lưu");
-    private final JButton btnClearAll = new JButton("Xóa tất cả ô");
+    private final JButton btnDeleteAll = new JButton("Xóa sơ đồ + kết quả + bốc thăm");
     private final JToggleButton btnEdit = new JToggleButton("Chế độ sửa");
     private final JButton btnSaveResults = new JButton("Lưu kết quả");
+    private final JButton btnExportBracketPdf = new JButton("Xuất sơ đồ PDF");
     // Medals table (EAST)
     private final JTable medalTable = new JTable();
     private final DefaultTableModel medalModel = new DefaultTableModel(new Object[] { "Kết quả" }, 0) {
@@ -90,6 +91,8 @@ public class SoDoThiDauPanel extends JPanel {
     };
     // Track last saved medals to avoid redundant writes during auto-save
     private String lastSavedMedalKey = null;
+    // Cached base font for PDF (Unicode)
+    private transient com.lowagie.text.pdf.BaseFont pdfBaseFont;
 
     // Nội dung được chọn (không dùng combobox nữa)
     private final java.util.List<NoiDung> noiDungList = new java.util.ArrayList<>();
@@ -215,9 +218,10 @@ public class SoDoThiDauPanel extends JPanel {
         line.add(lblNoiDungValue);
         line.add(btnReloadSaved);
         line.add(btnSeedFromDraw);
-        line.add(btnClearAll);
+        line.add(btnDeleteAll);
         line.add(btnEdit);
         line.add(btnSaveResults);
+        line.add(btnExportBracketPdf);
         line.add(btnSave);
         p.add(line, BorderLayout.CENTER);
 
@@ -225,8 +229,9 @@ public class SoDoThiDauPanel extends JPanel {
         btnSaveResults.addActionListener(e -> saveMedalResults());
         btnReloadSaved.addActionListener(e -> loadSavedSoDo());
         btnSeedFromDraw.addActionListener(e -> loadFromBocTham());
-        btnClearAll.addActionListener(e -> clearAllSlots());
+        btnDeleteAll.addActionListener(e -> deleteBracketAndResults());
         btnEdit.addActionListener(e -> canvas.setEditMode(btnEdit.isSelected()));
+        btnExportBracketPdf.addActionListener(e -> exportBracketPdf());
         return p;
     }
 
@@ -243,6 +248,451 @@ public class SoDoThiDauPanel extends JPanel {
         // Khởi tạo 4 dòng rỗng
         refreshMedalTable("", "", "", "");
         return p;
+    }
+
+    // ===== Export bracket to PDF =====
+    private void exportBracketPdf() {
+        try {
+            // Render canvas to image
+            java.awt.Dimension pref = canvas.getPreferredSize();
+            int w = Math.max(1, pref != null ? pref.width : canvas.getWidth());
+            int h = Math.max(1, pref != null ? pref.height : canvas.getHeight());
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h,
+                    java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g2 = img.createGraphics();
+            g2.setColor(java.awt.Color.WHITE);
+            g2.fillRect(0, 0, w, h);
+            // Ensure high-quality rendering like paintComponent
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            canvas.printAll(g2);
+            g2.dispose();
+
+            // Choose file path
+            javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
+            chooser.setDialogTitle("Lưu sơ đồ thi đấu (PDF)");
+            chooser.setSelectedFile(new java.io.File(suggestBracketPdfFileName()));
+            int res = chooser.showSaveDialog(this);
+            if (res != javax.swing.JFileChooser.APPROVE_OPTION)
+                return;
+            java.io.File file = chooser.getSelectedFile();
+            String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
+                    : file.getAbsolutePath() + ".pdf";
+
+            // Create PDF (A4 landscape) and embed image scaled to fit
+            // - smaller side margins for bigger bracket
+            // - keep top margin for header logos/title
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(
+                    com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
+                com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
+                // Header/footer event with tournament name and optional logos
+                String tournament = new Prefs().get("selectedGiaiDauName", null);
+                if (tournament == null || tournament.isBlank()) {
+                    String giaiLbl = lblGiai.getText();
+                    if (giaiLbl != null)
+                        tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
+                    if (tournament == null || tournament.isBlank())
+                        tournament = "Giải đấu";
+                }
+                // Ensure a Unicode base font is initialized before page event uses it
+                pdfFont(12f, com.lowagie.text.Font.NORMAL);
+                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                        tournament));
+
+                doc.open();
+                // Title
+                String ndName = lblNoiDungValue.getText();
+                String titleStr = (ndName != null && !ndName.isBlank()) ? ("SƠ ĐỒ THI ĐẤU - " + ndName)
+                        : "SƠ ĐỒ THI ĐẤU";
+                com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
+                title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                title.setSpacingAfter(6f);
+                doc.add(title);
+
+                // Auto-trim white borders so the bracket can scale larger and sit closer to the
+                // left
+                java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
+                com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
+                // Reserve a conservative block for the title so image stays on the same page
+                float titleReserve = 32f; // pts
+                float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
+                // Compute scale to fit both width and height, then reduce slightly to ensure it
+                // stays on one page
+                float scaleW = maxW / trimmed.getWidth();
+                float scaleH = maxH / trimmed.getHeight();
+                float scale = Math.min(scaleW, scaleH) * 0.96f; // shrink by 4%
+                if (scale <= 0f)
+                    scale = 1f;
+                pdfImg.scalePercent(scale * 100f);
+                // Align to the left margin so it looks "sát trái"
+                pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                pdfImg.setSpacingBefore(0f);
+                pdfImg.setSpacingAfter(0f);
+                doc.add(pdfImg);
+                doc.close();
+            }
+            javax.swing.JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path,
+                    "Xuất sơ đồ thi đấu", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Lỗi xuất sơ đồ PDF: " + ex.getMessage(),
+                    "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String suggestBracketPdfFileName() {
+        String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
+        String ndLabel = lblNoiDungValue.getText();
+        if (ndLabel == null || ndLabel.isBlank())
+            ndLabel = "noi-dung";
+        String base = normalizeFileName(ten) + "_so-do-thi-dau_" + normalizeFileName(ndLabel) + ".pdf";
+        return base;
+    }
+
+    // Filename normalizer (local copy): remove diacritics, keep [a-zA-Z0-9-_],
+    // collapse dashes
+    private static String normalizeFileName(String s) {
+        if (s == null)
+            return "file";
+        String x = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                .replaceAll("[^a-zA-Z0-9-_]+", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("(^-|-$)", "")
+                .toLowerCase();
+        if (x.isBlank())
+            return "file";
+        return x;
+    }
+
+    // ===== PDF helpers for header/footer and Unicode fonts (aligned with tally
+    // reports) =====
+    // Trim near-white borders from the rendered canvas to maximize useful area in
+    // PDF
+    private static java.awt.image.BufferedImage trimWhiteBorders(java.awt.image.BufferedImage src, int padding) {
+        if (src == null)
+            return null;
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int minX = w, minY = h, maxX = -1, maxY = -1;
+        final int TH = 245; // threshold to treat as white/near-white
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = src.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+                boolean nearWhite = (r >= TH && g >= TH && b >= TH);
+                if (!nearWhite) {
+                    if (x < minX)
+                        minX = x;
+                    if (y < minY)
+                        minY = y;
+                    if (x > maxX)
+                        maxX = x;
+                    if (y > maxY)
+                        maxY = y;
+                }
+            }
+        }
+        if (maxX < 0 || maxY < 0) {
+            // All white; return as is
+            return src;
+        }
+        int pad = Math.max(0, padding);
+        int x0 = Math.max(0, minX - pad);
+        int y0 = Math.max(0, minY - pad);
+        int x1 = Math.min(w - 1, maxX + pad);
+        int y1 = Math.min(h - 1, maxY + pad);
+        int nw = Math.max(1, x1 - x0 + 1);
+        int nh = Math.max(1, y1 - y0 + 1);
+        java.awt.image.BufferedImage sub = src.getSubimage(x0, y0, nw, nh);
+        // Copy to a fresh RGB image to avoid retaining a reference to the original
+        // buffer
+        java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(nw, nh,
+                java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g2 = out.createGraphics();
+        g2.drawImage(sub, 0, 0, null);
+        g2.dispose();
+        return out;
+    }
+
+    private com.lowagie.text.Font pdfFont(float size, int style) {
+        try {
+            if (pdfBaseFont == null) {
+                // Attempt to load a Unicode-capable Windows font (Arial/Tahoma/Segoe UI)
+                String[] candidates = new String[] {
+                        "C:/Windows/Fonts/arial.ttf",
+                        "C:/Windows/Fonts/tahoma.ttf",
+                        "C:/Windows/Fonts/segoeui.ttf"
+                };
+                java.io.File found = null;
+                for (String p : candidates) {
+                    java.io.File f = new java.io.File(p);
+                    if (f.exists()) {
+                        found = f;
+                        break;
+                    }
+                }
+                if (found != null) {
+                    pdfBaseFont = com.lowagie.text.pdf.BaseFont.createFont(found.getAbsolutePath(),
+                            com.lowagie.text.pdf.BaseFont.IDENTITY_H, com.lowagie.text.pdf.BaseFont.EMBEDDED);
+                } else {
+                    // Fallback to built-in Helvetica (may not render all diacritics perfectly)
+                    return new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, size, style);
+                }
+            }
+            return new com.lowagie.text.Font(pdfBaseFont, size, style);
+        } catch (java.io.IOException | RuntimeException ignore) {
+            return new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, size, style);
+        }
+    }
+
+    // Ensure base font for page event (fall back to default)
+    private com.lowagie.text.pdf.BaseFont ensureBaseFont() {
+        try {
+            if (pdfBaseFont != null)
+                return pdfBaseFont;
+            return com.lowagie.text.pdf.BaseFont.createFont();
+        } catch (com.lowagie.text.DocumentException e) {
+            System.err.println("ensureBaseFont DocumentException: " + e.getMessage());
+            return null;
+        } catch (java.io.IOException e) {
+            System.err.println("ensureBaseFont IOException: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // Load left logo (tournament/org) from settings, scale to header height
+    private com.lowagie.text.Image tryLoadReportLogo() {
+        try {
+            String logoPath = new Prefs().get("report.logo.path", "");
+            if (logoPath == null || logoPath.isBlank())
+                return null;
+            java.io.File f = new java.io.File(logoPath);
+            if (!f.exists())
+                return null;
+            com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
+            float maxH = 40f; // allow taller header logo
+            if (img.getScaledHeight() > maxH) {
+                float k = maxH / img.getScaledHeight();
+                img.scalePercent(k * 100f);
+            }
+            return img;
+        } catch (com.lowagie.text.BadElementException e) {
+            System.err.println("Logo load BadElementException: " + e.getMessage());
+            return null;
+        } catch (java.io.IOException e) {
+            System.err.println("Logo load IOException: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // Load right logo (sponsor) from settings, scale to header height
+    private com.lowagie.text.Image tryLoadSponsorLogo() {
+        try {
+            String logoPath = new Prefs().get("report.sponsor.logo.path", "");
+            if (logoPath == null || logoPath.isBlank())
+                return null;
+            java.io.File f = new java.io.File(logoPath);
+            if (!f.exists())
+                return null;
+            com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
+            float maxH = 40f; // align visual height with left logo
+            if (img.getScaledHeight() > maxH) {
+                float k = maxH / img.getScaledHeight();
+                img.scalePercent(k * 100f);
+            }
+            return img;
+        } catch (com.lowagie.text.BadElementException e) {
+            System.err.println("Sponsor logo load BadElementException: " + e.getMessage());
+            return null;
+        } catch (java.io.IOException e) {
+            System.err.println("Sponsor logo load IOException: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // Page event for header/footer (logos + tournament title + footer info)
+    private static final class ReportPageEvent extends com.lowagie.text.pdf.PdfPageEventHelper {
+        private final com.lowagie.text.Image leftLogo;
+        private final com.lowagie.text.Image rightLogo;
+        private final com.lowagie.text.pdf.BaseFont baseFont;
+        private final String tournamentName;
+        private final java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+        private final java.util.Date printDate = new java.util.Date();
+
+        ReportPageEvent(com.lowagie.text.Image leftLogo, com.lowagie.text.Image rightLogo,
+                com.lowagie.text.pdf.BaseFont baseFont, String tournamentName) {
+            this.leftLogo = leftLogo;
+            this.rightLogo = rightLogo;
+            this.baseFont = baseFont;
+            this.tournamentName = tournamentName;
+        }
+
+        @Override
+        public void onEndPage(com.lowagie.text.pdf.PdfWriter writer, com.lowagie.text.Document document) {
+            com.lowagie.text.pdf.PdfContentByte cb = writer.getDirectContent();
+            float left = document.left();
+            float right = document.right();
+            float top = document.top();
+            float bottom = document.bottom();
+
+            // Header left logo at top-left, drawn above the content area to avoid overlap
+            if (leftLogo != null) {
+                try {
+                    float x = left;
+                    float y = top + 6f; // place image fully in header area
+                    leftLogo.setAbsolutePosition(x, y);
+                    cb.addImage(leftLogo);
+                } catch (com.lowagie.text.DocumentException e) {
+                    System.err.println("addImage DocumentException: " + e.getMessage());
+                }
+            }
+
+            // Header right logo at top-right
+            if (rightLogo != null) {
+                try {
+                    float x = right - rightLogo.getScaledWidth();
+                    float y = top + 6f; // align with left logo
+                    rightLogo.setAbsolutePosition(x, y);
+                    cb.addImage(rightLogo);
+                } catch (com.lowagie.text.DocumentException e) {
+                    System.err.println("addImage sponsor DocumentException: " + e.getMessage());
+                }
+            }
+
+            // Header: tournament name centered on top
+            if (tournamentName != null && !tournamentName.isBlank()) {
+                cb.beginText();
+                try {
+                    com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
+                            ? baseFont
+                            : com.lowagie.text.pdf.BaseFont.createFont();
+                    cb.setFontAndSize(bf, 14f);
+                } catch (com.lowagie.text.DocumentException e) {
+                    System.err.println("header BaseFont DocumentException: " + e.getMessage());
+                } catch (java.io.IOException e) {
+                    System.err.println("header BaseFont IOException: " + e.getMessage());
+                }
+                // Place centered within the enlarged header area
+                cb.showTextAligned(com.lowagie.text.Element.ALIGN_CENTER, tournamentName, (left + right) / 2f,
+                        top + 28f, 0);
+                cb.endText();
+            }
+
+            // Footer: date/time (left) and page x/y (right)
+            cb.beginText();
+            try {
+                com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
+                        ? baseFont
+                        : com.lowagie.text.pdf.BaseFont.createFont();
+                cb.setFontAndSize(bf, 9f);
+            } catch (com.lowagie.text.DocumentException e) {
+                System.err.println("footer BaseFont DocumentException: " + e.getMessage());
+            } catch (java.io.IOException e) {
+                System.err.println("footer BaseFont IOException: " + e.getMessage());
+            }
+            String leftTxt = "In lúc: " + sdf.format(printDate);
+            String rightTxt = String.format("Trang %d", writer.getPageNumber());
+            cb.showTextAligned(com.lowagie.text.Element.ALIGN_LEFT, leftTxt, left, bottom - 12f, 0);
+            cb.showTextAligned(com.lowagie.text.Element.ALIGN_RIGHT, rightTxt, right, bottom - 12f, 0);
+            cb.endText();
+        }
+    }
+
+    /**
+     * Xoá toàn bộ sơ đồ đã lưu của Nội dung đang chọn và đồng thời xoá luôn
+     * kết quả huy chương (nếu có) trong CSDL.
+     * Không chỉ xoá UI, mà xoá dữ liệu lưu trong bảng SODO_* và KET_QUA_*.
+     */
+    private void deleteBracketAndResults() {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        NoiDung nd = selectedNoiDung;
+        if (idGiai <= 0 || nd == null) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải hoặc nội dung", "Thông báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Bạn có chắc muốn xoá toàn bộ sơ đồ, kết quả huy chương và danh sách bốc thăm của nội dung này?\n\n" +
+                        "Hành động này sẽ xoá dữ liệu trong CSDL và không thể hoàn tác.",
+                "Xác nhận xoá", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        boolean isTeam = Boolean.TRUE.equals(nd.getTeam());
+        int idNoiDung = nd.getId();
+
+        try {
+            // 1) Xoá toàn bộ bản ghi sơ đồ theo loại nội dung
+            if (isTeam) {
+                List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
+                for (SoDoDoi r : olds) {
+                    try {
+                        soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
+                    } catch (Exception ignore) {
+                    }
+                }
+            } else {
+                List<SoDoCaNhan> olds = soDoCaNhanService.list(idGiai, idNoiDung);
+                for (SoDoCaNhan r : olds) {
+                    try {
+                        soDoCaNhanService.delete(idGiai, idNoiDung, r.getViTri());
+                    } catch (Exception ignore) {
+                    }
+                }
+            }
+
+            // 2) Xoá kết quả huy chương (ranks 1,2,3)
+            for (int rank : new int[] { 1, 2, 3 }) {
+                try {
+                    if (isTeam) {
+                        ketQuaDoiService.delete(idGiai, idNoiDung, rank);
+                    } else {
+                        ketQuaCaNhanService.delete(idGiai, idNoiDung, rank);
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+
+            // 3) Xoá danh sách bốc thăm (draws)
+            try {
+                if (isTeam) {
+                    var drawList = bocThamService.list(idGiai, idNoiDung);
+                    for (var r : drawList) {
+                        try {
+                            bocThamService.delete(idGiai, idNoiDung, r.getThuTu());
+                        } catch (Exception ignore) {
+                        }
+                    }
+                } else {
+                    var drawList = bocThamCaNhanService.list(idGiai, idNoiDung);
+                    for (var r : drawList) {
+                        try {
+                            bocThamCaNhanService.delete(idGiai, idNoiDung, r.getIdVdv());
+                        } catch (Exception ignore) {
+                        }
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+
+            // 4) Dọn UI: xoá text ô, reset bảng huy chương và cache
+            clearAllSlots();
+            refreshMedalTable("", "", "", "");
+            lastSavedMedalKey = null;
+
+            JOptionPane.showMessageDialog(this, "Đã xoá sơ đồ, kết quả và bốc thăm (nếu có)", "Hoàn tất",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi xoá: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void saveBracket() {
@@ -907,13 +1357,16 @@ public class SoDoThiDauPanel extends JPanel {
     private class BracketCanvas extends JPanel {
         private static final int COLUMNS = 5; // 16 -> 1
         private static final int[] SPOTS = { 16, 8, 4, 2, 1 };
-        private static final int CELL_WIDTH = 180; // tăng chiều ngang ô
+        private static final int CELL_WIDTH = 200; // tăng chiều ngang ô (rộng hơn để hiển thị tên)
         private static final int CELL_HEIGHT = 30;
+        // Ô cuối (vô địch) sẽ to hơn một chút để nổi bật
+        private static final int FINAL_CELL_WIDTH = 300;
+        private static final int FINAL_CELL_HEIGHT = 36;
         // Độ dịch lên cho các vòng trong (cột > 1) để nằm hơi cao hơn so với chính giữa
         private static final int INNER_UP_OFFSET = 20; // px
         // Độ dịch sang phải cơ sở cho mỗi mức sâu hơn (cột > 1). Tổng offset =
         // (col-1)*BASE
-        private static final int BASE_INNER_RIGHT_OFFSET = 40; // px mỗi cột
+        private static final int BASE_INNER_RIGHT_OFFSET = 60; // px mỗi cột (giãn thêm theo chiều ngang)
         // Giảm khoảng trống phía trên (trước đây dùng 62)
         private static final int START_Y = 10; // px
         // Canvas width will be expanded dynamically based on the longest name
@@ -933,6 +1386,14 @@ public class SoDoThiDauPanel extends JPanel {
         }
 
         private final List<Slot> slots = new ArrayList<>();
+
+        private int cellWidthForCol(int col) {
+            return (col == COLUMNS) ? FINAL_CELL_WIDTH : CELL_WIDTH;
+        }
+
+        private int cellHeightForCol(int col) {
+            return (col == COLUMNS) ? FINAL_CELL_HEIGHT : CELL_HEIGHT;
+        }
 
         BracketCanvas() {
             setOpaque(true);
@@ -1055,12 +1516,78 @@ public class SoDoThiDauPanel extends JPanel {
                         if (s.text == null || s.text.isBlank()) {
                             return;
                         }
-                        // Xoá text ở ô hiện tại
-                        setTextOverride(s.col, s.thuTu, "");
-                        s.text = "";
-                        // Xoá bản ghi trong DB cho ô hiện tại (theo VI_TRI = s.order)
+                        // Kiểm tra: nếu VĐV/Đội chỉ có 1 bản ghi trong sơ đồ thì KHÔNG xoá
                         int idGiai = SoDoThiDauPanel.this.prefs.getInt("selectedGiaiDauId", -1);
                         NoiDung ndSel = SoDoThiDauPanel.this.selectedNoiDung;
+                        if (idGiai > 0 && ndSel != null) {
+                            try {
+                                if (Boolean.TRUE.equals(ndSel.getTeam())) {
+                                    String display = s.text.trim();
+                                    // Ưu tiên so theo ID_CLB nếu xác định được từ tên đội
+                                    Integer idClb = null;
+                                    try {
+                                        String teamName = SoDoThiDauPanel.this.extractTeamNameFromDisplay(display);
+                                        int found = SoDoThiDauPanel.this.doiService.getIdClbByTeamName(teamName,
+                                                ndSel.getId(), idGiai);
+                                        if (found > 0)
+                                            idClb = found;
+                                    } catch (RuntimeException ignored) {
+                                    }
+                                    List<SoDoDoi> all = SoDoThiDauPanel.this.soDoDoiService.list(idGiai, ndSel.getId());
+                                    long cnt = 0;
+                                    if (idClb != null && idClb > 0) {
+                                        for (SoDoDoi r : all) {
+                                            if (r.getIdClb() != null && r.getIdClb() == idClb)
+                                                cnt++;
+                                        }
+                                    } else {
+                                        for (SoDoDoi r : all) {
+                                            String tt = r.getTenTeam();
+                                            if (tt != null && tt.trim().equals(display))
+                                                cnt++;
+                                        }
+                                    }
+                                    if (cnt <= 1) {
+                                        JOptionPane.showMessageDialog(BracketCanvas.this,
+                                                "Đội này chỉ còn 1 bản ghi trong sơ đồ – không xoá để tránh mất dữ liệu.",
+                                                "Không thể xoá", JOptionPane.WARNING_MESSAGE);
+                                        return;
+                                    }
+                                } else {
+                                    String display = s.text.trim();
+                                    java.util.Map<String, Integer> map = SoDoThiDauPanel.this.vdvService
+                                            .loadSinglesNames(ndSel.getId(), idGiai);
+                                    Integer idVdv = SoDoThiDauPanel.this.resolveVdvIdFromDisplay(map, display);
+                                    if (idVdv == null) {
+                                        JOptionPane.showMessageDialog(BracketCanvas.this,
+                                                "Không xác định được VĐV từ ô đang chọn; không thể xoá an toàn.",
+                                                "Không thể xoá", JOptionPane.WARNING_MESSAGE);
+                                        return;
+                                    }
+                                    List<SoDoCaNhan> all = SoDoThiDauPanel.this.soDoCaNhanService.list(idGiai,
+                                            ndSel.getId());
+                                    long cnt = 0;
+                                    for (SoDoCaNhan r : all) {
+                                        if (r.getIdVdv() == idVdv)
+                                            cnt++;
+                                    }
+                                    if (cnt <= 1) {
+                                        JOptionPane.showMessageDialog(BracketCanvas.this,
+                                                "VĐV này chỉ còn 1 bản ghi trong sơ đồ – không xoá để tránh mất dữ liệu.",
+                                                "Không thể xoá", JOptionPane.WARNING_MESSAGE);
+                                        return;
+                                    }
+                                }
+                            } catch (RuntimeException ex) {
+                                // Nếu lỗi khi kiểm tra, ưu tiên an toàn: không xoá
+                                JOptionPane.showMessageDialog(BracketCanvas.this,
+                                        "Không thể kiểm tra số bản ghi: " + ex.getMessage(),
+                                        "Không thể xoá", JOptionPane.WARNING_MESSAGE);
+                                return;
+                            }
+                        }
+
+                        // Sau khi qua kiểm tra, tiến hành xoá DB tại ô hiện tại (theo VI_TRI)
                         if (idGiai > 0 && ndSel != null) {
                             try {
                                 if (Boolean.TRUE.equals(ndSel.getTeam())) {
@@ -1071,6 +1598,10 @@ public class SoDoThiDauPanel extends JPanel {
                             } catch (RuntimeException ignore) {
                             }
                         }
+
+                        // Xoá text ở ô hiện tại (UI)
+                        setTextOverride(s.col, s.thuTu, "");
+                        s.text = "";
                         repaint();
                         SoDoThiDauPanel.this.updateMedalsFromCanvas();
                     });
@@ -1128,7 +1659,7 @@ public class SoDoThiDauPanel extends JPanel {
 
         private Slot getSlotAt(Point p) {
             for (Slot s : slots) {
-                int w = CELL_WIDTH, h = CELL_HEIGHT;
+                int w = cellWidthForCol(s.col), h = cellHeightForCol(s.col);
                 if (p.x >= s.x && p.x <= s.x + w && p.y >= s.y && p.y <= s.y + h)
                     return s;
             }
@@ -1142,7 +1673,8 @@ public class SoDoThiDauPanel extends JPanel {
                 int spotCount = SPOTS[col - 1];
                 int verticalStep = (int) (40 * Math.pow(2, col - 1)); // bước của cột hiện tại
                 for (int t = 0; t < spotCount; t++) {
-                    int x = 35 + (col - 1) * 160 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
+                    int x = 35 + (col - 1) * 200 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
+                                                                                                        // (giãn ngang)
                     int baseY = START_Y + t * verticalStep;
                     // Cột 1 giữ nguyên. Cột >1: giữa hai ô con rồi đẩy lên một chút.
                     int y;
@@ -1175,7 +1707,8 @@ public class SoDoThiDauPanel extends JPanel {
                 }
             }
             // Cập nhật preferred size dựa trên xa nhất, gồm cả phần tràn tên ở bên phải
-            int baseMaxX = 35 + (COLUMNS - 1) * 160 + CELL_WIDTH + 40;
+            int baseMaxX = 35 + (COLUMNS - 1) * 200 + cellWidthForCol(COLUMNS) + 40; // khớp với spacing mới + ô cuối to
+                                                                                     // hơn
             int fontSize = getBracketNameFontSize();
             Font f = getFont().deriveFont(Font.PLAIN, (float) fontSize);
             java.awt.FontMetrics fm = getFontMetrics(f);
@@ -1216,8 +1749,8 @@ public class SoDoThiDauPanel extends JPanel {
             g2.setFont(getFont());
             // Vẽ ô
             for (Slot s : slots) {
-                int w = CELL_WIDTH;
-                int h = CELL_HEIGHT;
+                int w = cellWidthForCol(s.col);
+                int h = cellHeightForCol(s.col);
                 // Fill with light background
                 g2.setColor(new Color(250, 250, 250));
                 g2.fillRoundRect(s.x, s.y, w, h, 8, 8);
@@ -1256,11 +1789,11 @@ public class SoDoThiDauPanel extends JPanel {
                     Slot parent = find(col + 1, t / 2);
                     if (a == null || b == null || parent == null)
                         continue;
-                    int rx = a.x + CELL_WIDTH; // right edge of child slots (same for a and b)
-                    int ay = a.y + CELL_HEIGHT / 2;
-                    int by = b.y + CELL_HEIGHT / 2;
+                    int rx = a.x + cellWidthForCol(a.col); // right edge of child slots (same for a and b)
+                    int ay = a.y + cellHeightForCol(a.col) / 2;
+                    int by = b.y + cellHeightForCol(b.col) / 2;
                     int px = parent.x;
-                    int py = parent.y + CELL_HEIGHT / 2;
+                    int py = parent.y + cellHeightForCol(parent.col) / 2;
                     int yTop = Math.min(ay, by);
                     int yBot = Math.max(ay, by);
                     int midY = (ay + by) / 2;
@@ -1292,28 +1825,6 @@ public class SoDoThiDauPanel extends JPanel {
                     return s;
             }
             return null;
-        }
-
-        private String truncateToFit(Graphics2D g2, String s, int maxWidth) {
-            if (s == null)
-                return "";
-            String text = s;
-            var fm = g2.getFontMetrics();
-            if (fm.stringWidth(text) <= maxWidth)
-                return text;
-            String ell = "…";
-            int low = 0, high = text.length();
-            while (low < high) {
-                int mid = (low + high + 1) >>> 1;
-                String candidate = text.substring(0, mid) + ell;
-                if (fm.stringWidth(candidate) <= maxWidth)
-                    low = mid;
-                else
-                    high = mid - 1;
-            }
-            if (low <= 0)
-                return ell; // quá hẹp
-            return text.substring(0, low) + ell;
         }
 
         private int getBracketNameFontSize() {
