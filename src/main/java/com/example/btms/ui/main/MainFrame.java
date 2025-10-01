@@ -1001,6 +1001,89 @@ public class MainFrame extends JFrame {
                     mExport.add(miByContent);
                     pm.add(mExport);
                 }
+                if ("Sơ đồ thi đấu".equals(label)) {
+                    pm.addSeparator();
+                    javax.swing.JMenu mExport = new javax.swing.JMenu("Xuất danh sách sơ đồ (PDF)");
+                    javax.swing.JMenuItem miOneFile = new javax.swing.JMenuItem("Xuất 1 file (tất cả nội dung)");
+                    miOneFile.addActionListener(ev -> {
+                        try {
+                            Connection conn = (service != null) ? service.current() : null;
+                            if (conn == null) {
+                                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            // Create a temporary bracket panel to render all nội dung
+                            SoDoThiDauPanel p = new SoDoThiDauPanel(conn);
+                            javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+                            fc.setDialogTitle("Xuất PDF sơ đồ (tất cả nội dung)");
+                            fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF", "pdf"));
+                            String tour = (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
+                                    && !selectedGiaiDau.getTenGiai().isBlank())
+                                            ? selectedGiaiDau.getTenGiai()
+                                            : new com.example.btms.config.Prefs().get("selectedGiaiDauName",
+                                                    "giai-dau");
+                            String safe = normalizeFileNameUnderscore(tour);
+                            fc.setSelectedFile(new java.io.File(safe + "_so_do_thi_dau.pdf"));
+                            int r = fc.showSaveDialog(this);
+                            if (r != javax.swing.JFileChooser.APPROVE_OPTION)
+                                return;
+                            java.io.File f = fc.getSelectedFile();
+                            if (f == null)
+                                return;
+                            if (!f.getName().toLowerCase().endsWith(".pdf")) {
+                                f = new java.io.File(f.getAbsolutePath() + ".pdf");
+                            }
+                            boolean ok = p.exportAllBracketsToSinglePdf(f);
+                            if (ok)
+                                JOptionPane.showMessageDialog(this, "Đã xuất: " + f.getAbsolutePath(), "Thành công",
+                                        JOptionPane.INFORMATION_MESSAGE);
+                            else
+                                JOptionPane.showMessageDialog(this, "Không thể xuất PDF.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    javax.swing.JMenuItem miEach = new javax.swing.JMenuItem("Xuất mỗi nội dung 1 file");
+                    miEach.addActionListener(ev -> {
+                        try {
+                            Connection conn = (service != null) ? service.current() : null;
+                            if (conn == null) {
+                                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            SoDoThiDauPanel p = new SoDoThiDauPanel(conn);
+                            javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+                            fc.setDialogTitle("Chọn thư mục để lưu các PDF sơ đồ");
+                            fc.setFileSelectionMode(javax.swing.JFileChooser.DIRECTORIES_ONLY);
+                            fc.setAcceptAllFileFilterUsed(false);
+                            fc.setSelectedFile(new java.io.File(System.getProperty("user.home", ".")));
+                            int r = fc.showSaveDialog(this);
+                            if (r != javax.swing.JFileChooser.APPROVE_OPTION)
+                                return;
+                            java.io.File dir = fc.getSelectedFile();
+                            if (dir == null)
+                                return;
+                            int created = p.exportEachBracketToDirectory(dir);
+                            if (created > 0)
+                                JOptionPane.showMessageDialog(this,
+                                        "Đã xuất " + created + " file vào: " + dir.getAbsolutePath(),
+                                        "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                            else
+                                JOptionPane.showMessageDialog(this, "Không có nội dung để xuất.", "Thông báo",
+                                        JOptionPane.INFORMATION_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    mExport.add(miOneFile);
+                    mExport.add(miEach);
+                    pm.add(mExport);
+                }
             }
 
             if (pm.getComponentCount() > 0)
@@ -1758,5 +1841,20 @@ public class MainFrame extends JFrame {
         dlg.setLocationRelativeTo(this);
         dlg.setVisible(true);
         return result[0];
+    }
+
+    // Normalize a string to a safe ASCII filename using underscores as separator
+    private static String normalizeFileNameUnderscore(String s) {
+        if (s == null)
+            return "giai-dau";
+        String x = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                .replaceAll("[^a-zA-Z0-9]+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("(^_|_$)", "")
+                .toLowerCase();
+        if (x.isBlank())
+            return "giai-dau";
+        return x;
     }
 }

@@ -255,8 +255,10 @@ public class SoDoThiDauPanel extends JPanel {
         try {
             // Render canvas to image
             java.awt.Dimension pref = canvas.getPreferredSize();
-            int w = Math.max(1, pref != null ? pref.width : canvas.getWidth());
-            int h = Math.max(1, pref != null ? pref.height : canvas.getHeight());
+            if (pref != null)
+                canvas.setSize(pref);
+            int w = Math.max(1, canvas.getWidth());
+            int h = Math.max(1, canvas.getHeight());
             java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h,
                     java.awt.image.BufferedImage.TYPE_INT_RGB);
             java.awt.Graphics2D g2 = img.createGraphics();
@@ -340,6 +342,312 @@ public class SoDoThiDauPanel extends JPanel {
             javax.swing.JOptionPane.showMessageDialog(this, "Lỗi xuất sơ đồ PDF: " + ex.getMessage(),
                     "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /**
+     * Export the currently selected nội dung's bracket to a specific file path (no
+     * dialogs).
+     */
+    public boolean exportBracketPdfToFile(java.io.File file) {
+        if (file == null)
+            return false;
+        try {
+            // Render canvas to image
+            java.awt.Dimension pref = canvas.getPreferredSize();
+            if (pref != null)
+                canvas.setSize(pref);
+            int w = Math.max(1, canvas.getWidth());
+            int h = Math.max(1, canvas.getHeight());
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h,
+                    java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g2 = img.createGraphics();
+            g2.setColor(java.awt.Color.WHITE);
+            g2.fillRect(0, 0, w, h);
+            g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            canvas.printAll(g2);
+            g2.dispose();
+
+            String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
+                    : file.getAbsolutePath() + ".pdf";
+
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(
+                    com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
+                com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
+                String tournament = new Prefs().get("selectedGiaiDauName", null);
+                if (tournament == null || tournament.isBlank()) {
+                    String giaiLbl = lblGiai.getText();
+                    if (giaiLbl != null)
+                        tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
+                    if (tournament == null || tournament.isBlank())
+                        tournament = "Giải đấu";
+                }
+                pdfFont(12f, com.lowagie.text.Font.NORMAL);
+                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                        tournament));
+                doc.open();
+                String ndName = lblNoiDungValue.getText();
+                String titleStr = (ndName != null && !ndName.isBlank()) ? ("SƠ ĐỒ THI ĐẤU - " + ndName)
+                        : "SƠ ĐỒ THI ĐẤU";
+                com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
+                title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                title.setSpacingAfter(6f);
+                doc.add(title);
+
+                java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
+                com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
+                float titleReserve = 32f;
+                float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
+                float scaleW = maxW / trimmed.getWidth();
+                float scaleH = maxH / trimmed.getHeight();
+                float scale = Math.min(scaleW, scaleH) * 0.96f;
+                if (scale <= 0f)
+                    scale = 1f;
+                pdfImg.scalePercent(scale * 100f);
+                pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                pdfImg.setSpacingBefore(0f);
+                pdfImg.setSpacingAfter(0f);
+                doc.add(pdfImg);
+                doc.close();
+            }
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    /** Export all nội dung brackets into a single multi-page PDF. */
+    public boolean exportAllBracketsToSinglePdf(java.io.File file) {
+        if (file == null)
+            return false;
+        try {
+            if (noiDungList == null || noiDungList.isEmpty())
+                return false;
+            // Build filtered list: only nội dung that have draw or saved bracket
+            java.util.List<NoiDung> targets = new java.util.ArrayList<>();
+            int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+            for (NoiDung nd : noiDungList) {
+                if (nd == null || nd.getId() == null)
+                    continue;
+                boolean include = false;
+                try {
+                    if (Boolean.TRUE.equals(nd.getTeam())) {
+                        var ds = bocThamService.list(idGiai, nd.getId());
+                        include = (ds != null && !ds.isEmpty());
+                        if (!include) {
+                            var sodo = soDoDoiService.list(idGiai, nd.getId());
+                            include = (sodo != null && !sodo.isEmpty());
+                        }
+                    } else {
+                        var ds = bocThamCaNhanService.list(idGiai, nd.getId());
+                        include = (ds != null && !ds.isEmpty());
+                        if (!include) {
+                            var sodo = soDoCaNhanService.list(idGiai, nd.getId());
+                            include = (sodo != null && !sodo.isEmpty());
+                        }
+                    }
+                } catch (RuntimeException ignore) {
+                }
+                if (include)
+                    targets.add(nd);
+            }
+            if (targets.isEmpty())
+                return false;
+            String tournament = new Prefs().get("selectedGiaiDauName", null);
+            if (tournament == null || tournament.isBlank()) {
+                String giaiLbl = lblGiai.getText();
+                if (giaiLbl != null)
+                    tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
+                if (tournament == null || tournament.isBlank())
+                    tournament = "Giải đấu";
+            }
+            String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
+                    : file.getAbsolutePath() + ".pdf";
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(
+                    com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
+                com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
+                pdfFont(12f, com.lowagie.text.Font.NORMAL);
+                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                        tournament));
+                doc.open();
+                NoiDung old = selectedNoiDung;
+                for (int i = 0; i < targets.size(); i++) {
+                    NoiDung nd = targets.get(i);
+                    if (nd == null || nd.getId() == null)
+                        continue;
+                    // Select and load content
+                    selectedNoiDung = nd;
+                    updateNoiDungLabelText();
+                    loadBestAvailable();
+                    // Title
+                    String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
+                    String titleStr = !ndName.isBlank() ? ("SƠ ĐỒ THI ĐẤU - " + ndName) : "SƠ ĐỒ THI ĐẤU";
+                    com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                    com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
+                    title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                    title.setSpacingAfter(6f);
+                    doc.add(title);
+
+                    // Render
+                    java.awt.Dimension pref = canvas.getPreferredSize();
+                    if (pref != null)
+                        canvas.setSize(pref);
+                    int w = Math.max(1, canvas.getWidth());
+                    int h = Math.max(1, canvas.getHeight());
+                    java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h,
+                            java.awt.image.BufferedImage.TYPE_INT_RGB);
+                    java.awt.Graphics2D g2 = img.createGraphics();
+                    g2.setColor(java.awt.Color.WHITE);
+                    g2.fillRect(0, 0, w, h);
+                    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                            java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                    canvas.printAll(g2);
+                    g2.dispose();
+
+                    java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
+                    com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                    float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
+                    float titleReserve = 32f;
+                    float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
+                    float scaleW = maxW / trimmed.getWidth();
+                    float scaleH = maxH / trimmed.getHeight();
+                    float scale = Math.min(scaleW, scaleH) * 0.96f;
+                    if (scale <= 0f)
+                        scale = 1f;
+                    pdfImg.scalePercent(scale * 100f);
+                    pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                    pdfImg.setSpacingBefore(0f);
+                    pdfImg.setSpacingAfter(0f);
+                    doc.add(pdfImg);
+
+                    if (i < targets.size() - 1)
+                        doc.newPage();
+                }
+                // restore previous selection
+                selectedNoiDung = old;
+                updateNoiDungLabelText();
+                doc.close();
+            }
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    /**
+     * Export mỗi nội dung thành một file PDF trong thư mục chỉ định. Trả về số file
+     * đã tạo.
+     */
+    public int exportEachBracketToDirectory(java.io.File dir) {
+        if (dir == null)
+            return 0;
+        if (!dir.exists())
+            dir.mkdirs();
+        if (!dir.isDirectory())
+            return 0;
+        int count = 0;
+        String tournament = new Prefs().get("selectedGiaiDauName", null);
+        if (tournament == null || tournament.isBlank()) {
+            String giaiLbl = lblGiai.getText();
+            if (giaiLbl != null)
+                tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
+            if (tournament == null || tournament.isBlank())
+                tournament = "Giải đấu";
+        }
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        NoiDung old = selectedNoiDung;
+        for (NoiDung nd : noiDungList) {
+            if (nd == null || nd.getId() == null)
+                continue;
+            // Skip nội dung without draw and without saved bracket
+            boolean include = false;
+            try {
+                if (Boolean.TRUE.equals(nd.getTeam())) {
+                    var ds = bocThamService.list(idGiai, nd.getId());
+                    include = (ds != null && !ds.isEmpty());
+                    if (!include) {
+                        var sodo = soDoDoiService.list(idGiai, nd.getId());
+                        include = (sodo != null && !sodo.isEmpty());
+                    }
+                } else {
+                    var ds = bocThamCaNhanService.list(idGiai, nd.getId());
+                    include = (ds != null && !ds.isEmpty());
+                    if (!include) {
+                        var sodo = soDoCaNhanService.list(idGiai, nd.getId());
+                        include = (sodo != null && !sodo.isEmpty());
+                    }
+                }
+            } catch (RuntimeException ignore) {
+            }
+            if (!include)
+                continue;
+            try {
+                selectedNoiDung = nd;
+                updateNoiDungLabelText();
+                loadBestAvailable();
+                String fileName = suggestBracketPdfFileName();
+                java.io.File f = new java.io.File(dir, fileName);
+                // write single PDF for this nội dung
+                com.lowagie.text.Document doc = new com.lowagie.text.Document(
+                        com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+                try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
+                    com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
+                    pdfFont(12f, com.lowagie.text.Font.NORMAL);
+                    writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                            tournament));
+                    doc.open();
+                    String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
+                    String titleStr = !ndName.isBlank() ? ("SƠ ĐỒ THI ĐẤU - " + ndName) : "SƠ ĐỒ THI ĐẤU";
+                    com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                    com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
+                    title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                    title.setSpacingAfter(6f);
+                    doc.add(title);
+
+                    java.awt.Dimension pref = canvas.getPreferredSize();
+                    if (pref != null)
+                        canvas.setSize(pref);
+                    int w = Math.max(1, canvas.getWidth());
+                    int h = Math.max(1, canvas.getHeight());
+                    java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h,
+                            java.awt.image.BufferedImage.TYPE_INT_RGB);
+                    java.awt.Graphics2D g2 = img.createGraphics();
+                    g2.setColor(java.awt.Color.WHITE);
+                    g2.fillRect(0, 0, w, h);
+                    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                            java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                    canvas.printAll(g2);
+                    g2.dispose();
+
+                    java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
+                    com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                    float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
+                    float titleReserve = 32f;
+                    float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
+                    float scaleW = maxW / trimmed.getWidth();
+                    float scaleH = maxH / trimmed.getHeight();
+                    float scale = Math.min(scaleW, scaleH) * 0.96f;
+                    if (scale <= 0f)
+                        scale = 1f;
+                    pdfImg.scalePercent(scale * 100f);
+                    pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                    pdfImg.setSpacingBefore(0f);
+                    pdfImg.setSpacingAfter(0f);
+                    doc.add(pdfImg);
+                    doc.close();
+                    count++;
+                }
+            } catch (Exception ignore) {
+            }
+        }
+        // restore previous selection
+        selectedNoiDung = old;
+        updateNoiDungLabelText();
+        return count;
     }
 
     private String suggestBracketPdfFileName() {
