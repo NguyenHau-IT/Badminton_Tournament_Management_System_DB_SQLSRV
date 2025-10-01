@@ -163,6 +163,102 @@ public class GiaiDauManagementPanel extends JPanel {
             };
             tableModel.addRow(row);
         }
+
+        // Auto-select a sensible default tournament to speed up user choice
+        selectDefaultTournament(giaiDaus);
+    }
+
+    // Prefer an active tournament; if multiple, pick the one started most recently.
+    // If none active, pick the upcoming one with the earliest start date.
+    // If none upcoming, pick the finished one with the most recent end date.
+    private void selectDefaultTournament(List<GiaiDau> giaiDaus) {
+        try {
+            if (giaiDaus == null || giaiDaus.isEmpty())
+                return;
+            // If user already has a selection, don't override
+            if (giaiDauTable.getSelectedRow() != -1)
+                return;
+
+            java.time.LocalDate today = java.time.LocalDate.now();
+            Integer pickId = null;
+
+            // 1) Active tournaments – pick the one with the latest start date (<= today)
+            java.time.LocalDate bestActiveStart = null;
+            for (GiaiDau gd : giaiDaus) {
+                if (gd == null || !gd.isActive())
+                    continue;
+                java.time.LocalDate s = gd.getNgayBd();
+                if (s == null)
+                    s = today; // treat missing start as today
+                if (bestActiveStart == null || (s.isAfter(bestActiveStart))) {
+                    bestActiveStart = s;
+                    pickId = gd.getId();
+                }
+            }
+
+            // 2) If none active, choose nearest upcoming (earliest start date after today)
+            if (pickId == null) {
+                java.time.LocalDate bestUpcomingStart = null;
+                for (GiaiDau gd : giaiDaus) {
+                    if (gd == null)
+                        continue;
+                    java.time.LocalDate s = gd.getNgayBd();
+                    if (s == null)
+                        continue;
+                    boolean upcoming = gd.isUpcoming() || s.isAfter(today);
+                    if (!upcoming)
+                        continue;
+                    if (bestUpcomingStart == null || s.isBefore(bestUpcomingStart)) {
+                        bestUpcomingStart = s;
+                        pickId = gd.getId();
+                    }
+                }
+            }
+
+            // 3) If none upcoming, choose most recently finished (latest end date)
+            if (pickId == null) {
+                java.time.LocalDate bestFinishedEnd = null;
+                for (GiaiDau gd : giaiDaus) {
+                    if (gd == null || !gd.isFinished())
+                        continue;
+                    java.time.LocalDate e = gd.getNgayKt();
+                    if (e == null)
+                        continue;
+                    if (bestFinishedEnd == null || e.isAfter(bestFinishedEnd)) {
+                        bestFinishedEnd = e;
+                        pickId = gd.getId();
+                    }
+                }
+            }
+
+            if (pickId == null)
+                return;
+            // find model row index by id
+            int modelIndex = -1;
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                Object idObj = tableModel.getValueAt(i, 0);
+                int id;
+                if (idObj instanceof Integer)
+                    id = (Integer) idObj;
+                else if (idObj instanceof Long)
+                    id = ((Long) idObj).intValue();
+                else
+                    continue;
+                if (id == pickId.intValue()) {
+                    modelIndex = i;
+                    break;
+                }
+            }
+            if (modelIndex < 0)
+                return;
+            int viewIndex = giaiDauTable.convertRowIndexToView(modelIndex);
+            if (viewIndex >= 0 && viewIndex < tableModel.getRowCount()) {
+                giaiDauTable.setRowSelectionInterval(viewIndex, viewIndex);
+                giaiDauTable.scrollRectToVisible(giaiDauTable.getCellRect(viewIndex, 1, true));
+            }
+        } catch (RuntimeException ignore) {
+            // best-effort: ignore
+        }
     }
 
     private String getStatusText(GiaiDau giaiDau) {
