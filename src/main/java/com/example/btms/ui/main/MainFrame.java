@@ -7,6 +7,7 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.NetworkInterface;
@@ -16,7 +17,11 @@ import java.text.DecimalFormat;
 import java.util.LinkedHashMap; // still used earlier? (kept for backward compatibility but theme menu removed)
 import java.util.Map;
 
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -25,16 +30,19 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.TreeSelectionEvent;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
 
 import com.example.btms.config.ConnectionConfig;
+import com.example.btms.config.Prefs;
 import com.example.btms.model.db.SQLSRVConnectionManager;
 import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.repository.category.NoiDungRepository;
@@ -49,6 +57,7 @@ import com.example.btms.service.db.DatabaseService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.ui.auth.LoginTab;
 import com.example.btms.ui.auth.LoginTab.Role;
+import com.example.btms.ui.bracket.SoDoThiDauPanel;
 import com.example.btms.ui.category.NoiDungManagementPanel;
 import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
@@ -1397,14 +1406,14 @@ public class MainFrame extends JFrame {
                 return;
             }
             // Cửa sổ tabs – tạo JTabbedPane, chưa thêm tab nào (chỉ thêm theo yêu cầu)
-            javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
+            JTabbedPane tabs = new JTabbedPane();
             // Khi chuyển tab, tự reload data của tab đang chọn
             tabs.addChangeListener(e -> {
                 try {
                     int sel = tabs.getSelectedIndex();
                     if (sel >= 0) {
                         java.awt.Component c = tabs.getComponentAt(sel);
-                        if (c instanceof com.example.btms.ui.bracket.SoDoThiDauPanel p) {
+                        if (c instanceof SoDoThiDauPanel p) {
                             p.reloadData();
                         }
                     }
@@ -1457,7 +1466,7 @@ public class MainFrame extends JFrame {
                 return;
             if (soDoTabbedPane == null)
                 return;
-            com.example.btms.ui.bracket.SoDoThiDauPanel existing = soDoPanelsByNoiDung.get(idNoiDung);
+            SoDoThiDauPanel existing = soDoPanelsByNoiDung.get(idNoiDung);
             if (existing != null) {
                 // đã có -> focus
                 int count = soDoTabbedPane.getTabCount();
@@ -1473,7 +1482,7 @@ public class MainFrame extends JFrame {
                     JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                com.example.btms.ui.bracket.SoDoThiDauPanel p = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
+                SoDoThiDauPanel p = new SoDoThiDauPanel(conn);
                 try {
                     p.selectNoiDungById(idNoiDung);
                     p.setNoiDungLabelMode(true);
@@ -1511,13 +1520,13 @@ public class MainFrame extends JFrame {
     }
 
     /** Đặt tab header có nút đóng. */
-    private void makeTabClosable(javax.swing.JTabbedPane tabs, int index, String title, Runnable onClose) {
-        JPanel tabHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
+    private void makeTabClosable(JTabbedPane tabs, int index, String title, Runnable onClose) {
+        JPanel tabHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         tabHeader.setOpaque(false);
         JLabel lbl = new JLabel(title);
-        javax.swing.JButton btn = new javax.swing.JButton("x");
-        btn.setMargin(new java.awt.Insets(0, 4, 0, 4));
-        btn.setBorder(javax.swing.BorderFactory.createEmptyBorder());
+        JButton btn = new JButton("x");
+        btn.setMargin(new Insets(0, 4, 0, 4));
+        btn.setBorder(BorderFactory.createEmptyBorder());
         btn.setFocusable(false);
         btn.addActionListener(e -> {
             try {
@@ -1572,8 +1581,9 @@ public class MainFrame extends JFrame {
                 JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            int idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId()
-                    : new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+            int idGiai;
+            idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId()
+                    : new Prefs().getInt("selectedGiaiDauId", -1);
             if (idGiai <= 0) {
                 JOptionPane.showMessageDialog(this, "Chưa chọn giải.", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
@@ -1582,9 +1592,9 @@ public class MainFrame extends JFrame {
                     ? selectedGiaiDau.getTenGiai()
                     : "Giải đấu";
 
-            javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+            JFileChooser fc = new JFileChooser();
             fc.setDialogTitle("Xuất PDF danh sách đăng ký đội");
-            fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF", "pdf"));
+            fc.setFileFilter(new FileNameExtensionFilter("PDF", "pdf"));
             String baseName = switch (mode) {
                 case ALL -> "dangky-doi_all";
                 case BY_CLUB -> "dangky-doi_theo-clb";
@@ -1592,7 +1602,7 @@ public class MainFrame extends JFrame {
             };
             fc.setSelectedFile(new java.io.File(baseName + ".pdf"));
             int r = fc.showSaveDialog(this);
-            if (r != javax.swing.JFileChooser.APPROVE_OPTION)
+            if (r != JFileChooser.APPROVE_OPTION)
                 return;
             java.io.File f = fc.getSelectedFile();
             if (f == null)
@@ -1635,7 +1645,7 @@ public class MainFrame extends JFrame {
                 return;
             }
             // Tạo panel điều khiển mới và gắn kết nối + network interface hiện tại
-            com.example.btms.ui.control.MultiCourtControlPanel panel = new com.example.btms.ui.control.MultiCourtControlPanel();
+            MultiCourtControlPanel panel = new MultiCourtControlPanel();
             panel.setConnection(conn);
             try {
                 if (multiCourtPanel != null && multiCourtPanel.getNetworkInterface() != null) {
@@ -1680,7 +1690,7 @@ public class MainFrame extends JFrame {
 
     /* -------------------- Inline dialogs -------------------- */
     private boolean showLoginDialog() {
-        final javax.swing.JDialog dlg = new javax.swing.JDialog(this, "Đăng nhập", true);
+        final JDialog dlg = new JDialog(this, "Đăng nhập", true);
         dlg.setLayout(new BorderLayout());
         try {
             if (loginTab.getParent() != null) {
@@ -1703,8 +1713,8 @@ public class MainFrame extends JFrame {
             dlg.dispose();
         });
         dlg.add(loginTab, BorderLayout.CENTER);
-        javax.swing.JPanel south = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        javax.swing.JButton btnCancel = new javax.swing.JButton("Hủy");
+        JPanel south = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
+        JButton btnCancel = new JButton("Hủy");
         btnCancel.addActionListener(e -> {
             this.currentRole = null;
             dlg.dispose();
@@ -1718,20 +1728,20 @@ public class MainFrame extends JFrame {
     }
 
     private GiaiDau showTournamentSelectDialog() {
-        final javax.swing.JDialog dlg = new javax.swing.JDialog(this, "Chọn giải đấu", true);
+        final JDialog dlg = new JDialog(this, "Chọn giải đấu", true);
         dlg.setLayout(new BorderLayout());
         TournamentTabPanel chooser = new TournamentTabPanel(service);
         chooser.updateConnection();
         dlg.add(chooser, BorderLayout.CENTER);
-        javax.swing.JPanel south = new javax.swing.JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        javax.swing.JButton btnOk = new javax.swing.JButton("Chọn");
-        javax.swing.JButton btnCancel = new javax.swing.JButton("Hủy");
+        JPanel south = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
+        JButton btnOk = new JButton("Chọn");
+        JButton btnCancel = new JButton("Hủy");
         final GiaiDau[] result = new GiaiDau[1];
         btnOk.addActionListener(e -> {
             GiaiDau pick = chooser.getSelectedGiaiDau();
             if (pick == null) {
-                javax.swing.JOptionPane.showMessageDialog(dlg, "Vui lòng chọn một giải đấu.", "Chưa chọn",
-                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(dlg, "Vui lòng chọn một giải đấu.", "Chưa chọn",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             }
             result[0] = pick;
