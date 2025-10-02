@@ -44,6 +44,19 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
 
     private final CourtManagerService courtManager = CourtManagerService.getInstance();
     private final JTabbedPane courtTabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+    // Khi true, lần tạo tab kế tiếp sẽ KHÔNG phát idle broadcast (dùng cho hydrate
+    // an toàn)
+    private volatile boolean suppressIdleBroadcastOnce = false;
+    // Tránh gắn trùng listeners lên cùng một BadmintonControlPanel khi tái gắn
+    // (hydrate)
+    private final java.util.Set<BadmintonControlPanel> wiredPanels = java.util.Collections
+            .newSetFromMap(new java.util.WeakHashMap<BadmintonControlPanel, Boolean>());
+
+    /** Gọi trước khi hydrate để bỏ qua việc phát idle broadcast lần kế tiếp. */
+    public void suppressIdleBroadcastOnce() {
+        this.suppressIdleBroadcastOnce = true;
+    }
+
     private final JPanel overviewPanel = new JPanel();
     // Lưu trạng thái hiển/ẩn PIN cho từng sân
     private final java.util.Map<String, Boolean> pinVisibleMap = new java.util.concurrent.ConcurrentHashMap<>();
@@ -143,6 +156,11 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         btnCloseAll.addActionListener(e -> closeAllCourts());
         panel.add(btnCloseAll);
 
+        // Nút mở bảng điều khiển (chỉ hiện/đưa tab điều khiển sân ra trước)
+        JButton btnShowControl = new JButton("Hiện bảng điều khiển");
+        btnShowControl.addActionListener(e -> showControlPanelFromCombo(courtCombo));
+        panel.add(btnShowControl);
+
         return panel;
     }
 
@@ -194,26 +212,50 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
     private void createCourtControlTab(CourtSession session) {
         String tabTitle = session.courtId;
 
-        // Tạo BadmintonControlPanel với kích thước responsive
-        BadmintonControlPanel courtControlPanel = createResponsiveControlPanel();
-
-        // Truyền database connection để load dữ liệu
-        if (databaseConnection != null) {
-            courtControlPanel.setConnection(databaseConnection);
-            // Reload dữ liệu từ database sau khi set connection
+        // Nếu đã có control panel trong session thì tái sử dụng (hydrate an toàn)
+        BadmintonControlPanel courtControlPanel = null;
+        boolean createdNewPanel = false;
+        if (session.controlPanel instanceof BadmintonControlPanel existing) {
+            courtControlPanel = existing;
+            // Nếu panel đang ở container khác, tháo ra trước khi add vào tab mới
             try {
-                Method reloadMethod = BadmintonControlPanel.class.getDeclaredMethod("reloadListsFromDb");
-                reloadMethod.setAccessible(true);
-                reloadMethod.invoke(courtControlPanel);
-            } catch (Exception e) {
-                System.err.println("Không thể reload dữ liệu từ DB: " + e.getMessage());
+                java.awt.Container parent = courtControlPanel.getParent();
+                // Nếu parent hiện tại không phải là chính JTabbedPane của chúng ta,
+                // mới cần remove để tránh component thuộc nhiều container.
+                if (parent != null && parent != courtTabs) {
+                    parent.remove(courtControlPanel);
+                }
+            } catch (Exception ignore) {
+            }
+        } else {
+            // Tạo BadmintonControlPanel với kích thước responsive
+            courtControlPanel = createResponsiveControlPanel();
+            createdNewPanel = true;
+            // Truyền database connection để load dữ liệu chỉ với panel mới
+            if (databaseConnection != null) {
+                courtControlPanel.setConnection(databaseConnection);
+                // Reload dữ liệu từ database sau khi set connection
+                try {
+                    Method reloadMethod = BadmintonControlPanel.class.getDeclaredMethod("reloadListsFromDb");
+                    reloadMethod.setAccessible(true);
+                    reloadMethod.invoke(courtControlPanel);
+                } catch (Exception e) {
+                    System.err.println("Không thể reload dữ liệu từ DB: " + e.getMessage());
+                }
+            }
+            // Lưu controlPanel vào session (ghi đè panel cũ nếu có)
+            session.controlPanel = courtControlPanel;
+        }
+
+        // Set network interface nếu đã chọn
+        if (selectedIf != null) {
+            try {
+                courtControlPanel.setNetworkInterface(selectedIf);
+            } catch (Exception ignore) {
             }
         }
 
-        // Lưu controlPanel vào session
-        session.controlPanel = courtControlPanel;
-
-        // Set mã PIN cho BadmintonControlPanel
+        // Set mã PIN cho BadmintonControlPanel (không ảnh hưởng state trận)
         try {
             Method setPinMethod = courtControlPanel.getClass().getDeclaredMethod("setCourtPinCode", String.class);
             setPinMethod.setAccessible(true);
@@ -231,26 +273,62 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             System.err.println("Không thể set courtId cho BadmintonControlPanel: " + e.getMessage());
         }
 
-        // Thêm listener để cập nhật overview khi có thay đổi
-        courtControlPanel.addPropertyChangeListener(evt -> SwingUtilities.invokeLater(this::refreshOverview));
+        // Chỉ gắn listeners một lần cho mỗi panel để tránh trùng lặp khi hydrate
+        if (!wiredPanels.contains(courtControlPanel)) {
+            // Thêm listener để cập nhật overview khi có thay đổi
+            courtControlPanel.addPropertyChangeListener(evt -> SwingUtilities.invokeLater(this::refreshOverview));
+            // Thêm listener cho các sự kiện thay đổi trong BadmintonControlPanel
+            addControlPanelListeners(courtControlPanel);
+            // Thêm listener cho thay đổi điểm số từ BadmintonMatch
+            addScoreChangeListener(courtControlPanel);
+            wiredPanels.add(courtControlPanel);
+        }
 
-        // Thêm listener cho các sự kiện thay đổi trong BadmintonControlPanel
-        addControlPanelListeners(courtControlPanel);
-
-        // Thêm listener cho thay đổi điểm số từ BadmintonMatch
-        addScoreChangeListener(courtControlPanel);
-
-        courtTabs.addTab(tabTitle, courtControlPanel);
-        courtTabs.setSelectedComponent(courtControlPanel);
+        // Nếu tab đã tồn tại, thay thế component tại tab đó; nếu chưa, thêm tab mới
+        int existingIdx = -1;
+        for (int i = 0; i < courtTabs.getTabCount(); i++) {
+            if (tabTitle.equals(courtTabs.getTitleAt(i))) {
+                existingIdx = i;
+                break;
+            }
+        }
+        if (existingIdx >= 0) {
+            courtTabs.setComponentAt(existingIdx, courtControlPanel);
+            courtTabs.setSelectedIndex(existingIdx);
+        } else {
+            courtTabs.addTab(tabTitle, courtControlPanel);
+            courtTabs.setSelectedComponent(courtControlPanel);
+        }
+        // Đảm bảo cập nhật UI ngay
+        courtTabs.revalidate();
+        courtTabs.repaint();
 
         // Phát broadcast ở trạng thái chờ để MonitorTab hiện card ngay khi mở sân
+        // Chỉ thực hiện khi:
+        // - KHÔNG bật suppressIdleBroadcastOnce, VÀ
+        // - Panel mới được tạo (không phải hydrate), VÀ
+        // - Trạng thái sân đang idle (không playing/paused/finished)
+        boolean shouldStartIdle = false;
         try {
-            java.lang.reflect.Method idle = courtControlPanel.getClass().getDeclaredMethod("startIdleBroadcast",
-                    String.class);
-            idle.setAccessible(true);
-            idle.invoke(courtControlPanel, session.header);
-        } catch (Exception ex) {
-            System.err.println("Không thể start idle broadcast khi tạo sân: " + ex.getMessage());
+            Map<String, CourtStatus> all = courtManager.getAllCourtStatus();
+            CourtStatus st = (all != null) ? all.get(session.courtId) : null;
+            shouldStartIdle = (st == null) || (!st.isPlaying && !st.isPaused && !st.isFinished);
+        } catch (Exception ignore) {
+        }
+
+        if (!suppressIdleBroadcastOnce && createdNewPanel && shouldStartIdle) {
+            try {
+                java.lang.reflect.Method idle = courtControlPanel.getClass().getDeclaredMethod("startIdleBroadcast",
+                        String.class);
+                idle.setAccessible(true);
+                idle.invoke(courtControlPanel, session.header);
+            } catch (Exception ex) {
+                System.err.println("Không thể start idle broadcast khi tạo sân: " + ex.getMessage());
+            }
+        } else {
+            // reset cờ sau khi bỏ qua một lần
+            if (suppressIdleBroadcastOnce)
+                suppressIdleBroadcastOnce = false;
         }
     }
 
@@ -402,11 +480,21 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
                 new EmptyBorder(6, 6, 6, 6)));
         card.setAlignmentX(LEFT_ALIGNMENT); // để BoxLayout không kéo full width khi không cần
 
-        // Header
+        // Header + nút Đóng sân bên phải
+        JPanel headerBar = new JPanel(new BorderLayout());
         JLabel headerLabel = new JLabel(status.courtId + " - " + status.header);
         headerLabel.setFont(headerLabel.getFont().deriveFont(Font.BOLD));
         headerLabel.setBorder(new EmptyBorder(0, 0, 4, 0));
-        card.add(headerLabel, BorderLayout.NORTH);
+        headerBar.add(headerLabel, BorderLayout.WEST);
+        JButton btnRemoveTop = new JButton("Đóng sân");
+        btnRemoveTop.setMargin(new Insets(4, 12, 4, 12));
+        btnRemoveTop.addActionListener(e -> removeCourt(status.courtId));
+        JPanel rightWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        rightWrap.setOpaque(false);
+        rightWrap.add(btnRemoveTop);
+        headerBar.add(rightWrap, BorderLayout.EAST);
+        headerBar.setOpaque(false);
+        card.add(headerBar, BorderLayout.NORTH);
 
         // Info grid (gọn): dùng GridBagLayout thay vì GridLayout để không giãn dọc
         JPanel infoPanel = new JPanel(new GridBagLayout());
@@ -419,8 +507,28 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         gc.insets = new Insets(2, 0, 2, 8); // hàng sít: 2px
         gc.fill = GridBagConstraints.NONE;
 
-        addInfoRow(infoPanel, gc, "Trạng thái:", (status.isDisplayOpen ? "Đang mở" : "Đã đóng"));
-        addInfoRow(infoPanel, gc, "Thi đấu:", (status.isPlaying ? "Đang thi đấu" : "Chưa thi đấu"));
+        // Trạng thái sân: Mở, Đang sử dụng, Đóng
+        String courtState;
+        if (!status.isDisplayOpen) {
+            courtState = "Đóng";
+        } else if (status.hasNames || status.isPlaying || status.isPaused || status.isFinished) {
+            courtState = "Đang sử dụng"; // đã có cấu hình/tên hoặc có hoạt động
+        } else {
+            courtState = "Mở";
+        }
+        addInfoRow(infoPanel, gc, "Trạng thái sân:", courtState);
+
+        // Trạng thái trận đấu: Chưa thi đấu, Đang thi đấu, Tạm dừng, Kết thúc
+        String matchState;
+        if (status.isFinished)
+            matchState = "Kết thúc";
+        else if (status.isPaused)
+            matchState = "Tạm dừng";
+        else if (status.isPlaying)
+            matchState = "Đang thi đấu";
+        else
+            matchState = "Chưa thi đấu";
+        addInfoRow(infoPanel, gc, "Trạng thái trận:", matchState);
         addInfoRow(infoPanel, gc, "Đội A:", status.names[0]);
         addInfoRow(infoPanel, gc, "Đội B:", status.names[1]);
         addInfoRow(infoPanel, gc, "Điểm:", status.score[0] + " - " + status.score[1]);
@@ -457,10 +565,13 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             btnTogglePin.setText(next ? "Ẩn PIN" : "Hiện PIN");
         });
         buttonPanel.add(btnTogglePin);
-        JButton btnRemove = new JButton("Đóng sân");
-        btnRemove.setMargin(new Insets(4, 12, 4, 12));
-        btnRemove.addActionListener(e -> removeCourt(status.courtId));
-        buttonPanel.add(btnRemove);
+        // Nút hiện bảng điều khiển cho sân này
+        JButton btnShowCtl = new JButton("Hiện điều khiển");
+        btnShowCtl.setMargin(new Insets(4, 12, 4, 12));
+        btnShowCtl.addActionListener(e -> showControlPanelForCourtId(status.courtId));
+        buttonPanel.add(btnShowCtl);
+
+        // Nút Đóng sân đã chuyển lên header
         card.add(buttonPanel, BorderLayout.SOUTH);
 
         // Chặn card bị kéo cao khi nằm trong BoxLayout Y_AXIS
@@ -749,7 +860,8 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
                     String propertyName = evt.getPropertyName();
                     if ("score".equals(propertyName) || "games".equals(propertyName) ||
                             "gameNumber".equals(propertyName) || "server".equals(propertyName) ||
-                            "matchFinished".equals(propertyName) || "betweenGamesInterval".equals(propertyName)) {
+                            "matchFinished".equals(propertyName) || "betweenGamesInterval".equals(propertyName)
+                            || "manualPaused".equals(propertyName) || "status".equals(propertyName)) {
                         SwingUtilities.invokeLater(this::refreshOverview);
                     }
                 };
@@ -852,6 +964,50 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         selectNextAvailableCourt(courtCombo);
 
         refreshOverview();
+    }
+
+    /**
+     * Hiện (mở/đưa ra trước) tab bảng điều khiển cho sân được chọn trong combo box.
+     * Không tạo sân mới; nếu sân chưa được tạo, yêu cầu người dùng thêm sân trước.
+     */
+    private void showControlPanelFromCombo(JComboBox<String> courtCombo) {
+        String courtId = (String) courtCombo.getSelectedItem();
+        showControlPanelForCourtId(courtId);
+    }
+
+    /** Hiện (mở/đưa ra trước) tab bảng điều khiển cho sân theo courtId. */
+    private void showControlPanelForCourtId(String courtId) {
+        if (courtId == null || courtId.isBlank()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn sân", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        CourtSession session = courtManager.getCourt(courtId);
+        if (session == null) {
+            JOptionPane.showMessageDialog(this, "Sân này chưa được tạo. Vui lòng thêm sân trước.",
+                    "Chưa có sân", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        int idx = -1;
+        for (int i = 0; i < courtTabs.getTabCount(); i++) {
+            if (courtId.equals(courtTabs.getTitleAt(i))) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx >= 0) {
+            courtTabs.setSelectedIndex(idx);
+        } else {
+            createCourtControlTab(session);
+        }
+        try {
+            java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(this);
+            if (win != null) {
+                win.setVisible(true);
+                win.toFront();
+                win.requestFocus();
+            }
+        } catch (Exception ignore) {
+        }
     }
 
     /**

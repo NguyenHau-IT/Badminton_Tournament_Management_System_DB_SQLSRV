@@ -150,7 +150,11 @@ public class CourtManagerService {
             int bestOf = match.getBestOf();
             int server = match.getServer();
             boolean doubles = match.isDoubles();
-            boolean isPlaying = false; // Khai báo biến trạng thái thi đấu
+            boolean isPlaying = false; // Đang thi đấu
+            boolean isPaused = false; // Tạm dừng (nghỉ giữa ván hoặc tạm dừng thủ công)
+            boolean isFinished = false; // Kết thúc trận
+            boolean hasNames = false; // Đã chọn tên hai bên (không phải placeholder)
+            boolean hasStarted = false; // Đã bấm bắt đầu trận
 
             // Nếu có controlPanel, cập nhật thông tin từ đó
             if (session.controlPanel != null) {
@@ -186,6 +190,19 @@ public class CourtManagerService {
                     javax.swing.JComboBox<?> bestOfCombo = (javax.swing.JComboBox<?>) bestOfField
                             .get(session.controlPanel);
                     javax.swing.JCheckBox doublesCheck = (javax.swing.JCheckBox) doublesField.get(session.controlPanel);
+
+                    // Lấy trạng thái đã bắt đầu từ control panel nếu có
+                    try {
+                        java.lang.reflect.Field hasStartedField = session.controlPanel.getClass()
+                                .getDeclaredField("hasStarted");
+                        hasStartedField.setAccessible(true);
+                        Object hs = hasStartedField.get(session.controlPanel);
+                        if (hs instanceof Boolean b) {
+                            hasStarted = b.booleanValue();
+                        }
+                    } catch (Exception ignore) {
+                        // fallback sẽ tính sau
+                    }
 
                     // Cập nhật tên đội từ UI
                     if (doublesCheck != null && doublesCheck.isSelected()) {
@@ -259,31 +276,57 @@ public class CourtManagerService {
                             getServerMethod.setAccessible(true);
                             server = (Integer) getServerMethod.invoke(currentMatch);
 
-                            // Xác định trạng thái thi đấu
+                            // Trạng thái trận đấu: dùng các getter công khai nếu có
                             try {
-                                java.lang.reflect.Method getMatchFinishedMethod = currentMatch.getClass()
-                                        .getDeclaredMethod("getMatchFinished");
-                                java.lang.reflect.Method getHasStartedMethod = currentMatch.getClass()
-                                        .getDeclaredMethod("hasStarted");
-
-                                getMatchFinishedMethod.setAccessible(true);
-                                getHasStartedMethod.setAccessible(true);
-
-                                boolean matchFinished = (Boolean) getMatchFinishedMethod.invoke(currentMatch);
-                                boolean hasStarted = (Boolean) getHasStartedMethod.invoke(currentMatch);
-
-                                // Đang thi đấu = đã bắt đầu và chưa kết thúc
-                                isPlaying = hasStarted && !matchFinished;
-                            } catch (Exception e) {
-                                // Fallback: kiểm tra điểm số để xác định trạng thái
-                                isPlaying = (score[0] > 0 || score[1] > 0 || games[0] > 0 || games[1] > 0);
+                                java.lang.reflect.Method isBetween = currentMatch.getClass()
+                                        .getDeclaredMethod("isBetweenGamesInterval");
+                                java.lang.reflect.Method isManualPausedM = null;
+                                try {
+                                    isManualPausedM = currentMatch.getClass().getDeclaredMethod("isManualPaused");
+                                } catch (NoSuchMethodException ignore) {
+                                }
+                                java.lang.reflect.Method isFinishedM = currentMatch.getClass()
+                                        .getDeclaredMethod("isMatchFinished");
+                                isBetween.setAccessible(true);
+                                isFinishedM.setAccessible(true);
+                                boolean pausedBetween = (Boolean) isBetween.invoke(currentMatch);
+                                boolean pausedManual = false;
+                                if (isManualPausedM != null) {
+                                    isManualPausedM.setAccessible(true);
+                                    pausedManual = (Boolean) isManualPausedM.invoke(currentMatch);
+                                }
+                                isPaused = pausedBetween || pausedManual;
+                                isFinished = (Boolean) isFinishedM.invoke(currentMatch);
+                            } catch (Exception ignore) {
+                                // ignore
                             }
+                            // Đã bắt đầu khi có điểm/ván hoặc gameNumber > 1
+                            if (!hasStarted) {
+                                hasStarted = (score[0] > 0 || score[1] > 0 || games[0] > 0 || games[1] > 0
+                                        || gameNumber > 1);
+                            }
+                            isPlaying = hasStarted && !isFinished && !isPaused;
                         }
                     } catch (Exception e) {
                         // Nếu không thể lấy từ controlPanel, giữ nguyên thông tin từ match
                         System.err.println("Không thể lấy điểm số từ BadmintonControlPanel: " + e.getMessage());
                         // Fallback: kiểm tra điểm số để xác định trạng thái
-                        isPlaying = (score[0] > 0 || score[1] > 0 || games[0] > 0 || games[1] > 0);
+                        isFinished = match.isMatchFinished();
+                        boolean pausedManual = false;
+                        try {
+                            java.lang.reflect.Method isManualPausedM = match.getClass()
+                                    .getDeclaredMethod("isManualPaused");
+                            isManualPausedM.setAccessible(true);
+                            pausedManual = (Boolean) isManualPausedM.invoke(match);
+                        } catch (Exception ignore2) {
+                        }
+                        isPaused = match.isBetweenGamesInterval() || pausedManual;
+                        if (!hasStarted) {
+                            hasStarted = (score[0] > 0 || score[1] > 0 || games[0] > 0 || games[1] > 0
+                                    || gameNumber > 1);
+                        }
+                        isPlaying = hasStarted
+                                && !isFinished && !isPaused;
                     }
 
                     // Cập nhật header (nội dung trận đấu) từ UI
@@ -325,6 +368,14 @@ public class CourtManagerService {
                 }
             }
 
+            // Xác định đã chọn tên (không phải placeholder)
+            hasNames = (names != null
+                    && names.length >= 2
+                    && names[0] != null && !names[0].isBlank() && !names[0].equals("Team A")
+                    && !names[0].contains("— Chọn")
+                    && names[1] != null && !names[1].isBlank() && !names[1].equals("Team B")
+                    && !names[1].contains("— Chọn"));
+
             status.put(courtId, new CourtStatus(
                     courtId,
                     session.header,
@@ -337,7 +388,10 @@ public class CourtManagerService {
                     server,
                     doubles,
                     session.pinCode,
-                    isPlaying));
+                    isPlaying,
+                    isPaused,
+                    isFinished,
+                    hasNames));
         }
         return status;
     }
@@ -357,11 +411,15 @@ public class CourtManagerService {
         public final int server;
         public final boolean doubles;
         public final String pinCode; // Mã PIN của sân
-        public final boolean isPlaying; // Trạng thái đang thi đấu
+        public final boolean isPlaying; // Đang thi đấu
+        public final boolean isPaused; // Tạm dừng (nghỉ giữa ván)
+        public final boolean isFinished; // Kết thúc trận
+        public final boolean hasNames; // Đã chọn tên hai bên
 
         public CourtStatus(String courtId, String header, boolean isDisplayOpen,
                 String[] names, int[] score, int[] games, int gameNumber,
-                int bestOf, int server, boolean doubles, String pinCode, boolean isPlaying) {
+                int bestOf, int server, boolean doubles, String pinCode,
+                boolean isPlaying, boolean isPaused, boolean isFinished, boolean hasNames) {
             this.courtId = courtId;
             this.header = header;
             this.isDisplayOpen = isDisplayOpen;
@@ -374,6 +432,9 @@ public class CourtManagerService {
             this.doubles = doubles;
             this.pinCode = pinCode;
             this.isPlaying = isPlaying;
+            this.isPaused = isPaused;
+            this.isFinished = isFinished;
+            this.hasNames = hasNames;
         }
     }
 }

@@ -312,9 +312,43 @@ public class SoDoThiDauPanel extends JPanel {
     // tự tạo/chọn tab sân và prefill tên/hạng mục
     private void openMatchControlForPair(String displayA, String displayB) {
         try {
-            // 1) Chọn sân đơn giản (Sân 1..Sân 10)
-            String[] courts = new String[] { "Sân 1", "Sân 2", "Sân 3", "Sân 4", "Sân 5", "Sân 6", "Sân 7",
-                    "Sân 8", "Sân 9", "Sân 10" };
+            // 1) Chỉ cho chọn các sân đã được mở trong cửa sổ Thi đấu
+            // (MultiCourtControlPanel)
+            com.example.btms.ui.control.MultiCourtControlPanel mcExisting = findExistingMultiCourtPanel();
+            if (mcExisting == null) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Chưa mở cửa sổ Thi đấu. Vui lòng mở cửa sổ Thi đấu và tạo sân trước.",
+                        "Thi đấu", javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            java.util.List<String> openedCourts = new java.util.ArrayList<>();
+            // Yêu cầu cửa sổ Thi đấu tạo tab cho các sân đã tồn tại nếu chưa có (hydrate)
+            try {
+                java.lang.reflect.Method mEns = mcExisting.getClass().getDeclaredMethod("ensureTabsForExistingCourts");
+                mEns.setAccessible(true);
+                mEns.invoke(mcExisting);
+            } catch (Exception ignore) {
+            }
+            try {
+                java.lang.reflect.Field fTabs = mcExisting.getClass().getDeclaredField("courtTabs");
+                fTabs.setAccessible(true);
+                Object obj = fTabs.get(mcExisting);
+                if (obj instanceof javax.swing.JTabbedPane tabs) {
+                    for (int i = 0; i < tabs.getTabCount(); i++) {
+                        String title = tabs.getTitleAt(i);
+                        if (title != null && !title.isBlank())
+                            openedCourts.add(title);
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+            if (openedCourts.isEmpty()) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Chưa có sân nào trong cửa sổ Thi đấu. Vui lòng thêm sân trước.",
+                        "Thi đấu", javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            String[] courts = openedCourts.toArray(new String[0]);
             String courtId = (String) javax.swing.JOptionPane.showInputDialog(
                     this,
                     "Chọn sân để mở bảng điều khiển",
@@ -325,50 +359,92 @@ public class SoDoThiDauPanel extends JPanel {
                     courts[0]);
             if (courtId == null || courtId.isBlank())
                 return; // huỷ
-            // 2) Xác định nội dung và tiêu đề header
+            // 2) Trước khi mở, kiểm tra trạng thái sân và trạng thái trận đấu của sân
+            try {
+                CourtManagerService cmsCheck = CourtManagerService.getInstance();
+                java.util.Map<String, com.example.btms.service.match.CourtManagerService.CourtStatus> stMap = cmsCheck
+                        .getAllCourtStatus();
+                com.example.btms.service.match.CourtManagerService.CourtStatus st = (stMap != null)
+                        ? stMap.get(courtId)
+                        : null;
+                boolean busyPlaying = (st != null && st.isPlaying);
+                boolean busyPaused = (st != null && st.isPaused && !st.isFinished);
+                if (busyPlaying || busyPaused) {
+                    String matchState = busyPlaying ? "Đang thi đấu" : "Tạm dừng";
+                    int choice = javax.swing.JOptionPane.showConfirmDialog(this,
+                            String.format(
+                                    "%s đang có trận (%s).\nBạn muốn mở tab hiện có (không thay đổi dữ liệu trận)?",
+                                    courtId, matchState),
+                            "Sân đang bận", javax.swing.JOptionPane.YES_NO_OPTION,
+                            javax.swing.JOptionPane.WARNING_MESSAGE);
+                    if (choice == javax.swing.JOptionPane.YES_OPTION) {
+                        // Không tạo mới, chỉ chọn tab sân đã mở và đưa cửa sổ ra trước
+                        try {
+                            selectCourtTab(mcExisting, courtId);
+                        } catch (Exception ignore) {
+                        }
+                        try {
+                            java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(mcExisting);
+                            if (win != null) {
+                                win.setVisible(true);
+                                win.toFront();
+                                win.requestFocus();
+                            }
+                        } catch (Exception ignore) {
+                        }
+                        return;
+                    } else {
+                        // Người dùng muốn chọn sân khác/huỷ
+                        return;
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+
+            // 3) Xác định nội dung và tiêu đề header
             // Xác định nội dung (đơn/đôi) và header
             NoiDung nd = selectedNoiDung;
             String header = (nd != null && nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
             boolean isTeam = nd != null && Boolean.TRUE.equals(nd.getTeam());
 
-            // 3) Tìm (hoặc tạo) cửa sổ Nhiều sân và đảm bảo có tab cho sân đã chọn
-            MultiCourtControlPanel mcPanel = findOrCreateMultiCourtPanelWindow();
-            if (mcPanel == null) {
-                javax.swing.JOptionPane.showMessageDialog(this, "Không thể mở cửa sổ Thi đấu.",
-                        "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
-                return;
-            }
+            // 4) Dùng đúng cửa sổ Nhiều sân đang mở; không tự tạo mới
+            MultiCourtControlPanel mcPanel = mcExisting;
             try {
                 mcPanel.setConnection(this.conn);
             } catch (Throwable ignore) {
             }
 
+            // Không tạo sân/tab mới ở đây. Chỉ tiếp tục nếu tab sân đã tồn tại trong cửa
+            // sổ.
             CourtManagerService cms = CourtManagerService.getInstance();
             CourtSession session = cms.getCourt(courtId);
-            if (session == null) {
-                session = cms.createCourt(courtId, header);
-                // Thêm tab điều khiển cho sân mới (gọi method private qua reflection)
-                try {
-                    java.lang.reflect.Method m = mcPanel.getClass().getDeclaredMethod("createCourtControlTab",
-                            CourtSession.class);
-                    m.setAccessible(true);
-                    m.invoke(mcPanel, session);
-                } catch (Exception ex) {
-                    // fallback: không tạo được tab -> báo lỗi
-                    javax.swing.JOptionPane.showMessageDialog(this,
-                            "Không thể tạo tab điều khiển cho " + courtId + ": " + ex.getMessage(),
-                            "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
-                    return;
+            boolean tabExists = false;
+            try {
+                java.lang.reflect.Field fTabs = mcPanel.getClass().getDeclaredField("courtTabs");
+                fTabs.setAccessible(true);
+                Object obj = fTabs.get(mcPanel);
+                if (obj instanceof javax.swing.JTabbedPane tabs) {
+                    for (int i = 0; i < tabs.getTabCount(); i++) {
+                        if (courtId.equals(tabs.getTitleAt(i))) {
+                            tabExists = true;
+                            break;
+                        }
+                    }
                 }
-            } else {
-                // Cập nhật header nếu cần
+            } catch (Exception ignore) {
+            }
+            if (!tabExists) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Sân này chưa được mở trong cửa sổ Thi đấu.",
+                        "Thi đấu", javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (session != null) {
+                // Cập nhật header hiển thị nếu có thay đổi tiêu đề nội dung
                 session.header = header;
-                // Đảm bảo có tab điều khiển; nếu chưa có, tạo mới; nếu có nhưng chưa là control
-                // panel, thay thế
-                ensureCourtControlTabExists(mcPanel, session);
             }
 
-            // 4) Chọn tab của sân và bring-to-front cửa sổ
+            // 5) Chọn tab của sân và bring-to-front cửa sổ
             try {
                 selectCourtTab(mcPanel, courtId);
             } catch (Exception ignore) {
@@ -383,9 +459,9 @@ public class SoDoThiDauPanel extends JPanel {
             } catch (Exception ignore) {
             }
 
-            // 5) Prefill BadmintonControlPanel bên trong tab
+            // 6) Prefill BadmintonControlPanel bên trong tab
             BadmintonControlPanel panel = null;
-            if (session.controlPanel instanceof BadmintonControlPanel p) {
+            if (session != null && session.controlPanel instanceof BadmintonControlPanel p) {
                 panel = p;
             } else {
                 // thử lấy từ tab đang chọn
@@ -486,10 +562,54 @@ public class SoDoThiDauPanel extends JPanel {
         }
     }
 
-    /** Luôn tạo một cửa sổ Thi đấu độc lập để hiển thị ngay (tránh panel nhúng). */
+    /**
+     * Tìm cửa sổ Thi đấu nếu đã có, nếu chưa có thì tạo mới và hiển thị ngay.
+     * Ưu tiên TÁI SỬ DỤNG cửa sổ hiện có để tránh mở nhiều cửa sổ và làm ảnh hưởng
+     * dữ liệu.
+     */
     private MultiCourtControlPanel findOrCreateMultiCourtPanelWindow() {
+        return findOrCreateMultiCourtPanelWindow(false);
+    }
+
+    /**
+     * Tìm cửa sổ Thi đấu nếu đã có; nếu chưa có thì tạo mới. Khi suppressIdle=true,
+     * nếu sau đó tạo tab sân mới thì sẽ KHÔNG phát idle broadcast (để tránh tạo
+     * card giám sát).
+     */
+    private MultiCourtControlPanel findOrCreateMultiCourtPanelWindow(boolean suppressIdle) {
         try {
+            // 1) Ưu tiên dùng cửa sổ đang mở nếu có
+            try {
+                MultiCourtControlPanel existed = findExistingMultiCourtPanel();
+                if (existed != null) {
+                    if (suppressIdle) {
+                        try {
+                            existed.suppressIdleBroadcastOnce();
+                        } catch (Throwable ignore) {
+                        }
+                    }
+                    try {
+                        java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(existed);
+                        if (win != null) {
+                            win.setVisible(true);
+                            win.toFront();
+                            win.requestFocus();
+                        }
+                    } catch (Exception ignore) {
+                    }
+                    return existed;
+                }
+            } catch (Exception ignore) {
+            }
+
+            // 2) Không có thì tạo mới
             MultiCourtControlPanel panel = new MultiCourtControlPanel();
+            if (suppressIdle) {
+                try {
+                    panel.suppressIdleBroadcastOnce();
+                } catch (Throwable ignore) {
+                }
+            }
             try {
                 panel.setConnection(this.conn);
             } catch (Throwable ignore) {

@@ -74,6 +74,8 @@ public class BadmintonMatch {
     private boolean betweenGamesInterval = false;
     private boolean changedEndsThisGame = false;
     private boolean matchFinished = false;
+    // Tạm dừng thủ công trong ván (khác với nghỉ giữa ván)
+    private boolean manualPaused = false;
 
     private Instant startTime = Instant.now();
     private Instant gameStartTime = Instant.now();
@@ -167,7 +169,7 @@ public class BadmintonMatch {
     }
 
     public void pointTo(int side) {
-        if (matchFinished || betweenGamesInterval)
+        if (matchFinished || betweenGamesInterval || manualPaused)
             return;
         saveState();
         score[side]++;
@@ -207,7 +209,7 @@ public class BadmintonMatch {
     }
 
     public void pointDown(int side, int delta) {
-        if (matchFinished || betweenGamesInterval || delta == 0)
+        if (matchFinished || betweenGamesInterval || manualPaused || delta == 0)
             return;
         saveState();
         score[side] += delta;
@@ -247,6 +249,7 @@ public class BadmintonMatch {
         gameNumber++;
         score[0] = score[1] = 0;
         betweenGamesInterval = false;
+        manualPaused = false; // bỏ tạm dừng thủ công khi sang ván mới
         changedEndsThisGame = false;
         // đổi sân giữa game (nếu cần, bật dòng dưới)
         // swapEnds();
@@ -261,6 +264,7 @@ public class BadmintonMatch {
         games[side == 0 ? 1 : 0] = (bestOf / 2) + 1;
         matchFinished = true;
         betweenGamesInterval = false;
+        manualPaused = false;
         pcs.firePropertyChange("matchEnd", null, snapshot());
     }
 
@@ -271,6 +275,7 @@ public class BadmintonMatch {
         gameNumber = 1;
         server = 0;
         betweenGamesInterval = false;
+        manualPaused = false;
         changedEndsThisGame = false;
         matchFinished = false;
         startTime = Instant.now();
@@ -424,6 +429,31 @@ public class BadmintonMatch {
 
     public boolean isBetweenGamesInterval() {
         return betweenGamesInterval;
+    }
+
+    /** Trạng thái tạm dừng thủ công trong lúc đang chơi ván */
+    public boolean isManualPaused() {
+        return manualPaused;
+    }
+
+    /** Bật tạm dừng thủ công (không phải nghỉ giữa ván) */
+    public void pauseManual() {
+        if (matchFinished || betweenGamesInterval || manualPaused)
+            return;
+        saveState();
+        manualPaused = true;
+        pcs.firePropertyChange("manualPaused", false, true);
+        pcs.firePropertyChange("status", null, snapshot());
+    }
+
+    /** Tắt tạm dừng thủ công (tiếp tục thi đấu) */
+    public void resumeManual() {
+        if (!manualPaused)
+            return;
+        saveState();
+        manualPaused = false;
+        pcs.firePropertyChange("manualPaused", true, false);
+        pcs.firePropertyChange("status", null, snapshot());
     }
 
     public boolean isMatchFinished() {

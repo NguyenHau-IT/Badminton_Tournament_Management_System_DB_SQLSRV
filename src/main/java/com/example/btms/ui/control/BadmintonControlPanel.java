@@ -97,6 +97,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             new String[] { "Dọc (vertical)", "Ngang (horizontal)" });
     private final JComboBox<String> cboScreen = new JComboBox<>();
     private JButton btnStart, btnFinish, btnReset, btnOpenDisplay, btnOpenDisplayH, btnCloseDisplay, btnReloadLists;
+    private JButton pauseResume; // Nút tạm dừng/tiếp tục trận
 
     /* ===== Score buttons ===== */
     private JButton aPlus, bPlus, aMinus, bMinus, undo, nextGame, swapEnds, toggleServe;
@@ -473,7 +474,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         top.add(labeled(cboScreen, "Màn hình hiển thị"));
         top.add(labeled(cboDisplayKind, "Kiểu bảng điểm"));
 
-        JPanel buttons = new JPanel(new GridLayout(4, 2, 10, 0));
+        JPanel buttons = new JPanel(new GridLayout(5, 2, 10, 0));
         buttons.setOpaque(false);
         btnStart = ButtonFactory.filled("Bắt đầu trận", COL_SUCCESS, Color.WHITE, BTN_CTRL, FONT_BTN);
         btnFinish = ButtonFactory.filled("Kết thúc trận", COL_DANGER, Color.WHITE, BTN_CTRL, FONT_BTN);
@@ -486,6 +487,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnCloseDisplay.setEnabled(false);
         btnReset = ButtonFactory.outlined("Đặt lại", COL_WARNING, BTN_CTRL, FONT_BTN);
         btnReset.setEnabled(false);
+        // Nút tạm dừng/tiếp tục
+        pauseResume = ButtonFactory.outlined("Tạm dừng", COL_WARNING, BTN_CTRL, FONT_BTN);
+        pauseResume.setEnabled(false);
 
         // Nút chụp ảnh bảng điểm
         JButton btnCapture = ButtonFactory.outlined("📸 Chụp ảnh", COL_NEUTRAL, BTN_CTRL, FONT_BTN);
@@ -493,7 +497,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnCapture.addActionListener(e -> captureMiniScoreboard());
 
         for (JButton b : new JButton[] { btnStart, btnFinish, btnOpenDisplay, btnOpenDisplayH, btnCloseDisplay,
-                btnReset }) {
+                btnReset, pauseResume }) {
             b.setPreferredSize(BTN_CTRL);
             b.setMaximumSize(new Dimension(Integer.MAX_VALUE, BTN_CTRL.height));
         }
@@ -504,6 +508,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnOpenDisplay.addActionListener(e -> openDisplayVertical());
         btnOpenDisplayH.addActionListener(e -> openDisplayHorizontal());
         btnCloseDisplay.addActionListener(e -> closeDisplays());
+        pauseResume.addActionListener(e -> onTogglePause());
 
         buttons.add(btnStart);
         buttons.add(btnFinish);
@@ -512,10 +517,87 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         buttons.add(btnOpenDisplay);
         buttons.add(btnOpenDisplayH);
         buttons.add(btnCloseDisplay);
+        buttons.add(pauseResume);
+        buttons.add(Box.createGlue());
 
         card.add(top, BorderLayout.NORTH);
         card.add(buttons, BorderLayout.CENTER);
         return card;
+    }
+
+    private void onTogglePause() {
+        try {
+            var s = match.snapshot();
+            if (s.matchFinished) {
+                JOptionPane.showMessageDialog(this, "Trận đã kết thúc", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            if (s.betweenGamesInterval) {
+                JOptionPane.showMessageDialog(this, "Đang nghỉ giữa ván. Dùng 'Ván tiếp theo' để tiếp tục.",
+                        "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            boolean manualPaused = false;
+            try {
+                java.lang.reflect.Method m = match.getClass().getDeclaredMethod("isManualPaused");
+                m.setAccessible(true);
+                manualPaused = (Boolean) m.invoke(match);
+            } catch (Exception ignore) {
+            }
+
+            if (!manualPaused) {
+                try {
+                    java.lang.reflect.Method m = match.getClass().getDeclaredMethod("pauseManual");
+                    m.setAccessible(true);
+                    m.invoke(match);
+                    lblStatus.setText("Tạm dừng");
+                } catch (Exception ex) {
+                    logger.logTs("Không thể tạm dừng: %s", ex.getMessage());
+                }
+            } else {
+                try {
+                    java.lang.reflect.Method m = match.getClass().getDeclaredMethod("resumeManual");
+                    m.setAccessible(true);
+                    m.invoke(match);
+                    lblStatus.setText("Đang thi đấu");
+                } catch (Exception ex) {
+                    logger.logTs("Không thể tiếp tục: %s", ex.getMessage());
+                }
+            }
+            updatePauseButtonText();
+            updateControlsEnabledAccordingToState();
+        } catch (Exception ex) {
+            logger.logTs("Lỗi toggle pause: %s", ex.getMessage());
+        }
+    }
+
+    private void updatePauseButtonText() {
+        boolean manualPaused = false;
+        try {
+            java.lang.reflect.Method m = match.getClass().getDeclaredMethod("isManualPaused");
+            m.setAccessible(true);
+            manualPaused = (Boolean) m.invoke(match);
+        } catch (Exception ignore) {
+        }
+        if (pauseResume != null)
+            pauseResume.setText(manualPaused ? "Tiếp tục" : "Tạm dừng");
+    }
+
+    private void updateControlsEnabledAccordingToState() {
+        var s = match.snapshot();
+        boolean manualPaused = false;
+        try {
+            java.lang.reflect.Method m = match.getClass().getDeclaredMethod("isManualPaused");
+            m.setAccessible(true);
+            manualPaused = (Boolean) m.invoke(match);
+        } catch (Exception ignore) {
+        }
+        boolean canScore = hasStarted && !s.matchFinished && !s.betweenGamesInterval && !manualPaused;
+        setScoreButtonsEnabled(canScore);
+        nextGame.setEnabled(!s.matchFinished && s.betweenGamesInterval);
+        if (pauseResume != null)
+            pauseResume.setEnabled(hasStarted && !s.matchFinished && !s.betweenGamesInterval);
     }
 
     private JPanel buildLiveCard() {
@@ -1306,6 +1388,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnOpenDisplayH.setEnabled(true);
         btnCloseDisplay.setEnabled(true);
         btnReset.setEnabled(true);
+        // Hiển thị trạng thái đang thi đấu ngay khi bấm Bắt đầu
+        lblStatus.setText("Đang thi đấu");
+        if (pauseResume != null) {
+            pauseResume.setEnabled(true);
+            updatePauseButtonText();
+        }
         setScoreButtonsEnabled(true);
         nextGame.setEnabled(false);
 
@@ -1393,6 +1481,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnOpenDisplayH.setEnabled(false);
         btnCloseDisplay.setEnabled(false);
         btnReset.setEnabled(false);
+        if (pauseResume != null) {
+            pauseResume.setEnabled(false);
+            pauseResume.setText("Tạm dừng");
+        }
 
         setScoreButtonsEnabled(false);
         nextGame.setEnabled(false);
@@ -1757,6 +1849,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         lblServer.setText("Giao cầu: " + (s.server == 0 ? "A" : "B") + court);
 
         // Điều khiển enable/disable theo trạng thái
+        boolean manualPaused = false;
+        try {
+            manualPaused = match.isManualPaused();
+        } catch (Throwable ignore) {
+        }
+
         if (!hasStarted) {
             setScoreButtonsEnabled(false);
             nextGame.setEnabled(false);
@@ -1800,11 +1898,26 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             new javax.swing.Timer(20000, e -> {
                 match.nextGame();
             }).start();
+            if (pauseResume != null)
+                pauseResume.setEnabled(false);
+        } else if (manualPaused) {
+            lblStatus.setText("Tạm dừng");
+            setScoreButtonsEnabled(false);
+            nextGame.setEnabled(false);
+            finishScheduled = false;
+            if (pauseResume != null) {
+                pauseResume.setEnabled(true);
+                pauseResume.setText("Tiếp tục");
+            }
         } else {
             lblStatus.setText("Đang thi đấu");
             setScoreButtonsEnabled(true);
             nextGame.setEnabled(false);
             finishScheduled = false;
+            if (pauseResume != null) {
+                pauseResume.setEnabled(true);
+                pauseResume.setText("Tạm dừng");
+            }
         }
 
         // Xử lý sự kiện swap để cập nhật mini panel
