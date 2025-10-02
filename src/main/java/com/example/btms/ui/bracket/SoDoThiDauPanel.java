@@ -218,13 +218,13 @@ public class SoDoThiDauPanel extends JPanel {
         // Luôn dùng label để hiển thị tên nội dung; không hiển thị combobox
         lblNoiDungValue.setVisible(true);
         line.add(lblNoiDungValue);
-        line.add(btnReloadSaved);
-        line.add(btnSeedFromDraw);
-        line.add(btnDeleteAll);
+        // line.add(btnReloadSaved);
+        // line.add(btnSeedFromDraw);
+        // line.add(btnDeleteAll);
         line.add(btnEdit);
-        line.add(btnSaveResults);
+        // line.add(btnSaveResults);
         line.add(btnExportBracketPdf);
-        line.add(btnSave);
+        // line.add(btnSave);
         p.add(line, BorderLayout.CENTER);
 
         btnSave.addActionListener(e -> saveBracket());
@@ -234,12 +234,6 @@ public class SoDoThiDauPanel extends JPanel {
         btnDeleteAll.addActionListener(e -> deleteBracketAndResults());
         btnEdit.addActionListener(e -> canvas.setEditMode(btnEdit.isSelected()));
         btnExportBracketPdf.addActionListener(e -> exportBracketPdf());
-        // Hint row: seeding settings are now in SettingsPanel
-        JPanel seedHint = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        JLabel lblHint = new JLabel("Cấu hình seed và tránh cùng CLB: mở Cài đặt > Sơ đồ thi đấu");
-        lblHint.setFont(lblHint.getFont().deriveFont(Font.ITALIC, 11f));
-        seedHint.add(lblHint);
-        p.add(seedHint, BorderLayout.SOUTH);
         return p;
     }
 
@@ -2051,21 +2045,40 @@ public class SoDoThiDauPanel extends JPanel {
                                     }
                                     List<SoDoDoi> all = SoDoThiDauPanel.this.soDoDoiService.list(idGiai, ndSel.getId());
                                     long cnt = 0;
+                                    Integer minX = null;
                                     if (idClb != null && idClb > 0) {
                                         for (SoDoDoi r : all) {
-                                            if (r.getIdClb() != null && r.getIdClb() == idClb)
+                                            if (r.getIdClb() != null && r.getIdClb().intValue() == idClb.intValue()) {
                                                 cnt++;
+                                                if (r.getToaDoX() != null) {
+                                                    if (minX == null || r.getToaDoX() < minX)
+                                                        minX = r.getToaDoX();
+                                                }
+                                            }
                                         }
                                     } else {
                                         for (SoDoDoi r : all) {
                                             String tt = r.getTenTeam();
-                                            if (tt != null && tt.trim().equals(display))
+                                            if (tt != null && tt.trim().equals(display)) {
                                                 cnt++;
+                                                if (r.getToaDoX() != null) {
+                                                    if (minX == null || r.getToaDoX() < minX)
+                                                        minX = r.getToaDoX();
+                                                }
+                                            }
                                         }
                                     }
                                     if (cnt <= 1) {
                                         JOptionPane.showMessageDialog(BracketCanvas.this,
-                                                "Đội này chỉ còn 1 bản ghi trong sơ đồ – không xoá để tránh mất dữ liệu.",
+                                                "Không xoá để tránh mất dữ liệu.",
+                                                "Không thể xoá", JOptionPane.WARNING_MESSAGE);
+                                        return;
+                                    }
+                                    // Bảo vệ thêm: nếu ô hiện tại là lần xuất hiện bên trái nhất (toạ độ X nhỏ
+                                    // nhất) thì không xoá
+                                    if (minX != null && s.x <= minX) {
+                                        JOptionPane.showMessageDialog(BracketCanvas.this,
+                                                "Không thể xoá.",
                                                 "Không thể xoá", JOptionPane.WARNING_MESSAGE);
                                         return;
                                     }
@@ -2083,13 +2096,25 @@ public class SoDoThiDauPanel extends JPanel {
                                     List<SoDoCaNhan> all = SoDoThiDauPanel.this.soDoCaNhanService.list(idGiai,
                                             ndSel.getId());
                                     long cnt = 0;
+                                    Integer minX = null;
                                     for (SoDoCaNhan r : all) {
-                                        if (r.getIdVdv() == idVdv)
+                                        if (r.getIdVdv() != null && r.getIdVdv().intValue() == idVdv.intValue()) {
                                             cnt++;
+                                            if (r.getToaDoX() != null) {
+                                                if (minX == null || r.getToaDoX() < minX)
+                                                    minX = r.getToaDoX();
+                                            }
+                                        }
                                     }
                                     if (cnt <= 1) {
                                         JOptionPane.showMessageDialog(BracketCanvas.this,
-                                                "VĐV này chỉ còn 1 bản ghi trong sơ đồ – không xoá để tránh mất dữ liệu.",
+                                                "Không xoá để tránh mất dữ liệu.",
+                                                "Không thể xoá", JOptionPane.WARNING_MESSAGE);
+                                        return;
+                                    }
+                                    if (minX != null && s.x <= minX) {
+                                        JOptionPane.showMessageDialog(BracketCanvas.this,
+                                                "Không thể xoá.",
                                                 "Không thể xoá", JOptionPane.WARNING_MESSAGE);
                                         return;
                                     }
