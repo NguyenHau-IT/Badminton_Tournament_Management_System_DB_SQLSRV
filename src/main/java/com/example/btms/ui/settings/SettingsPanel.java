@@ -137,6 +137,37 @@ public class SettingsPanel extends JPanel {
         });
         panel.add(rowLabelWithComp("Cỡ chữ tên VĐV/Đội (Sơ đồ thi đấu):", cboBracketNameFont), gc);
 
+        // Bracket seeding settings
+        gc.gridy++;
+        JComboBox<String> cboSeedMode = new JComboBox<>(new String[] {
+                "Mode 1: [1,5,3,7;2,6,4,8]",
+                "Mode 2: [8,4,6,2;7,3,5,1]",
+                "Mode 3: [1,8,5,4;3,6,7,2]",
+                "Mode 4: [1,2,3,4,5,6,7,8]",
+                "Mode 5: [8,7,6,5,4,3,2,1]",
+                "Mode 6: [8,3,6,2;7,4,5,1]",
+                "Mode 7: [1,8,4,5;2,7,3,6]"
+        });
+        int seedMode = prefs.getInt("bracket.seed.mode", 2);
+        if (seedMode < 1 || seedMode > 7)
+            seedMode = 2;
+        cboSeedMode.setSelectedIndex(seedMode - 1);
+        cboSeedMode.setToolTipText("Chọn cách đặt cặp ở vòng 1 khi gán sơ đồ từ bốc thăm");
+        cboSeedMode.addActionListener(e -> {
+            int idx = cboSeedMode.getSelectedIndex();
+            prefs.putInt("bracket.seed.mode", idx + 1);
+        });
+        panel.add(rowLabelWithComp("Chế độ seed (Sơ đồ thi đấu):", cboSeedMode), gc);
+
+        gc.gridy++;
+        JCheckBox chkAvoidSameClub = new JCheckBox("Tránh để cùng CLB gặp nhau ở vòng 1");
+        chkAvoidSameClub.setSelected(prefs.getBool("bracket.seed.avoidSameClub", true));
+        chkAvoidSameClub.setToolTipText("Cố gắng hoán đổi vị trí để giảm tối đa cặp cùng CLB ở vòng 1");
+        chkAvoidSameClub.addActionListener(e -> {
+            prefs.putBool("bracket.seed.avoidSameClub", chkAvoidSameClub.isSelected());
+        });
+        panel.add(chkAvoidSameClub, gc);
+
         // Always on top for floating windows (monitor viewers / control?)
         gc.gridy++;
         chkAlwaysOnTop = new JCheckBox("Cửa sổ nổi luôn trên cùng");

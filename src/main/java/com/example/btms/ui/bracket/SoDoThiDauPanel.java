@@ -115,6 +115,8 @@ public class SoDoThiDauPanel extends JPanel {
     private final KetQuaCaNhanService ketQuaCaNhanService;
     private final VanDongVienService vdvService;
 
+    // Seed mode controls moved to SettingsPanel; this panel now reads Prefs only.
+
     public SoDoThiDauPanel(Connection conn) { // giữ signature cũ để MainFrame không phải đổi nhiều
         Objects.requireNonNull(conn, "Connection null");
         this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
@@ -232,6 +234,12 @@ public class SoDoThiDauPanel extends JPanel {
         btnDeleteAll.addActionListener(e -> deleteBracketAndResults());
         btnEdit.addActionListener(e -> canvas.setEditMode(btnEdit.isSelected()));
         btnExportBracketPdf.addActionListener(e -> exportBracketPdf());
+        // Hint row: seeding settings are now in SettingsPanel
+        JPanel seedHint = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        JLabel lblHint = new JLabel("Cấu hình seed và tránh cùng CLB: mở Cài đặt > Sơ đồ thi đấu");
+        lblHint.setFont(lblHint.getFont().deriveFont(Font.ITALIC, 11f));
+        seedHint.add(lblHint);
+        p.add(seedHint, BorderLayout.SOUTH);
         return p;
     }
 
@@ -1162,18 +1170,28 @@ public class SoDoThiDauPanel extends JPanel {
                 M = 16;
                 seedCol = 1;
             }
-            List<Integer> pos = computeTopHeavyPositionsWithinBlock(Math.min(N, M), M);
+            int useN = Math.min(N, M);
+            List<Integer> pos = computeSeedPositionsWithMode(useN, M);
+            int[] slotToEntry = new int[M];
+            java.util.Arrays.fill(slotToEntry, -1);
+            for (int i = 0; i < useN; i++)
+                slotToEntry[pos.get(i)] = i;
+            if (prefs.getBool("bracket.seed.avoidSameClub", true)) {
+                adjustAssignmentsToAvoidSameClubTeams(slotToEntry, list, nd.getId(), idGiai);
+            }
             List<String> namesByT = new ArrayList<>();
             for (int t = 0; t < M; t++)
                 namesByT.add(null);
-            for (int i = 0; i < Math.min(N, M); i++) {
-                int t = pos.get(i);
+            for (int t = 0; t < M; t++) {
+                int i = slotToEntry[t];
+                if (i < 0 || i >= N)
+                    continue;
                 BocThamDoi row = list.get(i);
                 String team = row.getTenTeam() != null ? row.getTenTeam().trim() : "";
                 String club = "";
                 try {
                     Integer idClb = row.getIdClb();
-                    if (idClb == null && team != null && !team.isBlank()) {
+                    if (idClb == null && !team.isBlank()) {
                         idClb = doiService.getIdClbByTeamName(team, nd.getId(), idGiai);
                     }
                     if (idClb != null) {
@@ -1241,12 +1259,22 @@ public class SoDoThiDauPanel extends JPanel {
                 M = 16;
                 seedCol = 1;
             }
-            List<Integer> pos = computeTopHeavyPositionsWithinBlock(Math.min(N, M), M);
+            int useN = Math.min(N, M);
+            List<Integer> pos = computeSeedPositionsWithMode(useN, M);
+            int[] slotToEntry = new int[M];
+            java.util.Arrays.fill(slotToEntry, -1);
+            for (int i = 0; i < useN; i++)
+                slotToEntry[pos.get(i)] = i;
+            if (prefs.getBool("bracket.seed.avoidSameClub", true)) {
+                adjustAssignmentsToAvoidSameClubSingles(slotToEntry, list);
+            }
             List<String> namesByT = new ArrayList<>();
             for (int t = 0; t < M; t++)
                 namesByT.add(null);
-            for (int i = 0; i < Math.min(N, M); i++) {
-                int t = pos.get(i);
+            for (int t = 0; t < M; t++) {
+                int i = slotToEntry[t];
+                if (i < 0 || i >= N)
+                    continue;
                 var row = list.get(i);
                 String display;
                 try {
@@ -1377,6 +1405,186 @@ public class SoDoThiDauPanel extends JPanel {
         List<Integer> out = new ArrayList<>(N);
         fillTopHeavy(0, M, N, out);
         return out;
+    }
+
+    // Compute seeding positions based on selected mode; enforce that for any N,
+    // the top half has >= bottom half and differs by at most 1 entrant.
+    private List<Integer> computeSeedPositionsWithMode(int N, int M) {
+        int mode = Math.max(1, Math.min(7, prefs.getInt("bracket.seed.mode", 2)));
+        List<Integer> base;
+        if (M == 8) {
+            // 0-based slot order per entrant index i = 0..N-1
+            int[][] modes = new int[][] {
+                    { 0, 4, 2, 6, 1, 5, 3, 7 }, // Mode 1: [1,5,3,7,2,6,4,8]
+                    { 7, 3, 5, 1, 6, 2, 4, 0 }, // Mode 2: [8,4,6,2,7,3,5,1]
+                    { 0, 7, 4, 3, 2, 5, 6, 1 }, // Mode 3: [1,8,5,4,3,6,7,2]
+                    { 0, 1, 2, 3, 4, 5, 6, 7 }, // Mode 4: natural
+                    { 7, 6, 5, 4, 3, 2, 1, 0 }, // Mode 5: reverse
+                    { 7, 2, 5, 1, 6, 3, 4, 0 }, // Mode 6: variant
+                    { 0, 7, 3, 4, 1, 6, 2, 5 } // Mode 7: variant
+            };
+            int[] arr = modes[mode - 1];
+            base = balancedFromFullMapping(arr, M, N);
+        } else if (M == 4) {
+            int[][] modes = new int[][] {
+                    { 0, 2, 1, 3 }, // 1,3,2,4
+                    { 3, 1, 2, 0 },
+                    { 0, 3, 1, 2 },
+                    { 0, 1, 2, 3 },
+                    { 3, 2, 1, 0 },
+                    { 2, 0, 3, 1 },
+                    { 1, 3, 0, 2 }
+            };
+            int[] arr = modes[mode - 1];
+            base = balancedFromFullMapping(arr, M, N);
+        } else if (M == 2) {
+            int[][] modes = new int[][] {
+                    { 0, 1 }, { 1, 0 }, { 0, 1 }, { 0, 1 }, { 1, 0 }, { 0, 1 }, { 1, 0 }
+            };
+            int[] arr = modes[mode - 1];
+            base = balancedFromFullMapping(arr, M, N);
+        } else if (M == 16) {
+            // For 16, fallback to top-heavy which is generally balanced; anti-CLB step will
+            // adjust pairs
+            base = computeTopHeavyPositionsWithinBlock(N, M);
+        } else {
+            base = computeTopHeavyPositionsWithinBlock(N, M);
+        }
+        return base;
+    }
+
+    // Build a balanced order from a full mapping over M slots so that for any
+    // prefix
+    // of length k (1..N), top half gets ceil(k/2) and bottom half gets floor(k/2),
+    // preserving relative order within each half per the given mapping.
+    private static List<Integer> balancedFromFullMapping(int[] fullMapping, int M, int N) {
+        List<Integer> top = new ArrayList<>(M / 2);
+        List<Integer> bot = new ArrayList<>(M / 2);
+        int half = M / 2;
+        for (int pos : fullMapping) {
+            if (pos < half)
+                top.add(pos);
+            else
+                bot.add(pos);
+        }
+        List<Integer> out = new ArrayList<>(Math.min(N, M));
+        int ti = 0, bi = 0;
+        for (int k = 0; k < Math.min(N, M); k++) {
+            boolean pickTop = (k % 2 == 0);
+            if (pickTop) {
+                if (ti < top.size())
+                    out.add(top.get(ti++));
+                else if (bi < bot.size())
+                    out.add(bot.get(bi++));
+            } else {
+                if (bi < bot.size())
+                    out.add(bot.get(bi++));
+                else if (ti < top.size())
+                    out.add(top.get(ti++));
+            }
+        }
+        return out;
+    }
+
+    // ===== Anti-CLB adjustment (greedy swap) =====
+    private void adjustAssignmentsToAvoidSameClubTeams(int[] slotToEntry, List<BocThamDoi> list, int idNoiDung,
+            int idGiai) {
+        // Precompute club id per entry index
+        int[] clubs = new int[list.size()];
+        java.util.Arrays.fill(clubs, 0);
+        for (int i = 0; i < list.size(); i++) {
+            try {
+                BocThamDoi row = list.get(i);
+                Integer idClb = row.getIdClb();
+                if ((idClb == null || idClb <= 0) && row.getTenTeam() != null && !row.getTenTeam().isBlank()) {
+                    int found = doiService.getIdClbByTeamName(row.getTenTeam().trim(), idNoiDung, idGiai);
+                    if (found > 0)
+                        idClb = found;
+                }
+                clubs[i] = (idClb != null) ? idClb : 0;
+            } catch (RuntimeException ignore) {
+                clubs[i] = 0;
+            }
+        }
+        greedyAvoidSameClub(slotToEntry, clubs);
+    }
+
+    private void adjustAssignmentsToAvoidSameClubSingles(int[] slotToEntry,
+            List<com.example.btms.model.draw.BocThamCaNhan> list) {
+        int[] clubs = new int[list.size()];
+        java.util.Arrays.fill(clubs, 0);
+        for (int i = 0; i < list.size(); i++) {
+            try {
+                var row = list.get(i);
+                var vdv = vdvService.findOne(row.getIdVdv());
+                clubs[i] = (vdv != null && vdv.getIdClb() != null) ? vdv.getIdClb() : 0;
+            } catch (RuntimeException ignore) {
+                clubs[i] = 0;
+            }
+        }
+        greedyAvoidSameClub(slotToEntry, clubs);
+    }
+
+    private void greedyAvoidSameClub(int[] slotToEntry, int[] clubsByEntry) {
+        int M = slotToEntry.length;
+        if (M < 2)
+            return;
+        // Evaluate current clashes
+        java.util.function.IntSupplier clashCount = () -> {
+            int cnt = 0;
+            for (int p = 0; p < M / 2; p++) {
+                int aSlot = 2 * p, bSlot = 2 * p + 1;
+                int a = slotToEntry[aSlot], b = slotToEntry[bSlot];
+                if (a >= 0 && b >= 0 && a < clubsByEntry.length && b < clubsByEntry.length
+                        && clubsByEntry[a] != 0 && clubsByEntry[a] == clubsByEntry[b]) {
+                    cnt++;
+                }
+            }
+            return cnt;
+        };
+
+        int attempts = 0;
+        while (clashCount.getAsInt() > 0 && attempts < 64) { // small cap to avoid infinite loops
+            boolean improved = false;
+            for (int p = 0; p < M / 2; p++) {
+                int aSlot = 2 * p, bSlot = 2 * p + 1;
+                int a = slotToEntry[aSlot], b = slotToEntry[bSlot];
+                if (!(a >= 0 && b >= 0))
+                    continue;
+                if (a >= clubsByEntry.length || b >= clubsByEntry.length)
+                    continue;
+                int cl = clubsByEntry[a];
+                int cr = clubsByEntry[b];
+                if (cl == 0 || cr == 0 || cl != cr)
+                    continue; // no clash
+                int before = clashCount.getAsInt();
+                // try swap b with any other slot s to reduce clashes
+                for (int s = 0; s < M; s++) {
+                    if (s == aSlot || s == bSlot)
+                        continue;
+                    // swap and evaluate
+                    swap(slotToEntry, s, bSlot);
+                    int after = clashCount.getAsInt();
+                    if (after < before) {
+                        improved = true;
+                        break;
+                    }
+                    // revert
+                    swap(slotToEntry, s, bSlot);
+                }
+                if (improved)
+                    break;
+            }
+            if (!improved)
+                break;
+            attempts++;
+        }
+    }
+
+    private void swap(int[] a, int i, int j) {
+        int t = a[i];
+        a[i] = a[j];
+        a[j] = t;
     }
 
     private static void fillTopHeavy(int start, int block, int n, List<Integer> out) {

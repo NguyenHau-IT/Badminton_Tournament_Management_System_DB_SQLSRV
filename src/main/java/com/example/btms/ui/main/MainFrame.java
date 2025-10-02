@@ -15,6 +15,7 @@ import java.net.SocketException;
 import java.sql.Connection;
 import java.text.DecimalFormat;
 import java.util.LinkedHashMap; // still used earlier? (kept for backward compatibility but theme menu removed)
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.BorderFactory;
@@ -43,18 +44,29 @@ import javax.swing.tree.TreeSelectionModel;
 
 import com.example.btms.config.ConnectionConfig;
 import com.example.btms.config.Prefs;
+import com.example.btms.model.bracket.SoDoCaNhan;
+import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.db.SQLSRVConnectionManager;
+
 import com.example.btms.model.tournament.GiaiDau;
+import com.example.btms.repository.bracket.SoDoCaNhanRepository;
+import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
+import com.example.btms.repository.result.KetQuaCaNhanRepository;
+import com.example.btms.repository.result.KetQuaDoiRepository;
 import com.example.btms.service.auth.AuthService;
+import com.example.btms.service.bracket.SoDoCaNhanService;
+import com.example.btms.service.bracket.SoDoDoiService;
 import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.db.DatabaseService;
 import com.example.btms.service.player.VanDongVienService;
+import com.example.btms.service.result.KetQuaCaNhanService;
+import com.example.btms.service.result.KetQuaDoiService;
 import com.example.btms.ui.auth.LoginTab;
 import com.example.btms.ui.auth.LoginTab.Role;
 import com.example.btms.ui.bracket.SoDoThiDauPanel;
@@ -940,7 +952,11 @@ public class MainFrame extends JFrame {
                 // Với mỗi nội dung: "Bốc thăm, lưu và mở sơ đồ"
                 javax.swing.JMenuItem mi = new javax.swing.JMenuItem("Bốc thăm, lưu và mở sơ đồ");
                 mi.addActionListener(ev -> doAutoDrawSaveAndOpenForContent(cn));
+                javax.swing.JMenuItem mi2 = new javax.swing.JMenuItem("Xoá bốc thăm và sơ đồ");
+                mi2.addActionListener(ev -> doClearDrawAndBracketForContent(cn));
+
                 pm.add(mi);
+                pm.add(mi2);
             } else if (uo instanceof String label) {
                 if ("Danh sách đăng kí".equals(label)) {
                     javax.swing.JMenuItem mi1 = new javax.swing.JMenuItem("Bốc thăm theo nội dung đang chọn");
@@ -1101,7 +1117,9 @@ public class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return false;
         }
-        int idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId()
+        Integer __idTmp = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
+        int idGiai = (__idTmp != null)
+                ? __idTmp
                 : new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
         if (idGiai <= 0) {
             JOptionPane.showMessageDialog(this, "Chưa chọn giải.", "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -1142,6 +1160,110 @@ public class MainFrame extends JFrame {
             }
         }
         return true;
+    }
+
+    private void doClearDrawAndBracketForContent(ContentNode cn) {
+        Connection conn = (service != null) ? service.current() : null;
+        if (conn == null) {
+            JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        SoDoCaNhanService soDoCaNhanService = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+        SoDoDoiService soDoDoiService = new SoDoDoiService(new SoDoDoiRepository(conn));
+        KetQuaCaNhanService ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository(conn));
+        KetQuaDoiService ketQuaDoiService = new KetQuaDoiService(new KetQuaDoiRepository(conn));
+        int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải hoặc nội dung", "Thông báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Bạn có chắc muốn xoá toàn bộ sơ đồ, kết quả huy chương và danh sách bốc thăm của nội dung này?\n\n" +
+                        "Hành động này sẽ xoá dữ liệu trong CSDL và không thể hoàn tác.",
+                "Xác nhận xoá", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        // Xác định nội dung là đội/đôi hay cá nhân từ repository (an toàn, không ném
+        // SQLException ra ngoài)
+        boolean isTeam;
+        try {
+            var ndOpt = new NoiDungService(new NoiDungRepository(conn)).getNoiDungById(cn.idNoiDung);
+            isTeam = ndOpt.isPresent() && Boolean.TRUE.equals(ndOpt.get().getTeam());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không xác định được loại nội dung: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        int idNoiDung = cn.idNoiDung;
+
+        try {
+            // 1) Xoá toàn bộ bản ghi sơ đồ theo loại nội dung
+            if (isTeam) {
+                List<SoDoDoi> olds = soDoDoiService.list(idGiai, idNoiDung);
+                for (SoDoDoi r : olds) {
+                    try {
+                        soDoDoiService.delete(idGiai, idNoiDung, r.getViTri());
+                    } catch (Exception ignore) {
+                    }
+                }
+            } else {
+                List<SoDoCaNhan> olds = soDoCaNhanService.list(idGiai, idNoiDung);
+                for (SoDoCaNhan r : olds) {
+                    try {
+                        soDoCaNhanService.delete(idGiai, idNoiDung, r.getViTri());
+                    } catch (Exception ignore) {
+                    }
+                }
+            }
+
+            // 2) Xoá kết quả huy chương (ranks 1,2,3)
+            for (int rank : new int[] { 1, 2, 3 }) {
+                try {
+                    if (isTeam) {
+                        ketQuaDoiService.delete(idGiai, idNoiDung, rank);
+                    } else {
+                        ketQuaCaNhanService.delete(idGiai, idNoiDung, rank);
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+
+            // 3) Xoá danh sách bốc thăm (draws)
+            try {
+                if (isTeam) {
+                    var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
+                            conn, new com.example.btms.repository.draw.BocThamDoiRepository(conn));
+                    var drawList = bocThamDoiSvc.list(idGiai, idNoiDung);
+                    for (var r : drawList) {
+                        try {
+                            bocThamDoiSvc.delete(idGiai, idNoiDung, r.getThuTu());
+                        } catch (Exception ignore) {
+                        }
+                    }
+                } else {
+                    var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
+                            new com.example.btms.repository.draw.BocThamCaNhanRepository(conn));
+                    var drawList = bocThamCaNhanSvc.list(idGiai, idNoiDung);
+                    for (var r : drawList) {
+                        try {
+                            bocThamCaNhanSvc.delete(idGiai, idNoiDung, r.getIdVdv());
+                        } catch (Exception ignore) {
+                        }
+                    }
+                }
+            } catch (Exception ignore) {
+            }
+
+            JOptionPane.showMessageDialog(this, "Đã xoá sơ đồ, kết quả và bốc thăm (nếu có)", "Hoàn tất",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi xoá: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /** Bốc thăm + lưu và mở sơ đồ, auto seed + lưu sơ đồ. */
@@ -1233,7 +1355,8 @@ public class MainFrame extends JFrame {
                     java.util.Map<String, Integer> doubles = maps[1];
 
                     // Chỉ hiển thị các nội dung đã có bốc thăm rồi
-                    int idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : -1;
+                    Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
+                    int idGiai = (_tmpId != null) ? _tmpId : -1;
                     var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
                             service.current(),
                             new com.example.btms.repository.draw.BocThamDoiRepository(service.current()));
@@ -1665,7 +1788,8 @@ public class MainFrame extends JFrame {
                 return;
             }
             int idGiai;
-            idGiai = (selectedGiaiDau != null) ? selectedGiaiDau.getId()
+            idGiai = (selectedGiaiDau != null && selectedGiaiDau.getId() != null)
+                    ? selectedGiaiDau.getId().intValue()
                     : new Prefs().getInt("selectedGiaiDauId", -1);
             if (idGiai <= 0) {
                 JOptionPane.showMessageDialog(this, "Chưa chọn giải.", "Lỗi", JOptionPane.ERROR_MESSAGE);

@@ -37,4 +37,8 @@ public class NoiDungService {
     public List<NoiDung> getNoiDungByTuornament(Integer idGiai) throws SQLException {
         return repository.findByTournament(idGiai);
     }
+
+    public Boolean isNoiDungIsTeam(Integer idNoiDung) throws SQLException {
+        return repository.isNoiDungIsTeam(idNoiDung);
+    }
 }

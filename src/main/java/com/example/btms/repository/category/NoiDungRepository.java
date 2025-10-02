@@ -106,6 +106,19 @@ public class NoiDungRepository {
         }
     }
 
+    public boolean isNoiDungIsTeam(Integer idNoiDung) throws SQLException {
+        String sql = "SELECT TEAM FROM NOI_DUNG WHERE ID = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, idNoiDung);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBoolean("TEAM"); // BIT(1) → boolean
+                }
+            }
+        }
+        return false; // nếu không tìm thấy ID hoặc null → coi như false
+    }
+
     private NoiDung mapResultSetToNoiDung(ResultSet rs) throws SQLException {
         NoiDung nd = new NoiDung();
         nd.setId(rs.getInt("ID"));
