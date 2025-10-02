@@ -43,11 +43,11 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
 
 import com.example.btms.config.ConnectionConfig;
+import com.example.btms.config.NetworkConfig;
 import com.example.btms.config.Prefs;
 import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.db.SQLSRVConnectionManager;
-
 import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.repository.bracket.SoDoCaNhanRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
@@ -77,7 +77,6 @@ import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.monitor.MonitorTab;
-import com.example.btms.ui.net.NetworkConfig;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;

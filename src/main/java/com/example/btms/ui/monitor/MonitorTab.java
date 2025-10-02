@@ -412,9 +412,27 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             }
             for (String k : keysToRemove) {
                 Row removed = sessions.remove(k);
-                if (removed != null)
+                if (removed != null) {
+                    // Đóng viewer tương ứng
                     closeViewer(removed.viewerKey());
+                }
             }
+
+            // Đồng bộ xoá khỏi listModel ngay lập tức theo sid để cập nhật UI tức thời
+            if (sid != null && !sid.isEmpty()) {
+                for (int i = listModel.size() - 1; i >= 0; i--) {
+                    Row r = listModel.getElementAt(i);
+                    if (r != null && java.util.Objects.equals(r.sid, sid)) {
+                        try {
+                            listModel.removeElementAt(i);
+                        } catch (Exception ignore) {
+                        }
+                    }
+                }
+            }
+
+            // Yêu cầu refresh UI ngay để phản ánh việc xoá
+            SwingUtilities.invokeLater(this::refreshCards);
             return;
         }
         if (!"UPSERT".equalsIgnoreCase(op)) {

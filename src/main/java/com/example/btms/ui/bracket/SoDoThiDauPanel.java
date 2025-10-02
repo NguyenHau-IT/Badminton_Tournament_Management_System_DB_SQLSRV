@@ -19,6 +19,7 @@ import java.util.Objects;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
@@ -26,7 +27,6 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JToggleButton;
 import javax.swing.table.DefaultTableModel;
 
 import com.example.btms.config.Prefs;
@@ -34,6 +34,7 @@ import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.draw.BocThamDoi;
+import com.example.btms.model.match.CourtSession;
 import com.example.btms.model.result.KetQuaDoi;
 import com.example.btms.repository.bracket.SoDoCaNhanRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
@@ -50,10 +51,13 @@ import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.draw.BocThamCaNhanService;
 import com.example.btms.service.draw.BocThamDoiService;
+import com.example.btms.service.match.CourtManagerService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.result.KetQuaCaNhanService;
 import com.example.btms.service.result.KetQuaDoiService;
 import com.example.btms.service.team.DoiService;
+import com.example.btms.ui.control.BadmintonControlPanel;
+import com.example.btms.ui.control.MultiCourtControlPanel;
 
 /**
  * Trang "Sơ đồ thi đấu" hiển thị bracket loại trực tiếp 16 -> 1 (5 cột)
@@ -78,9 +82,11 @@ public class SoDoThiDauPanel extends JPanel {
     private final JButton btnSeedFromDraw = new JButton("Gán theo bốc thăm");
     private final JButton btnReloadSaved = new JButton("Tải sơ đồ đã lưu");
     private final JButton btnDeleteAll = new JButton("Xóa sơ đồ + kết quả + bốc thăm");
-    private final JToggleButton btnEdit = new JToggleButton("Chế độ sửa");
+    // Chế độ hiển thị/sửa/thi đấu chuyển sang combobox
+    private final JComboBox<String> cmbMode = new JComboBox<>(new String[] { "Xem", "Sửa", "Thi đấu" });
     private final JButton btnSaveResults = new JButton("Lưu kết quả");
     private final JButton btnExportBracketPdf = new JButton("Xuất sơ đồ PDF");
+    private final JButton btnRefresh = new JButton("Làm mới");
     // Medals table (EAST)
     private final JTable medalTable = new JTable();
     private final DefaultTableModel medalModel = new DefaultTableModel(new Object[] { "Kết quả" }, 0) {
@@ -114,11 +120,13 @@ public class SoDoThiDauPanel extends JPanel {
     private final KetQuaDoiService ketQuaDoiService;
     private final KetQuaCaNhanService ketQuaCaNhanService;
     private final VanDongVienService vdvService;
+    private final Connection conn; // lưu connection để mở panel thi đấu
 
     // Seed mode controls moved to SettingsPanel; this panel now reads Prefs only.
 
     public SoDoThiDauPanel(Connection conn) { // giữ signature cũ để MainFrame không phải đổi nhiều
         Objects.requireNonNull(conn, "Connection null");
+        this.conn = conn;
         this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
         this.bocThamService = new BocThamDoiService((Connection) conn, new BocThamDoiRepository((Connection) conn));
         this.soDoDoiService = new SoDoDoiService(new SoDoDoiRepository((Connection) conn));
@@ -140,6 +148,24 @@ public class SoDoThiDauPanel extends JPanel {
         loadNoiDungOptions();
         updateGiaiLabel();
         loadBestAvailable();
+        installMatchModeInteraction();
+        // Khôi phục chế độ đã chọn trước đó
+        try {
+            int savedMode = Math.max(0, Math.min(2, prefs.getInt("bracket.ui.mode", 0)));
+            cmbMode.setSelectedIndex(savedMode);
+        } catch (Throwable ignore) {
+        }
+        updateCanvasForMode();
+    }
+
+    private boolean isMatchMode() {
+        return cmbMode.getSelectedIndex() == 2; // 0: Xem, 1: Sửa, 2: Thi đấu
+    }
+
+    private void updateCanvasForMode() {
+        int idx = cmbMode.getSelectedIndex();
+        // Edit mode chỉ khi chọn "Sửa"
+        canvas.setEditMode(idx == 1);
     }
 
     /**
@@ -221,7 +247,10 @@ public class SoDoThiDauPanel extends JPanel {
         // line.add(btnReloadSaved);
         // line.add(btnSeedFromDraw);
         // line.add(btnDeleteAll);
-        line.add(btnEdit);
+        line.add(new JLabel(" | Chế độ:"));
+        line.add(cmbMode);
+        // Nút làm mới để tải lại dữ liệu hiện tại
+        line.add(btnRefresh);
         // line.add(btnSaveResults);
         line.add(btnExportBracketPdf);
         // line.add(btnSave);
@@ -232,9 +261,453 @@ public class SoDoThiDauPanel extends JPanel {
         btnReloadSaved.addActionListener(e -> loadSavedSoDo());
         btnSeedFromDraw.addActionListener(e -> loadFromBocTham());
         btnDeleteAll.addActionListener(e -> deleteBracketAndResults());
-        btnEdit.addActionListener(e -> canvas.setEditMode(btnEdit.isSelected()));
+        btnRefresh.addActionListener(e -> reloadData());
+        cmbMode.addActionListener(e -> {
+            updateCanvasForMode();
+            try {
+                prefs.putInt("bracket.ui.mode", cmbMode.getSelectedIndex());
+            } catch (Throwable ignore) {
+            }
+        });
         btnExportBracketPdf.addActionListener(e -> exportBracketPdf());
         return p;
+    }
+
+    // Cài đặt double-click để mở bảng điều khiển trận đấu khi bật "Chế độ thi đấu"
+    private void installMatchModeInteraction() {
+        canvas.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (!isMatchMode())
+                    return;
+                if (e.getButton() != MouseEvent.BUTTON1 || e.getClickCount() < 2)
+                    return;
+                BracketCanvas.Slot s = canvas.slotAt(e.getPoint());
+                if (s == null)
+                    return;
+                // Xác định cặp trong cùng vòng (cùng cột)
+                BracketCanvas.Slot partner = null;
+                int partnerIdx = (s.thuTu % 2 == 0) ? s.thuTu + 1 : s.thuTu - 1;
+                for (BracketCanvas.Slot it : canvas.getSlots()) {
+                    if (it.col == s.col && it.thuTu == partnerIdx) {
+                        partner = it;
+                        break;
+                    }
+                }
+                String a = (s.text != null) ? s.text.trim() : "";
+                String b = (partner != null && partner.text != null) ? partner.text.trim() : "";
+                if (a.isBlank() || b.isBlank()) {
+                    JOptionPane.showMessageDialog(SoDoThiDauPanel.this,
+                            "Cặp này chưa đủ tên để mở trận.",
+                            "Thi đấu",
+                            JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                openMatchControlForPair(a, b);
+            }
+        });
+    }
+
+    // Mở dialog chọn sân và mở trong cửa sổ Nhiều sân (MultiCourtControlPanel),
+    // tự tạo/chọn tab sân và prefill tên/hạng mục
+    private void openMatchControlForPair(String displayA, String displayB) {
+        try {
+            // 1) Chọn sân đơn giản (Sân 1..Sân 10)
+            String[] courts = new String[] { "Sân 1", "Sân 2", "Sân 3", "Sân 4", "Sân 5", "Sân 6", "Sân 7",
+                    "Sân 8", "Sân 9", "Sân 10" };
+            String courtId = (String) javax.swing.JOptionPane.showInputDialog(
+                    this,
+                    "Chọn sân để mở bảng điều khiển",
+                    "Chọn sân",
+                    javax.swing.JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    courts,
+                    courts[0]);
+            if (courtId == null || courtId.isBlank())
+                return; // huỷ
+            // 2) Xác định nội dung và tiêu đề header
+            // Xác định nội dung (đơn/đôi) và header
+            NoiDung nd = selectedNoiDung;
+            String header = (nd != null && nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
+            boolean isTeam = nd != null && Boolean.TRUE.equals(nd.getTeam());
+
+            // 3) Tìm (hoặc tạo) cửa sổ Nhiều sân và đảm bảo có tab cho sân đã chọn
+            MultiCourtControlPanel mcPanel = findOrCreateMultiCourtPanelWindow();
+            if (mcPanel == null) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Không thể mở cửa sổ Thi đấu.",
+                        "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            try {
+                mcPanel.setConnection(this.conn);
+            } catch (Throwable ignore) {
+            }
+
+            CourtManagerService cms = CourtManagerService.getInstance();
+            CourtSession session = cms.getCourt(courtId);
+            if (session == null) {
+                session = cms.createCourt(courtId, header);
+                // Thêm tab điều khiển cho sân mới (gọi method private qua reflection)
+                try {
+                    java.lang.reflect.Method m = mcPanel.getClass().getDeclaredMethod("createCourtControlTab",
+                            CourtSession.class);
+                    m.setAccessible(true);
+                    m.invoke(mcPanel, session);
+                } catch (Exception ex) {
+                    // fallback: không tạo được tab -> báo lỗi
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                            "Không thể tạo tab điều khiển cho " + courtId + ": " + ex.getMessage(),
+                            "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            } else {
+                // Cập nhật header nếu cần
+                session.header = header;
+                // Đảm bảo có tab điều khiển; nếu chưa có, tạo mới; nếu có nhưng chưa là control
+                // panel, thay thế
+                ensureCourtControlTabExists(mcPanel, session);
+            }
+
+            // 4) Chọn tab của sân và bring-to-front cửa sổ
+            try {
+                selectCourtTab(mcPanel, courtId);
+            } catch (Exception ignore) {
+            }
+            try {
+                java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(mcPanel);
+                if (win != null) {
+                    win.setVisible(true);
+                    win.toFront();
+                    win.requestFocus();
+                }
+            } catch (Exception ignore) {
+            }
+
+            // 5) Prefill BadmintonControlPanel bên trong tab
+            BadmintonControlPanel panel = null;
+            if (session.controlPanel instanceof BadmintonControlPanel p) {
+                panel = p;
+            } else {
+                // thử lấy từ tab đang chọn
+                try {
+                    java.lang.reflect.Field fTabs = mcPanel.getClass().getDeclaredField("courtTabs");
+                    fTabs.setAccessible(true);
+                    Object obj = fTabs.get(mcPanel);
+                    if (obj instanceof javax.swing.JTabbedPane tabs) {
+                        // Ưu tiên tab theo courtId
+                        for (int i = 0; i < tabs.getTabCount(); i++) {
+                            if (courtId.equals(tabs.getTitleAt(i))
+                                    && tabs.getComponentAt(i) instanceof BadmintonControlPanel p2) {
+                                panel = p2;
+                                tabs.setSelectedIndex(i);
+                                break;
+                            }
+                        }
+                        int idx = tabs.getSelectedIndex();
+                        if (panel == null && idx >= 0 && tabs.getComponentAt(idx) instanceof BadmintonControlPanel p2) {
+                            panel = p2;
+                        }
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+
+            if (panel != null) {
+                try {
+                    panel.setConnection(this.conn);
+                } catch (Throwable ignore) {
+                }
+                try {
+                    java.lang.reflect.Method mReload = BadmintonControlPanel.class
+                            .getDeclaredMethod("reloadListsFromDb");
+                    mReload.setAccessible(true);
+                    mReload.invoke(panel);
+                } catch (Exception ignore) {
+                }
+
+                try {
+                    java.lang.reflect.Field fDoubles = panel.getClass().getDeclaredField("doubles");
+                    java.lang.reflect.Field fHeaderS = panel.getClass().getDeclaredField("cboHeaderSingles");
+                    java.lang.reflect.Field fHeaderD = panel.getClass().getDeclaredField("cboHeaderDoubles");
+                    java.lang.reflect.Field fNameA = panel.getClass().getDeclaredField("cboNameA");
+                    java.lang.reflect.Field fNameB = panel.getClass().getDeclaredField("cboNameB");
+                    java.lang.reflect.Field fTeamA = panel.getClass().getDeclaredField("cboTeamA");
+                    java.lang.reflect.Field fTeamB = panel.getClass().getDeclaredField("cboTeamB");
+
+                    fDoubles.setAccessible(true);
+                    fHeaderS.setAccessible(true);
+                    fHeaderD.setAccessible(true);
+                    fNameA.setAccessible(true);
+                    fNameB.setAccessible(true);
+                    fTeamA.setAccessible(true);
+                    fTeamB.setAccessible(true);
+
+                    javax.swing.JCheckBox cbDoubles = (javax.swing.JCheckBox) fDoubles.get(panel);
+                    javax.swing.JComboBox<?> cboHeaderSingles = (javax.swing.JComboBox<?>) fHeaderS.get(panel);
+                    javax.swing.JComboBox<?> cboHeaderDoubles = (javax.swing.JComboBox<?>) fHeaderD.get(panel);
+                    javax.swing.JComboBox<?> cboNameA = (javax.swing.JComboBox<?>) fNameA.get(panel);
+                    javax.swing.JComboBox<?> cboNameB = (javax.swing.JComboBox<?>) fNameB.get(panel);
+                    javax.swing.JComboBox<?> cboTeamA = (javax.swing.JComboBox<?>) fTeamA.get(panel);
+                    javax.swing.JComboBox<?> cboTeamB = (javax.swing.JComboBox<?>) fTeamB.get(panel);
+
+                    cbDoubles.setSelected(isTeam);
+                    if (!header.isBlank()) {
+                        if (isTeam)
+                            selectByString(cboHeaderDoubles, header);
+                        else
+                            selectByString(cboHeaderSingles, header);
+                    }
+                    if (isTeam) {
+                        String teamA = extractTeamNameFromDisplay(displayA);
+                        String teamB = extractTeamNameFromDisplay(displayB);
+                        selectTeamByName(cboTeamA, teamA);
+                        selectTeamByName(cboTeamB, teamB);
+                    } else {
+                        String nameA = extractNameBeforeClub(displayA);
+                        String nameB = extractNameBeforeClub(displayB);
+                        selectByString(cboNameA, nameA);
+                        selectByString(cboNameB, nameB);
+                    }
+
+                    // Đặt courtId nếu panel hỗ trợ (thường đã được set bởi MultiCourtControlPanel)
+                    try {
+                        java.lang.reflect.Method setCourtIdMethod = panel.getClass().getDeclaredMethod("setCourtId",
+                                String.class);
+                        setCourtIdMethod.setAccessible(true);
+                        setCourtIdMethod.invoke(panel, courtId);
+                    } catch (Exception ignore) {
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Không thể mở bảng điều khiển trận đấu: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Luôn tạo một cửa sổ Thi đấu độc lập để hiển thị ngay (tránh panel nhúng). */
+    private MultiCourtControlPanel findOrCreateMultiCourtPanelWindow() {
+        try {
+            MultiCourtControlPanel panel = new MultiCourtControlPanel();
+            try {
+                panel.setConnection(this.conn);
+            } catch (Throwable ignore) {
+            }
+            try {
+                java.net.NetworkInterface nif = resolvePreferredNetworkInterface();
+                if (nif != null) {
+                    panel.setNetworkInterface(nif);
+                }
+            } catch (Throwable ignore) {
+            }
+            javax.swing.JFrame f = new javax.swing.JFrame();
+            String title = "Thi đấu";
+            try {
+                String tn = new Prefs().get("selectedGiaiDauName", null);
+                if (tn != null && !tn.isBlank())
+                    title = title + " - " + tn;
+            } catch (Exception ignore) {
+            }
+            f.setTitle(title);
+            f.setDefaultCloseOperation(javax.swing.JFrame.DISPOSE_ON_CLOSE);
+            f.setLayout(new BorderLayout());
+            f.add(panel, BorderLayout.CENTER);
+            com.example.btms.util.ui.IconUtil.applyTo(f);
+            f.setExtendedState(javax.swing.JFrame.MAXIMIZED_BOTH);
+            f.setLocationRelativeTo(this);
+            f.setVisible(true);
+            return panel;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Chọn interface mạng đã lưu trong Prefs (nếu có) hoặc tự chọn 1 interface IPv4
+     * hợp lệ.
+     */
+    private static java.net.NetworkInterface resolvePreferredNetworkInterface() {
+        try {
+            // 1) Thử đọc từ Prefs theo các key phổ biến
+            String[] keys = new String[] { "net.ifName", "network.ifName", "net.iface.name", "ui.network.ifName" };
+            for (String k : keys) {
+                try {
+                    String name = new Prefs().get(k, null);
+                    if (name != null && !name.isBlank()) {
+                        java.net.NetworkInterface ni = java.net.NetworkInterface.getByName(name);
+                        if (isUsableIPv4(ni))
+                            return ni;
+                        // Thử match theo display name (Windows thường là "Wi-Fi"/"Ethernet")
+                        java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface
+                                .getNetworkInterfaces();
+                        while (en != null && en.hasMoreElements()) {
+                            java.net.NetworkInterface x = en.nextElement();
+                            if (x != null && x.getDisplayName() != null
+                                    && x.getDisplayName().toLowerCase().contains(name.toLowerCase())
+                                    && isUsableIPv4(x))
+                                return x;
+                        }
+                    }
+                } catch (Throwable ignore) {
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        // 2) Tự động chọn interface đầu tiên có IPv4 và usable
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces();
+            while (en != null && en.hasMoreElements()) {
+                java.net.NetworkInterface ni = en.nextElement();
+                if (isUsableIPv4(ni))
+                    return ni;
+            }
+        } catch (Throwable ignore) {
+        }
+        return null;
+    }
+
+    private static boolean isUsableIPv4(java.net.NetworkInterface ni) {
+        try {
+            if (ni == null || !ni.isUp() || ni.isLoopback() || ni.isVirtual())
+                return false;
+            java.util.Enumeration<java.net.InetAddress> addrs = ni.getInetAddresses();
+            while (addrs != null && addrs.hasMoreElements()) {
+                java.net.InetAddress a = addrs.nextElement();
+                if (a instanceof java.net.Inet4Address && !a.isLoopbackAddress()
+                        && !a.isLinkLocalAddress()) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
+        return false;
+    }
+
+    /** Duyệt toàn bộ cửa sổ để tìm một MultiCourtControlPanel đang hiện diện. */
+    private static MultiCourtControlPanel findExistingMultiCourtPanel() {
+        try {
+            for (java.awt.Window w : java.awt.Window.getWindows()) {
+                if (w == null)
+                    continue;
+                MultiCourtControlPanel p = findMultiCourtIn(w);
+                if (p != null)
+                    return p;
+            }
+        } catch (Exception ignore) {
+        }
+        return null;
+    }
+
+    private static MultiCourtControlPanel findMultiCourtIn(java.awt.Component c) {
+        if (c instanceof MultiCourtControlPanel m)
+            return m;
+        if (c instanceof java.awt.Container ct) {
+            for (java.awt.Component ch : ct.getComponents()) {
+                MultiCourtControlPanel found = findMultiCourtIn(ch);
+                if (found != null)
+                    return found;
+            }
+        }
+        return null;
+    }
+
+    /** Chọn tab theo courtId trên MultiCourtControlPanel (qua reflection). */
+    private static void selectCourtTab(MultiCourtControlPanel mc, String courtId) throws Exception {
+        java.lang.reflect.Field fTabs = mc.getClass().getDeclaredField("courtTabs");
+        fTabs.setAccessible(true);
+        Object obj = fTabs.get(mc);
+        if (!(obj instanceof javax.swing.JTabbedPane tabs))
+            return;
+        for (int i = 0; i < tabs.getTabCount(); i++) {
+            String title = tabs.getTitleAt(i);
+            if (courtId.equals(title)) {
+                tabs.setSelectedIndex(i);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Đảm bảo MultiCourtPanel có tab điều khiển cho session này (tạo mới nếu
+     * thiếu).
+     */
+    private static void ensureCourtControlTabExists(MultiCourtControlPanel mcPanel, CourtSession session) {
+        try {
+            java.lang.reflect.Field fTabs = mcPanel.getClass().getDeclaredField("courtTabs");
+            fTabs.setAccessible(true);
+            Object obj = fTabs.get(mcPanel);
+            if (!(obj instanceof javax.swing.JTabbedPane tabs))
+                return;
+
+            // Tìm tab theo title = courtId
+            int idx = -1;
+            for (int i = 0; i < tabs.getTabCount(); i++) {
+                if (session.courtId.equals(tabs.getTitleAt(i))) {
+                    idx = i;
+                    break;
+                }
+            }
+
+            if (idx >= 0 && tabs.getComponentAt(idx) instanceof BadmintonControlPanel) {
+                // Đã có control panel đúng loại
+                return;
+            }
+
+            // Nếu chưa có hoặc tab không phải control panel, tạo/đổi bằng
+            // createCourtControlTab(session)
+            try {
+                java.lang.reflect.Method m = mcPanel.getClass().getDeclaredMethod("createCourtControlTab",
+                        CourtSession.class);
+                m.setAccessible(true);
+                m.invoke(mcPanel, session);
+            } catch (Exception ex) {
+                // fallback: thử startCourtMatch(courtId)
+                try {
+                    java.lang.reflect.Method mStart = mcPanel.getClass().getDeclaredMethod("startCourtMatch",
+                            String.class);
+                    mStart.setAccessible(true);
+                    mStart.invoke(mcPanel, session.courtId);
+                } catch (Exception ignore) {
+                }
+            }
+        } catch (Exception ignore) {
+        }
+    }
+
+    // Chọn phần tử theo text (so sánh equals) nếu có
+    private static void selectByString(javax.swing.JComboBox<?> cb, String text) {
+        if (cb == null || text == null)
+            return;
+        for (int i = 0; i < cb.getItemCount(); i++) {
+            Object it = cb.getItemAt(i);
+            if (it != null && it.toString().trim().equals(text)) {
+                cb.setSelectedIndex(i);
+                return;
+            }
+        }
+    }
+
+    // Tìm và chọn đội theo tên đội (DangKiDoi.tenTeam)
+    private static void selectTeamByName(javax.swing.JComboBox<?> cb, String teamName) {
+        if (cb == null || teamName == null)
+            return;
+        for (int i = 0; i < cb.getItemCount(); i++) {
+            Object obj = cb.getItemAt(i);
+            if (obj instanceof com.example.btms.model.team.DangKiDoi it) {
+                if (it.getTenTeam() != null && it.getTenTeam().trim().equals(teamName)) {
+                    cb.setSelectedIndex(i);
+                    return;
+                }
+            }
+        }
+    }
+
+    private static String extractNameBeforeClub(String display) {
+        if (display == null)
+            return "";
+        int sep = display.indexOf(" - ");
+        return (sep >= 0) ? display.substring(0, sep).trim() : display.trim();
     }
 
     private JPanel buildRightPanel() {
@@ -2181,9 +2654,7 @@ public class SoDoThiDauPanel extends JPanel {
             }
         }
 
-        List<Slot> getSlots() {
-            return slots;
-        }
+        // getSlots() is already defined above; avoid duplication
 
         void refreshAfterOverrides() {
             // Rebuild slots so newly set overrides are reflected in cached Slot.text
@@ -2205,6 +2676,15 @@ public class SoDoThiDauPanel extends JPanel {
                     return s;
             }
             return null;
+        }
+
+        // Expose tiny helpers for outer interactions
+        Slot slotAt(Point p) {
+            return getSlotAt(p);
+        }
+
+        List<Slot> getSlots() {
+            return slots;
         }
 
         private void rebuildSlots() {

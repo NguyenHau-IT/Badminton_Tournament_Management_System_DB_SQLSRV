@@ -12,11 +12,12 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
 import com.example.btms.config.ConnectionConfig;
+import com.example.btms.config.NetworkConfig;
+import com.example.btms.config.Prefs;
 import com.example.btms.ui.main.MainFrame;
 import com.example.btms.ui.net.NetworkChooserDialog;
-import com.example.btms.ui.net.NetworkConfig;
-import com.example.btms.util.ui.IconUtil;
 import com.example.btms.ui.theme.UITheme;
+import com.example.btms.util.ui.IconUtil;
 
 @SpringBootApplication
 public class BadmintonTournamentManagementSystemApplication {
@@ -54,6 +55,17 @@ public class BadmintonTournamentManagementSystemApplication {
 				// No network configuration selected. GUI will not be launched. Backend
 				// continues.
 				return;
+			}
+			// Lưu lựa chọn interface của người dùng vào Preferences để các màn khác dùng
+			// lại
+			try {
+				if (cfg.ifName() != null && !cfg.ifName().isBlank()) {
+					Prefs p = new Prefs();
+					p.put("net.ifName", cfg.ifName());
+					// Giữ thêm một alias phổ biến để tương thích các nơi khác nếu có
+					p.put("ui.network.ifName", cfg.ifName());
+				}
+			} catch (Throwable ignore) {
 			}
 			MainFrame mf = new MainFrame(cfg, dbCfg);
 			IconUtil.applyTo(mf);

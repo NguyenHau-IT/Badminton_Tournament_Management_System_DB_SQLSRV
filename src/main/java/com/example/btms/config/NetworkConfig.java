@@ -1,4 +1,4 @@
-package com.example.btms.ui.net;
+package com.example.btms.config;
 
 import java.util.Objects;
 

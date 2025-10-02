@@ -63,6 +63,8 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         setupUI();
         courtManager.addPropertyChangeListener(this);
         refreshOverview();
+        // Đảm bảo khi mở cửa sổ, các sân hiện có sẽ có tab điều khiển ngay
+        SwingUtilities.invokeLater(this::ensureTabsForExistingCourts);
     }
 
     /** Set database connection for loading data */
@@ -249,6 +251,36 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             idle.invoke(courtControlPanel, session.header);
         } catch (Exception ex) {
             System.err.println("Không thể start idle broadcast khi tạo sân: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Tạo tab điều khiển cho tất cả các sân đã tồn tại trong CourtManagerService
+     * (nếu chưa có).
+     */
+    private void ensureTabsForExistingCourts() {
+        try {
+            Map<String, CourtStatus> all = courtManager.getAllCourtStatus();
+            if (all == null || all.isEmpty())
+                return;
+            for (String courtId : all.keySet()) {
+                // Bỏ qua nếu tab đã tồn tại
+                boolean exists = false;
+                for (int i = 0; i < courtTabs.getTabCount(); i++) {
+                    if (courtId.equals(courtTabs.getTitleAt(i))) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (exists)
+                    continue;
+
+                CourtSession session = courtManager.getCourt(courtId);
+                if (session != null) {
+                    createCourtControlTab(session);
+                }
+            }
+        } catch (Exception ignore) {
         }
     }
 
