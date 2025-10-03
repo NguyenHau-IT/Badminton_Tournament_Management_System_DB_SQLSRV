@@ -293,6 +293,12 @@ public class ContentParticipantsPanel extends JPanel {
         btnTransfer.setEnabled(true);
     }
 
+    /** Public refresh API for MainFrame and tree context menu. */
+    public void refreshAll() {
+        loadNoiDungCombo();
+        // reloadParticipants() is called by loadNoiDungCombo
+    }
+
     private void onEditTeam() {
         NoiDung nd = (NoiDung) cboNoiDung.getSelectedItem();
         if (nd == null || !Boolean.TRUE.equals(nd.getTeam()))

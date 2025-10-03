@@ -398,6 +398,11 @@ public class DangKyNoiDungPanel extends JPanel {
         lblCount.setText(visible + "/" + totalRegistered + " nội dung");
     }
 
+    /** Public refresh API for MainFrame and tree context menu. */
+    public void refreshAll() {
+        reloadAsync();
+    }
+
     /**
      * Try to locate and select a specific Nội dung by its ID in the table.
      * This will ensure the row is visible by temporarily showing all and clearing

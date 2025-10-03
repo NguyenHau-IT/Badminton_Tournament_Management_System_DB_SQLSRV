@@ -41,6 +41,16 @@ public class DangKiDoiService {
         teamRepo.delete(idTeam);
     }
 
+    /** Xóa tất cả đội theo giải */
+    public int deleteAllByGiai(int idGiai) {
+        return teamRepo.deleteAllByGiai(idGiai);
+    }
+
+    /** Xóa tất cả đội theo giải và nội dung */
+    public int deleteAllByGiaiAndNoiDung(int idGiai, int idNoiDung) {
+        return teamRepo.deleteAllByGiaiAndNoiDung(idGiai, idNoiDung);
+    }
+
     /** Lấy 1 đội */
     public DangKiDoi getTeam(int idTeam) {
         return requireTeam(idTeam);

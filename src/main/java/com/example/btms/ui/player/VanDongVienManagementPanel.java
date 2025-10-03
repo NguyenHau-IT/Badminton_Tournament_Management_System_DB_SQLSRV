@@ -17,10 +17,10 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 
-import com.example.btms.model.player.VanDongVien;
 import com.example.btms.model.club.CauLacBo;
-import com.example.btms.service.player.VanDongVienService;
+import com.example.btms.model.player.VanDongVien;
 import com.example.btms.service.club.CauLacBoService;
+import com.example.btms.service.player.VanDongVienService;
 
 public class VanDongVienManagementPanel extends JPanel {
     private final VanDongVienService vdvService;
@@ -70,11 +70,19 @@ public class VanDongVienManagementPanel extends JPanel {
 
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             @Override
-            public void insertUpdate(DocumentEvent e) { updateFilter(); }
+            public void insertUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
             @Override
-            public void removeUpdate(DocumentEvent e) { updateFilter(); }
+            public void removeUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
             @Override
-            public void changedUpdate(DocumentEvent e) { updateFilter(); }
+            public void changedUpdate(DocumentEvent e) {
+                updateFilter();
+            }
         });
     }
 
@@ -109,7 +117,8 @@ public class VanDongVienManagementPanel extends JPanel {
                                 break;
                             }
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
                 model.addRow(new Object[] { v.getId(), v.getHoTen(), dob, gt, clb });
             }
@@ -191,5 +200,11 @@ public class VanDongVienManagementPanel extends JPanel {
         int visible = table.getRowCount();
         int total = model.getRowCount();
         lblCount.setText(visible + "/" + total + " vận động viên");
+    }
+
+    /** Public refresh API for MainFrame and tree context menu. */
+    public void refreshAll() {
+        reload();
+        updateCountLabel();
     }
 }

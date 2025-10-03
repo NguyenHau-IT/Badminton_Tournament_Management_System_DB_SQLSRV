@@ -111,4 +111,27 @@ public class DangKiDoiRepository {
             throw new RuntimeException("Lỗi xóa đội id=" + idTeam, e);
         }
     }
+
+    /** DELETE ALL teams by tournament */
+    public int deleteAllByGiai(int idGiai) {
+        final String sql = "DELETE FROM DANG_KI_DOI WHERE ID_GIAI=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi xóa tất cả đội của giải", e);
+        }
+    }
+
+    /** DELETE ALL teams by tournament and content */
+    public int deleteAllByGiaiAndNoiDung(int idGiai, int idNoiDung) {
+        final String sql = "DELETE FROM DANG_KI_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idGiai);
+            ps.setInt(2, idNoiDung);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi xóa tất cả đội theo nội dung của giải", e);
+        }
+    }
 }

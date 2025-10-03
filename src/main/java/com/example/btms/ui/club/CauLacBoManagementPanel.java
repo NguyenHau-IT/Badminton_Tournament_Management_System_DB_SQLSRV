@@ -9,9 +9,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowFilter;
-import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
@@ -184,5 +184,11 @@ public class CauLacBoManagementPanel extends JPanel {
         int visible = table.getRowCount();
         int total = model.getRowCount();
         lblCount.setText(visible + "/" + total + " câu lạc bộ");
+    }
+
+    /** Public refresh API for MainFrame and tree context menu. */
+    public void refreshAll() {
+        reload();
+        updateCountLabel();
     }
 }

@@ -139,6 +139,9 @@ public class DangKyCaNhanDialog extends JDialog {
                 return c;
             }
         });
+        // Nạp danh sách VĐV ngay theo nội dung hiện chọn (nếu có), kể cả khi chưa chọn
+        // CLB
+        reloadPlayersForSelectedClub(null);
     }
 
     private void loadClubs() {
@@ -173,22 +176,26 @@ public class DangKyCaNhanDialog extends JDialog {
     }
 
     private void reloadPlayersForSelectedClub(Integer preselectId) {
-        Object sel = cboClb.getSelectedItem();
-        if (!(sel instanceof CauLacBo club)) {
-            clearPlayers();
-            return;
-        }
         DefaultComboBoxModel<VanDongVien> vdvModel = new DefaultComboBoxModel<>();
         try {
             NoiDung ndSel = (NoiDung) cboNoiDung.getSelectedItem();
             String reqGender = ndSel != null ? ndSel.getGioiTinh() : null; // "M" hoặc "F" hoặc null
             Integer tuoiDuoi = ndSel != null ? ndSel.getTuoiDuoi() : null;
-            Integer tuoiTren = ndSel != null ? ndSel.getTuoiTren() : null; // có thể 0 hoặc null nghĩa là không giới hạn
-                                                                           // trên
+            Integer tuoiTren = ndSel != null ? ndSel.getTuoiTren() : null; // 0 hoặc null = không giới hạn trên
+
+            Object sel = cboClb.getSelectedItem();
+            boolean filterByClub = sel instanceof CauLacBo;
+            Integer clubId = filterByClub ? ((CauLacBo) sel).getId() : null;
+
             for (VanDongVien v : vdvService.findAll()) {
-                if (v == null || v.getIdClb() == null || !v.getIdClb().equals(club.getId()))
+                if (v == null)
                     continue;
-                // Giới tính
+                // Lọc theo CLB nếu đã chọn CLB
+                if (filterByClub) {
+                    if (v.getIdClb() == null || !v.getIdClb().equals(clubId))
+                        continue;
+                }
+                // Giới tính theo nội dung
                 if (reqGender != null && !reqGender.isBlank()) {
                     String gv = v.getGioiTinh();
                     if ("M".equalsIgnoreCase(reqGender) && (gv == null || !gv.equalsIgnoreCase("M")))
@@ -196,7 +203,7 @@ public class DangKyCaNhanDialog extends JDialog {
                     if ("F".equalsIgnoreCase(reqGender) && (gv == null || !gv.equalsIgnoreCase("F")))
                         continue;
                 }
-                // Tuổi (nếu có ngaysinh và có ràng buộc)
+                // Tuổi theo nội dung (nếu có)
                 if ((tuoiDuoi != null || (tuoiTren != null && tuoiTren > 0)) && v.getNgaySinh() != null) {
                     try {
                         LocalDate dob = v.getNgaySinh();

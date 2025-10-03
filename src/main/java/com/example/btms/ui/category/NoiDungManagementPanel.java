@@ -1,26 +1,26 @@
 package com.example.btms.ui.category;
 
 import java.awt.BorderLayout;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.sql.SQLException;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JLabel;
+import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowFilter;
-import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
-import javax.swing.SwingConstants;
 
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.service.category.NoiDungService;
@@ -215,6 +215,13 @@ public class NoiDungManagementPanel extends JPanel {
                         JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+
+    /** Public refresh API for MainFrame and tree context menu. */
+    public void refreshAll() {
+        loadData();
+        // keep current filter/count updated
+        updateCountLabel();
     }
 
     private void updateFilter() {

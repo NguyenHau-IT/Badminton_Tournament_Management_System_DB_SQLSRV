@@ -73,6 +73,7 @@ public class DangKyDoiPanel extends JPanel {
     private final JButton btnAdd = new JButton("Thêm đội");
     private final JButton btnEdit = new JButton("Sửa đội");
     private final JButton btnDelete = new JButton("Xóa đội");
+    private final JButton btnDeleteAll = new JButton("Xóa tất cả");
     private final JButton btnTransfer = new JButton("Chuyển nội dung");
     private final JLabel lblCount = new JLabel("0 đội");
     private final javax.swing.JTextField txtSearch = new javax.swing.JTextField(16);
@@ -104,6 +105,7 @@ public class DangKyDoiPanel extends JPanel {
         row2.add(btnAdd);
         row2.add(btnEdit);
         row2.add(btnDelete);
+        row2.add(btnDeleteAll);
         row2.add(btnTransfer);
         top.add(row1, BorderLayout.NORTH);
         top.add(row2, BorderLayout.CENTER);
@@ -118,6 +120,7 @@ public class DangKyDoiPanel extends JPanel {
         btnAdd.addActionListener(e -> onAdd());
         btnEdit.addActionListener(e -> onEdit());
         btnDelete.addActionListener(e -> onDelete());
+        btnDeleteAll.addActionListener(e -> onDeleteAll());
         btnTransfer.addActionListener(e -> onOpenTransferDialog());
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             @Override
@@ -138,6 +141,49 @@ public class DangKyDoiPanel extends JPanel {
         cboFilterField.addActionListener(e -> updateFilter());
 
         reload();
+    }
+
+    private void onDeleteAll() {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        String tenGiai = prefs.get("selectedGiaiDauName", "");
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+            return;
+        }
+        // Determine if we are scoped to a specific doubles content by inspecting table
+        // selection
+        Integer idNdScope = null;
+        try {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                int mr = table.convertRowIndexToModel(row);
+                idNdScope = (Integer) model.getValueAt(mr, 3); // ID_Nội dung (ẩn)
+            }
+        } catch (Exception ignore) {
+        }
+        String scope = (idNdScope != null) ? "của nội dung đang chọn trong giải" : "của giải";
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Bạn có chắc muốn xóa TẤT CẢ đăng ký đội " + scope + "\n" +
+                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                        "Lưu ý: Nếu bảng CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n" +
+                        "Hành động này không thể hoàn tác.",
+                "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION)
+            return;
+        try {
+            int deleted = (idNdScope != null)
+                    ? teamService.deleteAllByGiaiAndNoiDung(idGiai, idNdScope)
+                    : teamService.deleteAllByGiai(idGiai);
+            reload();
+            JOptionPane.showMessageDialog(this,
+                    (idNdScope != null)
+                            ? ("Đã xóa " + deleted + " đội của nội dung.")
+                            : ("Đã xóa " + deleted + " đội của giải."),
+                    "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void reload() {
@@ -443,5 +489,10 @@ public class DangKyDoiPanel extends JPanel {
             }
         } catch (Exception ignored) {
         }
+    }
+
+    /** Public refresh API for MainFrame and tree context menu. */
+    public void refreshAll() {
+        reload();
     }
 }

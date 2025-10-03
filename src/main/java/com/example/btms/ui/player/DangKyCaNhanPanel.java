@@ -72,6 +72,7 @@ public class DangKyCaNhanPanel extends JPanel {
     private final JButton btnDelete = new JButton("Xóa");
     private final JButton btnTransfer = new JButton("Chuyển nội dung");
     private final JButton btnImportCsv = new JButton("Nhập CSV");
+    private final JButton btnDeleteAll = new JButton("Xóa tất cả");
     private final JLabel lblCount = new JLabel("0 đăng ký");
     private final javax.swing.JTextField txtSearch = new javax.swing.JTextField(14);
     private final JComboBox<String> cboFilterField = new JComboBox<>(new String[] { "Nội dung", "VĐV" });
@@ -105,6 +106,7 @@ public class DangKyCaNhanPanel extends JPanel {
         row2.add(btnAdd);
         row2.add(btnEdit);
         row2.add(btnDelete);
+        row2.add(btnDeleteAll);
         row2.add(btnTransfer);
         top.add(row1, BorderLayout.NORTH);
         top.add(row2, BorderLayout.CENTER);
@@ -120,6 +122,7 @@ public class DangKyCaNhanPanel extends JPanel {
         btnDelete.addActionListener(e -> onDelete());
         btnTransfer.addActionListener(e -> onOpenTransferDialog());
         btnImportCsv.addActionListener(e -> onOpenImportPanel());
+        btnDeleteAll.addActionListener(e -> onDeleteAll());
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -140,6 +143,38 @@ public class DangKyCaNhanPanel extends JPanel {
         cboNoiDungFilter.addActionListener(e -> updateFilter());
 
         reload();
+    }
+
+    private void onDeleteAll() {
+        int idGiai = prefs.getInt("selectedGiaiDauId", -1);
+        String tenGiai = prefs.get("selectedGiaiDauName", "");
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+            return;
+        }
+        NoiDung nd = (NoiDung) cboNoiDungFilter.getSelectedItem();
+        String scope = (nd != null) ? ("của nội dung '" + nd.getTenNoiDung() + "' trong giải") : "của giải";
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Bạn có chắc muốn xóa TẤT CẢ đăng ký cá nhân " + scope + "\n" +
+                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                        "Hành động này không thể hoàn tác.",
+                "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (confirm != JOptionPane.YES_OPTION)
+            return;
+        try {
+            int deleted = (nd != null)
+                    ? dkService.deleteAllByGiaiAndNoiDung(idGiai, nd.getId())
+                    : dkService.deleteAllByGiai(idGiai);
+            reload();
+            JOptionPane.showMessageDialog(this,
+                    (nd != null)
+                            ? ("Đã xóa " + deleted + " đăng ký cá nhân của nội dung.")
+                            : ("Đã xóa " + deleted + " đăng ký cá nhân của giải."),
+                    "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void onOpenImportPanel() {
@@ -404,5 +439,10 @@ public class DangKyCaNhanPanel extends JPanel {
                 clbService,
                 this::reload);
         dlg.setVisible(true);
+    }
+
+    /** Public refresh API for MainFrame and tree context menu. */
+    public void refreshAll() {
+        reload();
     }
 }

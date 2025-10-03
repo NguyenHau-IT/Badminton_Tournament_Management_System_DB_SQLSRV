@@ -58,4 +58,14 @@ public class DangKiCaNhanService {
     public void delete(Integer idGiai, Integer idNoiDung, Integer idVdv) {
         repo.delete(idGiai, idNoiDung, idVdv);
     }
+
+    /** Xóa tất cả đăng ký cá nhân theo giải */
+    public int deleteAllByGiai(int idGiai) {
+        return repo.deleteAllByGiai(idGiai);
+    }
+
+    /** Xóa tất cả đăng ký cá nhân theo giải và nội dung */
+    public int deleteAllByGiaiAndNoiDung(int idGiai, int idNoiDung) {
+        return repo.deleteAllByGiaiAndNoiDung(idGiai, idNoiDung);
+    }
 }

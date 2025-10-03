@@ -245,14 +245,22 @@ public class MainFrame extends JFrame {
                                     javax.swing.JOptionPane.YES_NO_OPTION,
                                     javax.swing.JOptionPane.QUESTION_MESSAGE);
                             if (result == javax.swing.JOptionPane.YES_OPTION)
-                                System.exit(0);
-                                return ;
+                                try {
+                                    clearTournamentSelectionPrefs();
+                                } catch (Exception ignore) {
+                                }
+                            System.exit(0);
+                            return;
                         }
                         return; // nếu chọn NO thì giữ ứng dụng mở
                     }
                 } catch (Throwable ignore) {
                 }
                 // Nếu không còn sân nào mở thì cho phép dispose
+                try {
+                    clearTournamentSelectionPrefs();
+                } catch (Exception ignore) {
+                }
                 System.exit(0);
             }
 
@@ -291,6 +299,10 @@ public class MainFrame extends JFrame {
                 if (ramTimer != null)
                     ramTimer.stop();
                 service.disconnect();
+                try {
+                    clearTournamentSelectionPrefs();
+                } catch (Exception ignore) {
+                }
             }
         });
 
@@ -692,41 +704,41 @@ public class MainFrame extends JFrame {
                 tournamentTabPanel.updateConnection();
             } catch (Throwable ignore) {
             }
-            // Gọi reload cho các panel quản lý
+            // Gọi refreshAll cho các panel quản lý (nếu có)
             try {
                 if (noiDungPanel != null)
-                    noiDungPanel.requestFocus();
+                    noiDungPanel.refreshAll();
             } catch (Throwable ignore) {
             }
             try {
-                if (cauLacBoPanel != null) {
-                    /* panel tự quản lý reload khi mở */ }
+                if (cauLacBoPanel != null)
+                    cauLacBoPanel.refreshAll();
             } catch (Throwable ignore) {
             }
             try {
-                if (vanDongVienPanel != null) {
-                    /* có nút làm mới riêng */ }
+                if (vanDongVienPanel != null)
+                    vanDongVienPanel.refreshAll();
             } catch (Throwable ignore) {
             }
             try {
-                if (dangKyNoiDungPanel != null) {
-                    /* có reloadAsync trong panel */ }
+                if (dangKyNoiDungPanel != null)
+                    dangKyNoiDungPanel.refreshAll();
             } catch (Throwable ignore) {
             }
             try {
-                if (dangKyDoiPanel != null) {
-                    /* có reload() internal, sẽ reload khi mở lại */ }
+                if (dangKyDoiPanel != null)
+                    dangKyDoiPanel.refreshAll();
             } catch (Throwable ignore) {
             }
             try {
-                if (dangKyCaNhanPanel != null) {
-                    /* có reload() internal */ }
+                if (dangKyCaNhanPanel != null)
+                    dangKyCaNhanPanel.refreshAll();
             } catch (Throwable ignore) {
             }
             // Làm mới Nội dung đăng ký hiển thị theo nội dung (nếu đang mở)
             try {
                 if (contentParticipantsPanel != null)
-                    contentParticipantsPanel.selectNoiDungById(null);
+                    contentParticipantsPanel.refreshAll();
             } catch (Throwable ignore) {
             }
             // Làm mới Sơ đồ thi đấu: tab đang mở reloadData(); danh sách trong cây cũng
@@ -775,6 +787,9 @@ public class MainFrame extends JFrame {
         selectedGiaiDau = gd;
         try {
             new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
+            if (gd.getTenGiai() != null) {
+                new com.example.btms.config.Prefs().put("selectedGiaiDauName", gd.getTenGiai());
+            }
         } catch (Exception ignore) {
         }
 
@@ -783,6 +798,8 @@ public class MainFrame extends JFrame {
         buildMenuBar();
         rebuildNavigationTree();
         showView("Giải đấu");
+        // Làm mới toàn bộ để các panel nạp lại theo giải vừa chọn
+        refreshApplicationData();
     }
 
     private void registerViewsForCurrentRole() {
@@ -818,6 +835,9 @@ public class MainFrame extends JFrame {
                 selectedGiaiDau = gd;
                 try {
                     new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
+                    if (gd.getTenGiai() != null) {
+                        new com.example.btms.config.Prefs().put("selectedGiaiDauName", gd.getTenGiai());
+                    }
                 } catch (Exception ignore) {
                 }
                 // Đóng cửa sổ Sơ đồ thi đấu (nếu đang mở) để lần mở sau build tabs theo giải
@@ -836,6 +856,8 @@ public class MainFrame extends JFrame {
                 if (navModel != null)
                     navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
                 rebuildNavigationTree();
+                // Làm mới toàn bộ để áp dụng giải mới
+                refreshApplicationData();
             }
         });
         return mi;
@@ -979,8 +1001,157 @@ public class MainFrame extends JFrame {
 
                 pm.add(mi);
                 pm.add(mi2);
+                pm.addSeparator();
+                javax.swing.JMenuItem miRefreshNode = new javax.swing.JMenuItem("Làm mới mục này");
+                miRefreshNode.addActionListener(ev -> {
+                    try {
+                        rebuildNavigationTree();
+                    } catch (Exception ex) {
+                    }
+                });
+                pm.add(miRefreshNode);
+                // Xóa đăng ký theo nội dung (của giải hiện tại)
+                pm.addSeparator();
+                javax.swing.JMenu mDelThisContent = new javax.swing.JMenu("Xóa đăng ký cho nội dung này");
+                javax.swing.JMenuItem miDelSingC = new javax.swing.JMenuItem("Chỉ cá nhân");
+                miDelSingC.addActionListener(ev -> {
+                    try {
+                        Connection conn = (service != null) ? service.current() : null;
+                        if (conn == null) {
+                            JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                            return;
+                        }
+                        int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                        String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                        if (idGiai <= 0) {
+                            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                            return;
+                        }
+                        int c = JOptionPane.showConfirmDialog(this,
+                                "Xóa TẤT CẢ đăng ký cá nhân của nội dung này trong giải\n" +
+                                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                        "Hành động này không thể hoàn tác.",
+                                "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                        if (c != JOptionPane.YES_OPTION)
+                            return;
+                        var svc = new com.example.btms.service.player.DangKiCaNhanService(
+                                new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+                        int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        if (dangKyCaNhanPanel != null)
+                            dangKyCaNhanPanel.refreshAll();
+                        if (contentParticipantsPanel != null)
+                            contentParticipantsPanel.refreshAll();
+                        JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân của nội dung.",
+                                "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+                javax.swing.JMenuItem miDelTeamC = new javax.swing.JMenuItem("Chỉ đội");
+                miDelTeamC.addActionListener(ev -> {
+                    try {
+                        Connection conn = (service != null) ? service.current() : null;
+                        if (conn == null) {
+                            JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                            return;
+                        }
+                        int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                        String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                        if (idGiai <= 0) {
+                            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                            return;
+                        }
+                        int c = JOptionPane.showConfirmDialog(this,
+                                "Xóa TẤT CẢ đăng ký đội của nội dung này trong giải\n" +
+                                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                        "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                        +
+                                        "Hành động này không thể hoàn tác.",
+                                "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                        if (c != JOptionPane.YES_OPTION)
+                            return;
+                        var svc = new com.example.btms.service.team.DangKiDoiService(
+                                new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                        int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        if (dangKyDoiPanel != null)
+                            dangKyDoiPanel.refreshAll();
+                        if (contentParticipantsPanel != null)
+                            contentParticipantsPanel.refreshAll();
+                        JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội của nội dung.",
+                                "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+                javax.swing.JMenuItem miDelBothC = new javax.swing.JMenuItem("Cả cá nhân và đội");
+                miDelBothC.addActionListener(ev -> {
+                    try {
+                        Connection conn = (service != null) ? service.current() : null;
+                        if (conn == null) {
+                            JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                            return;
+                        }
+                        int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                        String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                        if (idGiai <= 0) {
+                            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                            return;
+                        }
+                        int c = JOptionPane.showConfirmDialog(this,
+                                "Xóa TẤT CẢ đăng ký (cá nhân + đội) của nội dung này trong giải\n" +
+                                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                        "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                        +
+                                        "Hành động này không thể hoàn tác.",
+                                "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                        if (c != JOptionPane.YES_OPTION)
+                            return;
+                        var teamSvc = new com.example.btms.service.team.DangKiDoiService(
+                                new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                        var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
+                                new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+                        int delTeams = teamSvc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        int delSingles = singSvc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
+                        if (dangKyDoiPanel != null)
+                            dangKyDoiPanel.refreshAll();
+                        if (dangKyCaNhanPanel != null)
+                            dangKyCaNhanPanel.refreshAll();
+                        if (contentParticipantsPanel != null)
+                            contentParticipantsPanel.refreshAll();
+                        JOptionPane.showMessageDialog(this,
+                                "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams + " đội của nội dung.",
+                                "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+                mDelThisContent.add(miDelSingC);
+                mDelThisContent.add(miDelTeamC);
+                mDelThisContent.add(miDelBothC);
+                pm.add(mDelThisContent);
             } else if (uo instanceof String label) {
+                // Root node (tournament name) -> global refresh
+                if (node.getParent() == null) {
+                    javax.swing.JMenuItem miRootRefresh = new javax.swing.JMenuItem("Làm mới dữ liệu");
+                    miRootRefresh.addActionListener(ev -> refreshApplicationData());
+                    pm.add(miRootRefresh);
+                }
                 if ("Danh sách đăng kí".equals(label)) {
+                    javax.swing.JMenuItem miRefresh = new javax.swing.JMenuItem("Làm mới danh sách");
+                    miRefresh.addActionListener(ev -> {
+                        try {
+                            if (contentParticipantsPanel != null)
+                                contentParticipantsPanel.refreshAll();
+                        } catch (Exception ex) {
+                        }
+                    });
+                    pm.add(miRefresh);
                     javax.swing.JMenuItem mi1 = new javax.swing.JMenuItem("Bốc thăm theo nội dung đang chọn");
                     mi1.setEnabled(lastSelectedRegListContent != null);
                     mi1.addActionListener(ev -> {
@@ -1023,9 +1194,173 @@ public class MainFrame extends JFrame {
                         }
                     });
                     pm.add(mi2);
+
+                    // Xóa theo nội dung đã chọn (ghi nhớ ở lastSelectedRegListContent)
+                    if (lastSelectedRegListContent != null) {
+                        pm.addSeparator();
+                        javax.swing.JMenu mDelByContent = new javax.swing.JMenu(
+                                "Xóa đăng ký cho nội dung đang chọn");
+                        javax.swing.JMenuItem miDelSing = new javax.swing.JMenuItem("Chỉ cá nhân");
+                        miDelSing.addActionListener(ev -> {
+                            try {
+                                Connection conn = (service != null) ? service.current() : null;
+                                if (conn == null) {
+                                    JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                            JOptionPane.ERROR_MESSAGE);
+                                    return;
+                                }
+                                int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                                String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                                if (idGiai <= 0) {
+                                    JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                    return;
+                                }
+                                int c = JOptionPane.showConfirmDialog(this,
+                                        "Xóa TẤT CẢ đăng ký cá nhân của nội dung này trong giải\n" +
+                                                (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                                "Hành động này không thể hoàn tác.",
+                                        "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                                if (c != JOptionPane.YES_OPTION)
+                                    return;
+                                var svc = new com.example.btms.service.player.DangKiCaNhanService(
+                                        new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+                                int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai,
+                                        lastSelectedRegListContent.idNoiDung);
+                                if (dangKyCaNhanPanel != null)
+                                    dangKyCaNhanPanel.refreshAll();
+                                if (contentParticipantsPanel != null)
+                                    contentParticipantsPanel.refreshAll();
+                                JOptionPane.showMessageDialog(this,
+                                        "Đã xóa " + deleted + " đăng ký cá nhân của nội dung.",
+                                        "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                            } catch (Exception ex) {
+                                JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                            }
+                        });
+                        javax.swing.JMenuItem miDelTeam = new javax.swing.JMenuItem("Chỉ đội");
+                        miDelTeam.addActionListener(ev -> {
+                            try {
+                                Connection conn = (service != null) ? service.current() : null;
+                                if (conn == null) {
+                                    JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                            JOptionPane.ERROR_MESSAGE);
+                                    return;
+                                }
+                                int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                                String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                                if (idGiai <= 0) {
+                                    JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                    return;
+                                }
+                                int c = JOptionPane.showConfirmDialog(this,
+                                        "Xóa TẤT CẢ đăng ký đội của nội dung này trong giải\n" +
+                                                (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                                "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                                +
+                                                "Hành động này không thể hoàn tác.",
+                                        "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                                if (c != JOptionPane.YES_OPTION)
+                                    return;
+                                var svc = new com.example.btms.service.team.DangKiDoiService(
+                                        new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                                int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai,
+                                        lastSelectedRegListContent.idNoiDung);
+                                if (dangKyDoiPanel != null)
+                                    dangKyDoiPanel.refreshAll();
+                                if (contentParticipantsPanel != null)
+                                    contentParticipantsPanel.refreshAll();
+                                JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội của nội dung.",
+                                        "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                            } catch (Exception ex) {
+                                JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                            }
+                        });
+                        javax.swing.JMenuItem miDelBoth = new javax.swing.JMenuItem("Cả cá nhân và đội");
+                        miDelBoth.addActionListener(ev -> {
+                            try {
+                                Connection conn = (service != null) ? service.current() : null;
+                                if (conn == null) {
+                                    JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                            JOptionPane.ERROR_MESSAGE);
+                                    return;
+                                }
+                                int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                                String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                                if (idGiai <= 0) {
+                                    JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                    return;
+                                }
+                                int c = JOptionPane.showConfirmDialog(this,
+                                        "Xóa TẤT CẢ đăng ký (cá nhân + đội) của nội dung này trong giải\n" +
+                                                (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                                "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                                +
+                                                "Hành động này không thể hoàn tác.",
+                                        "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                                if (c != JOptionPane.YES_OPTION)
+                                    return;
+                                var teamSvc = new com.example.btms.service.team.DangKiDoiService(
+                                        new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                                var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
+                                        new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+                                int delTeams = teamSvc.deleteAllByGiaiAndNoiDung(idGiai,
+                                        lastSelectedRegListContent.idNoiDung);
+                                int delSingles = singSvc.deleteAllByGiaiAndNoiDung(idGiai,
+                                        lastSelectedRegListContent.idNoiDung);
+                                if (dangKyDoiPanel != null)
+                                    dangKyDoiPanel.refreshAll();
+                                if (dangKyCaNhanPanel != null)
+                                    dangKyCaNhanPanel.refreshAll();
+                                if (contentParticipantsPanel != null)
+                                    contentParticipantsPanel.refreshAll();
+                                JOptionPane.showMessageDialog(this,
+                                        "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams
+                                                + " đội của nội dung.",
+                                        "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                            } catch (Exception ex) {
+                                JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                            }
+                        });
+                        mDelByContent.add(miDelSing);
+                        mDelByContent.add(miDelTeam);
+                        mDelByContent.add(miDelBoth);
+                        pm.add(mDelByContent);
+                    }
+                }
+                if ("Nội dung của giải".equals(label)) {
+                    javax.swing.JMenuItem miRefreshNdg = new javax.swing.JMenuItem("Làm mới danh sách nội dung");
+                    miRefreshNdg.addActionListener(ev -> {
+                        try {
+                            if (dangKyNoiDungPanel != null)
+                                dangKyNoiDungPanel.refreshAll();
+                        } catch (Exception ex) {
+                        }
+                        try {
+                            rebuildNavigationTree();
+                        } catch (Exception ex) {
+                        }
+                    });
+                    pm.add(miRefreshNdg);
                 }
                 // Thêm menu cho nút phải tại mục "Đăng ký đội" để xuất PDF
                 if ("Đăng ký thi đấu".equals(label)) {
+                    javax.swing.JMenuItem miRefreshRegs = new javax.swing.JMenuItem("Làm mới các bảng đăng ký");
+                    miRefreshRegs.addActionListener(ev -> {
+                        try {
+                            if (dangKyDoiPanel != null)
+                                dangKyDoiPanel.refreshAll();
+                        } catch (Exception ex) {
+                        }
+                        try {
+                            if (dangKyCaNhanPanel != null)
+                                dangKyCaNhanPanel.refreshAll();
+                        } catch (Exception ex) {
+                        }
+                    });
+                    pm.add(miRefreshRegs);
                     pm.addSeparator();
                     javax.swing.JMenu mExport = new javax.swing.JMenu("Xuất danh sách đăng ký (PDF)");
                     javax.swing.JMenuItem miAll = new javax.swing.JMenuItem("Tất cả");
@@ -1038,8 +1373,236 @@ public class MainFrame extends JFrame {
                     mExport.add(miByClub);
                     mExport.add(miByContent);
                     pm.add(mExport);
+                    pm.addSeparator();
+                    javax.swing.JMenu mDeleteAll = new javax.swing.JMenu("Xóa tất cả đăng ký");
+                    javax.swing.JMenuItem miDelSingles = new javax.swing.JMenuItem("Chỉ cá nhân");
+                    miDelSingles.addActionListener(ev -> {
+                        try {
+                            Connection conn = (service != null) ? service.current() : null;
+                            if (conn == null) {
+                                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                            String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                            if (idGiai <= 0) {
+                                JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                return;
+                            }
+                            int c = JOptionPane.showConfirmDialog(this,
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký cá nhân của giải\n" +
+                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                            "Hành động này không thể hoàn tác.",
+                                    "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                            if (c != JOptionPane.YES_OPTION)
+                                return;
+                            var svc = new com.example.btms.service.player.DangKiCaNhanService(
+                                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+                            int deleted = svc.deleteAllByGiai(idGiai);
+                            if (dangKyCaNhanPanel != null)
+                                dangKyCaNhanPanel.refreshAll();
+                            JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân.",
+                                    "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    javax.swing.JMenuItem miDelTeams = new javax.swing.JMenuItem("Chỉ đội");
+                    miDelTeams.addActionListener(ev -> {
+                        try {
+                            Connection conn = (service != null) ? service.current() : null;
+                            if (conn == null) {
+                                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                            String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                            if (idGiai <= 0) {
+                                JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                return;
+                            }
+                            int c = JOptionPane.showConfirmDialog(this,
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký đội của giải\n" +
+                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                            "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                            +
+                                            "Hành động này không thể hoàn tác.",
+                                    "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                            if (c != JOptionPane.YES_OPTION)
+                                return;
+                            var svc = new com.example.btms.service.team.DangKiDoiService(
+                                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                            int deleted = svc.deleteAllByGiai(idGiai);
+                            if (dangKyDoiPanel != null)
+                                dangKyDoiPanel.refreshAll();
+                            JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội.",
+                                    "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    javax.swing.JMenuItem miDelBoth = new javax.swing.JMenuItem("Cả cá nhân và đội");
+                    miDelBoth.addActionListener(ev -> {
+                        try {
+                            Connection conn = (service != null) ? service.current() : null;
+                            if (conn == null) {
+                                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                            String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                            if (idGiai <= 0) {
+                                JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                return;
+                            }
+                            int c = JOptionPane.showConfirmDialog(this,
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký (cá nhân + đội) của giải\n" +
+                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                            "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                            +
+                                            "Hành động này không thể hoàn tác.",
+                                    "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                            if (c != JOptionPane.YES_OPTION)
+                                return;
+                            var teamSvc = new com.example.btms.service.team.DangKiDoiService(
+                                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                            var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
+                                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+                            int delTeams = teamSvc.deleteAllByGiai(idGiai);
+                            int delSingles = singSvc.deleteAllByGiai(idGiai);
+                            if (dangKyDoiPanel != null)
+                                dangKyDoiPanel.refreshAll();
+                            if (dangKyCaNhanPanel != null)
+                                dangKyCaNhanPanel.refreshAll();
+                            JOptionPane.showMessageDialog(this,
+                                    "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams + " đội.",
+                                    "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    mDeleteAll.add(miDelSingles);
+                    mDeleteAll.add(miDelTeams);
+                    mDeleteAll.add(miDelBoth);
+                    pm.add(mDeleteAll);
+                }
+                if ("Đăng ký đội".equals(label)) {
+                    javax.swing.JMenuItem miRefreshDoi = new javax.swing.JMenuItem("Làm mới danh sách đội");
+                    miRefreshDoi.addActionListener(ev -> {
+                        try {
+                            if (dangKyDoiPanel != null)
+                                dangKyDoiPanel.refreshAll();
+                        } catch (Exception ex) {
+                        }
+                    });
+                    pm.add(miRefreshDoi);
+                    javax.swing.JMenuItem miDelAllTeams = new javax.swing.JMenuItem("Xóa tất cả đăng ký đội");
+                    miDelAllTeams.addActionListener(ev -> {
+                        try {
+                            Connection conn = (service != null) ? service.current() : null;
+                            if (conn == null) {
+                                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                            String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                            if (idGiai <= 0) {
+                                JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                return;
+                            }
+                            int c = JOptionPane.showConfirmDialog(this,
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký đội của giải\n" +
+                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                            "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                            +
+                                            "Hành động này không thể hoàn tác.",
+                                    "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                            if (c != JOptionPane.YES_OPTION)
+                                return;
+                            var svc = new com.example.btms.service.team.DangKiDoiService(
+                                    new com.example.btms.repository.team.DangKiDoiRepository(conn));
+                            int deleted = svc.deleteAllByGiai(idGiai);
+                            if (dangKyDoiPanel != null)
+                                dangKyDoiPanel.refreshAll();
+                            JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội.",
+                                    "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    pm.add(miDelAllTeams);
+                }
+                if ("Đăng ký cá nhân".equals(label)) {
+                    javax.swing.JMenuItem miRefreshCaNhan = new javax.swing.JMenuItem("Làm mới danh sách cá nhân");
+                    miRefreshCaNhan.addActionListener(ev -> {
+                        try {
+                            if (dangKyCaNhanPanel != null)
+                                dangKyCaNhanPanel.refreshAll();
+                        } catch (Exception ex) {
+                        }
+                    });
+                    pm.add(miRefreshCaNhan);
+                    javax.swing.JMenuItem miDelAllSingles = new javax.swing.JMenuItem("Xóa tất cả đăng ký cá nhân");
+                    miDelAllSingles.addActionListener(ev -> {
+                        try {
+                            Connection conn = (service != null) ? service.current() : null;
+                            if (conn == null) {
+                                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi",
+                                        JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            int idGiai = new com.example.btms.config.Prefs().getInt("selectedGiaiDauId", -1);
+                            String tenGiai = new com.example.btms.config.Prefs().get("selectedGiaiDauName", "");
+                            if (idGiai <= 0) {
+                                JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+                                return;
+                            }
+                            int c = JOptionPane.showConfirmDialog(this,
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký cá nhân của giải\n" +
+                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
+                                            "Hành động này không thể hoàn tác.",
+                                    "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                            if (c != JOptionPane.YES_OPTION)
+                                return;
+                            var svc = new com.example.btms.service.player.DangKiCaNhanService(
+                                    new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
+                            int deleted = svc.deleteAllByGiai(idGiai);
+                            if (dangKyCaNhanPanel != null)
+                                dangKyCaNhanPanel.refreshAll();
+                            JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân.",
+                                    "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    pm.add(miDelAllSingles);
                 }
                 if ("Sơ đồ thi đấu".equals(label)) {
+                    javax.swing.JMenuItem miRefreshSoDo = new javax.swing.JMenuItem("Làm mới tất cả sơ đồ đang mở");
+                    miRefreshSoDo.addActionListener(ev -> {
+                        try {
+                            if (soDoTabbedPane != null) {
+                                int count = soDoTabbedPane.getTabCount();
+                                for (int i = 0; i < count; i++) {
+                                    java.awt.Component c = soDoTabbedPane.getComponentAt(i);
+                                    if (c instanceof com.example.btms.ui.bracket.SoDoThiDauPanel p) {
+                                        p.reloadData();
+                                    }
+                                }
+                            }
+                        } catch (Exception ex) {
+                        }
+                    });
+                    pm.add(miRefreshSoDo);
                     pm.addSeparator();
                     javax.swing.JMenu mExport = new javax.swing.JMenu("Xuất danh sách sơ đồ (PDF)");
                     javax.swing.JMenuItem miOneFile = new javax.swing.JMenuItem("Xuất 1 file (tất cả nội dung)");
@@ -1531,11 +2094,25 @@ public class MainFrame extends JFrame {
             }
         } catch (Exception ignore) {
         }
+        try {
+            clearTournamentSelectionPrefs();
+        } catch (Exception ignore) {
+        }
         currentRole = null;
         selectedGiaiDau = null;
         showView("Cài đặt");
         buildMenuBar();
         rebuildNavigationTree();
+    }
+
+    /** Clear only transient tournament selection preferences on exit/logout. */
+    private void clearTournamentSelectionPrefs() {
+        try {
+            com.example.btms.config.Prefs p = new com.example.btms.config.Prefs();
+            p.remove("selectedGiaiDauId");
+            p.remove("selectedGiaiDauName");
+        } catch (Exception ignore) {
+        }
     }
 
     /** Public wrapper cho SettingsPanel gọi đổi theme và lưu Prefs. */
