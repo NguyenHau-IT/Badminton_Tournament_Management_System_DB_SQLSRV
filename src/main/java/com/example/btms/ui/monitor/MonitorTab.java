@@ -142,7 +142,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         list.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         list.setVisibleRowCount(-1);
         list.setFixedCellWidth(460); // mặc định, sẽ tự điều chỉnh theo viewport để luôn 3 cột
-        list.setFixedCellHeight(220); // chiều cao card đồng đều
+        list.setFixedCellHeight(280); // tăng chiều cao card mặc định cho phù hợp font lớn
         list.setCellRenderer(new CardRenderer());
         list.setBackground(UIManager.getColor("Panel.background"));
         list.putClientProperty("JComponent.roundRect", true); // hint FlatLaf
@@ -260,7 +260,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                 return;
             javax.swing.JViewport vp = (javax.swing.JViewport) parent;
             int vw = vp.getExtentSize().width;
-            // chừa khoảng margin nhỏ giữa các card
+            // Adjust the margin between cards
             int hGap = 12;
             int totalGap = (columns + 1) * (hGap / 2);
             // Tăng min width khi giảm số cột để card rộng hơn rõ rệt
@@ -268,7 +268,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             switch (Math.max(1, Math.min(6, columns))) {
                 case 1 -> minWidth = 600;
                 case 2 -> minWidth = 420;
-                case 3 -> minWidth = 320;
+                case 3 -> minWidth = 380;
                 case 4 -> minWidth = 280;
                 case 5 -> minWidth = 240;
                 default -> minWidth = 220;
@@ -278,10 +278,10 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             // Điều chỉnh chiều cao card theo số cột (cao hơn trước)
             int cellH;
             switch (Math.max(1, Math.min(6, columns))) {
-                case 1 -> cellH = 340;
-                case 2 -> cellH = 300;
-                case 3 -> cellH = 260;
-                default -> cellH = 230;
+                case 1 -> cellH = 380; // tăng chiều cao khi 1 cột
+                case 2 -> cellH = 330; // tăng nhẹ khi 2 cột
+                case 3 -> cellH = 300; // tăng thêm để chứa ô điểm cao hơn và đường kẻ chia
+                default -> cellH = 250; // mặc định cao hơn
             }
             list.setFixedCellHeight(cellH);
             // Lưu số cột hiện tại để renderer có thể điều chỉnh tỉ lệ ô tên VĐV
@@ -1049,13 +1049,13 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             lblMeta.setForeground(Color.WHITE); // Thay đổi màu chữ meta thành trắng
 
             // Tên & điểm
-            lblClubA.setFont(lblClubA.getFont().deriveFont(Font.ITALIC, 13f));
+            lblClubA.setFont(lblClubA.getFont().deriveFont(Font.ITALIC, 15f));
             lblClubA.setForeground(Color.LIGHT_GRAY);
-            lblNames.setFont(lblNames.getFont().deriveFont(Font.BOLD, 16f)); // Tăng font size tên đội A
+            lblNames.setFont(lblNames.getFont().deriveFont(Font.BOLD, 20f)); // Tăng font size tên đội A
             lblNames.setForeground(Color.WHITE); // Thay đổi màu chữ tên thành trắng
-            lblClubB.setFont(lblClubB.getFont().deriveFont(Font.ITALIC, 13f));
+            lblClubB.setFont(lblClubB.getFont().deriveFont(Font.ITALIC, 15f));
             lblClubB.setForeground(Color.LIGHT_GRAY);
-            lblNames2.setFont(lblNames2.getFont().deriveFont(Font.BOLD, 16f)); // Tăng font size tên đội B
+            lblNames2.setFont(lblNames2.getFont().deriveFont(Font.BOLD, 20f)); // Tăng font size tên đội B
             lblNames2.setForeground(Color.WHITE); // Thay đổi màu chữ tên đội B thành trắng
             lblScore.setFont(lblScore.getFont().deriveFont(Font.BOLD, lblScore.getFont().getSize2D() + 4f));
             lblScore.setForeground(Color.WHITE); // Thay đổi màu chữ điểm thành trắng
@@ -1090,8 +1090,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             nameAPanel.setMinimumSize(new Dimension(250, 60));
             nameAPanel.setMaximumSize(new Dimension(250, 60));
             nameAPanel.setSize(new Dimension(250, 60));
-            nameAPanel.add(lblClubA, BorderLayout.NORTH);
-            nameAPanel.add(lblNames, BorderLayout.CENTER); // Căn giữa tên theo chiều dọc
+            // Hiển thị tên VĐV ở trên, tên CLB ở dưới
+            nameAPanel.add(lblNames, BorderLayout.NORTH);
+            nameAPanel.add(lblClubA, BorderLayout.SOUTH);
 
             teamAPanel.add(nameAPanel, BorderLayout.WEST);
 
@@ -1102,10 +1103,20 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             scoreWrapperA.add(Box.createVerticalGlue()); // Căn trên
             scoreWrapperA.add(scoreAPanel); // Các ô điểm ở giữa
             scoreWrapperA.add(Box.createVerticalGlue()); // Căn dưới
-            teamAPanel.add(scoreWrapperA, BorderLayout.CENTER);
+            // Đặt cụm ô điểm về sát bên phải
+            teamAPanel.add(scoreWrapperA, BorderLayout.EAST);
 
             center.add(teamAPanel);
-            center.add(Box.createVerticalStrut(0));
+            // Đường kẻ chia giữa bảng A và B (thanh trắng đặc dễ nhìn)
+            center.add(Box.createVerticalStrut(6));
+            JPanel midLine = new JPanel();
+            midLine.setOpaque(true);
+            midLine.setBackground(Color.WHITE);
+            midLine.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+            midLine.setPreferredSize(new Dimension(10, 1));
+            midLine.setAlignmentX(Component.CENTER_ALIGNMENT);
+            center.add(midLine);
+            center.add(Box.createVerticalStrut(6));
 
             // Tạo panel cho tên và các ô điểm của đội B
             JPanel teamBPanel = new JPanel(new BorderLayout(8, 0));
@@ -1117,8 +1128,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             nameBPanel.setMinimumSize(new Dimension(250, 60));
             nameBPanel.setMaximumSize(new Dimension(250, 60));
             nameBPanel.setSize(new Dimension(250, 60));
-            nameBPanel.add(lblClubB, BorderLayout.NORTH);
-            nameBPanel.add(lblNames2, BorderLayout.CENTER); // Căn giữa tên theo chiều dọc
+            // Hiển thị tên VĐV ở trên, tên CLB ở dưới
+            nameBPanel.add(lblNames2, BorderLayout.NORTH);
+            nameBPanel.add(lblClubB, BorderLayout.SOUTH);
 
             teamBPanel.add(nameBPanel, BorderLayout.WEST);
 
@@ -1129,7 +1141,8 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             scoreWrapperB.add(Box.createVerticalGlue()); // Căn trên
             scoreWrapperB.add(scoreBPanel); // Các ô điểm ở giữa
             scoreWrapperB.add(Box.createVerticalGlue()); // Căn dưới
-            teamBPanel.add(scoreWrapperB, BorderLayout.CENTER);
+            // Đặt cụm ô điểm về sát bên phải
+            teamBPanel.add(scoreWrapperB, BorderLayout.EAST);
 
             center.add(teamBPanel);
             center.add(Box.createVerticalStrut(0));
@@ -1141,6 +1154,17 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
             add(top, BorderLayout.NORTH);
             add(center, BorderLayout.CENTER);
+        }
+
+        private static String escapeHtml(String s) {
+            if (s == null)
+                return "";
+            String out = s;
+            out = out.replace("&", "&amp;");
+            out = out.replace("<", "&lt;");
+            out = out.replace(">", "&gt;");
+            out = out.replace("\"", "&quot;");
+            return out;
         }
 
         @Override
@@ -1160,19 +1184,19 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             int minName;
             switch (Math.max(1, Math.min(6, cols))) {
                 case 1 -> {
-                    nameRatio = 0.70;
+                    nameRatio = 0.75; // rộng hơn để tên lớn không bị cắt
                     minName = 240;
                 }
                 case 2 -> {
-                    nameRatio = 0.60;
+                    nameRatio = 0.65;
                     minName = 200;
                 }
                 case 3 -> {
-                    nameRatio = 0.50;
-                    minName = 160;
+                    nameRatio = 0.35; // giảm bề rộng ô tên để chừa chỗ cho 3 ô điểm
+                    minName = 140;
                 }
                 default -> {
-                    nameRatio = 0.45;
+                    nameRatio = 0.50;
                     minName = 150;
                 }
             }
@@ -1180,10 +1204,10 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             // Cao hơn khi ít cột để hiển thị thêm dòng CLB
             int nameH;
             switch (Math.max(1, Math.min(6, cols))) {
-                case 1 -> nameH = 90;
-                case 2 -> nameH = 75;
-                case 3 -> nameH = 65;
-                default -> nameH = 60;
+                case 1 -> nameH = 110; // cao hơn để tên/CLB to vẫn không bị cắt
+                case 2 -> nameH = 90;
+                case 3 -> nameH = 80;
+                default -> nameH = 72;
             }
             Dimension nameSize = new Dimension(nameW, nameH);
             nameAPanel.setPreferredSize(nameSize);
@@ -1196,10 +1220,10 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             // Đặt kích thước renderer theo ô – tăng chiều cao khi giảm số cột
             int cellH;
             switch (Math.max(1, Math.min(6, cols))) {
-                case 1 -> cellH = 340;
-                case 2 -> cellH = 300;
-                case 3 -> cellH = 260;
-                default -> cellH = 230;
+                case 1 -> cellH = 380;
+                case 2 -> cellH = 330;
+                case 3 -> cellH = 280;
+                default -> cellH = 250;
             }
             Dimension fixedSize = new Dimension(cellW, cellH);
             setPreferredSize(fixedSize);
@@ -1228,50 +1252,61 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                 // Tách tên đội A thành 2 phần và hiển thị trên 2 hàng
                 String[] namesA = r.nameA.split("\\s*-\\s*"); // Tách theo dấu gạch ngang
                 if (namesA.length >= 2) {
-                    lblNames.setText("<html><div style='text-align: left; line-height: 1.2;'>" + namesA[0] + "<br>"
-                            + namesA[1] + "</div></html>");
+                    lblNames.setText("<html><div style='text-align: left; line-height: 1.2;'><nobr>" +
+                            escapeHtml(namesA[0]) + "</nobr><br><nobr>" + escapeHtml(namesA[1]) +
+                            "</nobr></div></html>");
                 } else {
-                    lblNames.setText(safe(r.nameA));
+                    lblNames.setText("<html><div style='text-align: left; line-height: 1.2;'><nobr>" +
+                            escapeHtml(safe(r.nameA)) + "</nobr></div></html>");
                 }
 
                 // Tách tên đội B thành 2 phần và hiển thị trên 2 hàng
                 String[] namesB = r.nameB.split("\\s*-\\s*"); // Tách theo dấu gạch ngang
                 if (namesB.length >= 2) {
-                    lblNames2.setText("<html><div style='text-align: left; line-height: 1.2;'>" + namesB[0] + "<br>"
-                            + namesB[1] + "</div></html>");
+                    lblNames2.setText("<html><div style='text-align: left; line-height: 1.2;'><nobr>" +
+                            escapeHtml(namesB[0]) + "</nobr><br><nobr>" + escapeHtml(namesB[1]) +
+                            "</nobr></div></html>");
                 } else {
-                    lblNames2.setText(safe(r.nameB));
+                    lblNames2.setText("<html><div style='text-align: left; line-height: 1.2;'><nobr>" +
+                            escapeHtml(safe(r.nameB)) + "</nobr></div></html>");
                 }
             } else {
-                // Nếu đánh đơn, hiển thị tên bình thường
-                lblNames.setText(safe(r.nameA));
-                lblNames2.setText(safe(r.nameB));
+                // Nếu đánh đơn, hiển thị tên chiếm 2 hàng (tên + 1 dòng trống) để đủ chiều cao
+                // 2 hàng chữ
+                lblNames.setText("<html><div style='text-align: left; line-height: 1.2;'><nobr>"
+                        + escapeHtml(safe(r.nameA)) + "</nobr>"
+                        + "<br>&nbsp;</div></html>");
+                lblNames2.setText("<html><div style='text-align: left; line-height: 1.2;'><nobr>"
+                        + escapeHtml(safe(r.nameB)) + "</nobr>"
+                        + "<br>&nbsp;</div></html>");
             }
 
             lblVS.setText(String.format("vs"));
 
             // Tạo các ô điểm cho đội A
             scoreAPanel.removeAll();
-            scoreAPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); // Không có khoảng cách
+            scoreAPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0)); // Căn phải, không khoảng
+                                                                                             // cách
             // Kích thước ô điểm theo số cột (tăng chiều cao như yêu cầu)
             Dimension scoreBoxSize;
             float scoreFont;
+            int scoreHeight = nameH; // chiều cao ô điểm bằng khối tên + CLB
             switch (Math.max(1, Math.min(6, cols))) {
                 case 1 -> {
-                    scoreBoxSize = new Dimension(80, 70); // giảm chiều rộng một chút
-                    scoreFont = 32f;
+                    scoreBoxSize = new Dimension(80, scoreHeight);
+                    scoreFont = 34f;
                 }
                 case 2 -> {
-                    scoreBoxSize = new Dimension(72, 64); // giảm chiều rộng một chút
-                    scoreFont = 28f;
+                    scoreBoxSize = new Dimension(72, scoreHeight);
+                    scoreFont = 30f;
                 }
                 case 3 -> {
-                    scoreBoxSize = new Dimension(60, 56); // giảm chiều rộng một chút
-                    scoreFont = 26f;
+                    scoreBoxSize = new Dimension(56, scoreHeight);
+                    scoreFont = 28f;
                 }
                 default -> {
-                    scoreBoxSize = new Dimension(58, 52); // giảm chiều rộng một chút
-                    scoreFont = 24f;
+                    scoreBoxSize = new Dimension(58, scoreHeight);
+                    scoreFont = 26f;
                 }
             }
             int maxGames = Math.min(r.bestOf, 3); // Giới hạn tối đa 3 ván
@@ -1283,7 +1318,8 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
             // Tạo các ô điểm cho đội B
             scoreBPanel.removeAll();
-            scoreBPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); // Không có khoảng cách
+            scoreBPanel.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0)); // Căn phải, không khoảng
+                                                                                             // cách
             for (int i = 0; i < maxGames; i++) {
                 JLabel scoreLabel = createScoreLabel(i, r, false, scoreBoxSize, scoreFont);
                 scoreBPanel.add(scoreLabel);
