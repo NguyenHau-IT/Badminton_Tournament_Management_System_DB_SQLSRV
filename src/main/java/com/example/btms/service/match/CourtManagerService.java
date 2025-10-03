@@ -75,6 +75,20 @@ public class CourtManagerService {
     }
 
     /**
+     * Có bất kỳ sân nào đang mở khung hiển thị hoặc có bảng điều khiển hay không.
+     * "Mở" nghĩa là người dùng đã mở cửa sổ hiển thị (display != null) hoặc đang có
+     * panel điều khiển gắn với sân (controlPanel != null).
+     */
+    public boolean hasAnyOpenCourt() {
+        for (CourtSession session : courtSessions.values()) {
+            if (session != null && (session.display != null || session.controlPanel != null)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Xóa sân
      */
     public void removeCourt(String courtId) {

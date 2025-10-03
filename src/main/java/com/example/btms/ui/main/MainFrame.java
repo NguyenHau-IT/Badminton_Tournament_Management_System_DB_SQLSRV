@@ -223,14 +223,37 @@ public class MainFrame extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                int result = javax.swing.JOptionPane.showConfirmDialog(
-                        MainFrame.this,
-                        "Bạn có chắc muốn tắt ứng dụng?\n\nTất cả dữ liệu chưa lưu sẽ bị mất.",
-                        "Xác nhận tắt ứng dụng",
-                        javax.swing.JOptionPane.YES_NO_OPTION,
-                        javax.swing.JOptionPane.QUESTION_MESSAGE);
-                if (result == javax.swing.JOptionPane.YES_OPTION)
-                    System.exit(0);
+                try {
+                    var cm = com.example.btms.service.match.CourtManagerService.getInstance();
+                    if (cm.hasAnyOpenCourt()) {
+                        int choice = javax.swing.JOptionPane.showConfirmDialog(
+                                MainFrame.this,
+                                "Hiện còn sân đang mở. Bạn có muốn đóng tất cả sân và thoát?",
+                                "Đóng tất cả sân trước khi thoát",
+                                javax.swing.JOptionPane.YES_NO_OPTION,
+                                javax.swing.JOptionPane.WARNING_MESSAGE);
+                        if (choice == javax.swing.JOptionPane.YES_OPTION) {
+                            try {
+                                cm.closeAllCourts();
+                            } catch (Exception ignore) {
+                            }
+                            // Sau khi đóng tất cả sân, cho phép thoát
+                            int result = javax.swing.JOptionPane.showConfirmDialog(
+                                    MainFrame.this,
+                                    "Bạn có chắc muốn tắt ứng dụng?\n\nTất cả dữ liệu chưa lưu sẽ bị mất.",
+                                    "Xác nhận tắt ứng dụng",
+                                    javax.swing.JOptionPane.YES_NO_OPTION,
+                                    javax.swing.JOptionPane.QUESTION_MESSAGE);
+                            if (result == javax.swing.JOptionPane.YES_OPTION)
+                                System.exit(0);
+                                return ;
+                        }
+                        return; // nếu chọn NO thì giữ ứng dụng mở
+                    }
+                } catch (Throwable ignore) {
+                }
+                // Nếu không còn sân nào mở thì cho phép dispose
+                System.exit(0);
             }
 
             @Override
