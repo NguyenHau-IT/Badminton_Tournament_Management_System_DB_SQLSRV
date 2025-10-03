@@ -7,6 +7,7 @@ import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -52,7 +53,11 @@ public class DangKyCaNhanPanel extends JPanel {
         @Override
         public Class<?> getColumnClass(int columnIndex) {
             return switch (columnIndex) {
-                case 0, 1, 3 -> Integer.class; // hidden ids (idGiai, idNoiDung, idVdv)
+                case 0, 1, 3 -> Integer.class; // hidden
+                                               // ids
+                                               // (idGiai,
+                                               // idNoiDung,
+                                               // idVdv)
                 default -> String.class;
             };
         }
@@ -66,6 +71,7 @@ public class DangKyCaNhanPanel extends JPanel {
     private final JButton btnEdit = new JButton("Sửa");
     private final JButton btnDelete = new JButton("Xóa");
     private final JButton btnTransfer = new JButton("Chuyển nội dung");
+    private final JButton btnImportCsv = new JButton("Nhập CSV");
     private final JLabel lblCount = new JLabel("0 đăng ký");
     private final javax.swing.JTextField txtSearch = new javax.swing.JTextField(14);
     private final JComboBox<String> cboFilterField = new JComboBox<>(new String[] { "Nội dung", "VĐV" });
@@ -95,6 +101,7 @@ public class DangKyCaNhanPanel extends JPanel {
         row2.add(new JLabel("Tìm:"));
         row2.add(txtSearch);
         row2.add(lblCount);
+        row2.add(btnImportCsv);
         row2.add(btnAdd);
         row2.add(btnEdit);
         row2.add(btnDelete);
@@ -112,6 +119,7 @@ public class DangKyCaNhanPanel extends JPanel {
         btnEdit.addActionListener(e -> onEdit());
         btnDelete.addActionListener(e -> onDelete());
         btnTransfer.addActionListener(e -> onOpenTransferDialog());
+        btnImportCsv.addActionListener(e -> onOpenImportPanel());
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) {
@@ -133,6 +141,18 @@ public class DangKyCaNhanPanel extends JPanel {
 
         reload();
     }
+
+    private void onOpenImportPanel() {
+        DangKyCaNhanImportPanel p = new DangKyCaNhanImportPanel(
+                conn, prefs, noiDungService, dkService, vdvService, clbService, this::reload);
+        JDialog dlg = new JDialog((java.awt.Frame) null, "Nhập CSV đăng ký cá nhân", true);
+        dlg.setContentPane(p);
+        dlg.pack();
+        dlg.setLocationRelativeTo(this);
+        dlg.setVisible(true);
+    }
+
+    // no-op helper removed
 
     private void reload() {
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
