@@ -1733,29 +1733,36 @@ public class SoDoThiDauPanel extends JPanel {
             // Decide seeding column and block size based on number of participants
             int N = list.size();
             int M; // block size in that column
-            int seedCol; // 1..5
-            if (N >= 9) {
-                M = 16;
-                seedCol = 1;
-            } else if (N >= 5) {
-                M = 8;
-                seedCol = 2;
-            } else if (N >= 3) {
-                M = 4;
-                seedCol = 3;
-            } else if (N >= 2) {
-                M = 2;
-                seedCol = 4;
-            } else {
-                M = 1;
-                seedCol = 4;
-            }
+            int seedCol; // 1..columns
             if (N > 16) {
-                JOptionPane.showMessageDialog(this, "Số đội vượt quá 16 – chưa hỗ trợ trong sơ đồ 16.", "Thông báo",
-                        JOptionPane.WARNING_MESSAGE);
-                N = 16;
-                M = 16;
-                seedCol = 1;
+                // Switch to 32-team bracket
+                canvas.setBracketSize(32);
+                if (N >= 17) {
+                    M = 32;
+                    seedCol = 1;
+                } else { // unreachable, but keep structure
+                    M = 32;
+                    seedCol = 1;
+                }
+            } else {
+                // 16-team bracket
+                canvas.setBracketSize(16);
+                if (N >= 9) {
+                    M = 16;
+                    seedCol = 1;
+                } else if (N >= 5) {
+                    M = 8;
+                    seedCol = 2;
+                } else if (N >= 3) {
+                    M = 4;
+                    seedCol = 3;
+                } else if (N >= 2) {
+                    M = 2;
+                    seedCol = 4;
+                } else {
+                    M = 1;
+                    seedCol = Math.max(1, canvas.getColumns() - 1);
+                }
             }
             int useN = Math.min(N, M);
             List<Integer> pos = computeSeedPositionsWithMode(useN, M);
@@ -1803,7 +1810,7 @@ public class SoDoThiDauPanel extends JPanel {
                         String winner = hasA ? a : b;
                         namesByT.set(2 * p, null);
                         namesByT.set(2 * p + 1, null);
-                        if (seedCol < 5)
+                        if (seedCol < canvas.getColumns())
                             canvas.setTextOverride(seedCol + 1, p, winner);
                     }
                 }
@@ -1823,28 +1830,28 @@ public class SoDoThiDauPanel extends JPanel {
             int N = list.size();
             int M;
             int seedCol;
-            if (N >= 9) {
-                M = 16;
-                seedCol = 1;
-            } else if (N >= 5) {
-                M = 8;
-                seedCol = 2;
-            } else if (N >= 3) {
-                M = 4;
-                seedCol = 3;
-            } else if (N >= 2) {
-                M = 2;
-                seedCol = 4;
-            } else {
-                M = 1;
-                seedCol = 4;
-            }
             if (N > 16) {
-                JOptionPane.showMessageDialog(this, "Số VĐV vượt quá 16 – chưa hỗ trợ trong sơ đồ 16.", "Thông báo",
-                        JOptionPane.WARNING_MESSAGE);
-                N = 16;
-                M = 16;
+                canvas.setBracketSize(32);
+                M = 32;
                 seedCol = 1;
+            } else {
+                canvas.setBracketSize(16);
+                if (N >= 9) {
+                    M = 16;
+                    seedCol = 1;
+                } else if (N >= 5) {
+                    M = 8;
+                    seedCol = 2;
+                } else if (N >= 3) {
+                    M = 4;
+                    seedCol = 3;
+                } else if (N >= 2) {
+                    M = 2;
+                    seedCol = 4;
+                } else {
+                    M = 1;
+                    seedCol = Math.max(1, canvas.getColumns() - 1);
+                }
             }
             int useN = Math.min(N, M);
             List<Integer> pos = computeSeedPositionsWithMode(useN, M);
@@ -1886,7 +1893,7 @@ public class SoDoThiDauPanel extends JPanel {
                         String winner = hasA ? a : b;
                         namesByT.set(2 * p, null);
                         namesByT.set(2 * p + 1, null);
-                        if (seedCol < 5)
+                        if (seedCol < canvas.getColumns())
                             canvas.setTextOverride(seedCol + 1, p, winner);
                     }
                 }
@@ -1914,8 +1921,16 @@ public class SoDoThiDauPanel extends JPanel {
             }
             if (list == null || list.isEmpty())
                 return false;
+            // Detect saved bracket size by max order; 32-seed tree has 63 slots
+            int maxOrder = 0;
+            for (SoDoDoi r : list) {
+                if (r.getViTri() != null && r.getViTri() > maxOrder)
+                    maxOrder = r.getViTri();
+            }
+            canvas.setBracketSize(maxOrder > 31 ? 32 : 16);
             List<String> blanks = new ArrayList<>();
-            for (int i = 0; i < 16; i++)
+            int seedSpots = canvas.getSeedSpotsCount();
+            for (int i = 0; i < seedSpots; i++)
                 blanks.add("");
             canvas.setParticipantsForColumn(blanks, 1);
             canvas.clearTextOverrides();
@@ -1940,8 +1955,15 @@ public class SoDoThiDauPanel extends JPanel {
             }
             if (list == null || list.isEmpty())
                 return false;
+            int maxOrder = 0;
+            for (SoDoCaNhan r : list) {
+                if (r.getViTri() != null && r.getViTri() > maxOrder)
+                    maxOrder = r.getViTri();
+            }
+            canvas.setBracketSize(maxOrder > 31 ? 32 : 16);
             List<String> blanks = new ArrayList<>();
-            for (int i = 0; i < 16; i++)
+            int seedSpots = canvas.getSeedSpotsCount();
+            for (int i = 0; i < seedSpots; i++)
                 blanks.add("");
             canvas.setParticipantsForColumn(blanks, 1);
             canvas.clearTextOverrides();
@@ -1979,7 +2001,8 @@ public class SoDoThiDauPanel extends JPanel {
     private void clearAllSlots() {
         // Giữ cấu trúc, xóa text
         List<String> blanks = new ArrayList<>();
-        for (int i = 0; i < 16; i++)
+        int seedSpots = canvas.getSeedSpotsCount();
+        for (int i = 0; i < seedSpots; i++)
             blanks.add("");
         canvas.setParticipantsForColumn(blanks, 1);
         canvas.clearTextOverrides();
@@ -2190,45 +2213,40 @@ public class SoDoThiDauPanel extends JPanel {
 
     // ===== Medal logic =====
     private void updateMedalsFromCanvas() {
-        // Gold: cột 5, ô duy nhất
-        String gold = getTextAt(5, 0);
-        // Silver: cột 4, ô có parent là gold; chọn ô nào có text khác gold
-        // Thực tế, ở vòng chung kết (cột 4, có 2 ô), silver là đội còn lại không phải
-        // gold
-        String semiA = getTextAt(4, 0);
-        String semiB = getTextAt(4, 1);
+        // Dynamic columns: finals at last column, finalists at last-1, semis inputs at
+        // last-2
+        int finalsCol = Math.max(1, canvas.getColumns());
+        int finalistsCol = Math.max(1, finalsCol - 1);
+        int semisInputCol = Math.max(1, finalsCol - 2);
+
+        String gold = getTextAt(finalsCol, 0);
+        String finalistA = getTextAt(finalistsCol, 0);
+        String finalistB = getTextAt(finalistsCol, 1);
         String silver = null;
         if (gold != null && !gold.isBlank()) {
-            if (semiA != null && semiA.equals(gold))
-                silver = semiB;
-            else if (semiB != null && semiB.equals(gold))
-                silver = semiA;
+            if (finalistA != null && finalistA.equals(gold))
+                silver = finalistB;
+            else if (finalistB != null && finalistB.equals(gold))
+                silver = finalistA;
         }
-        // Bronzes: 2 đội thua ở bán kết: cột 3 có 4 ô, nhưng bán kết là cột 4 đầu vào
-        // từ cột 3.
-        // Ở đây cấu trúc đã mapping: cột 3 => 4 chỗ, cột 4 => 2 chỗ.
-        // Lấy 2 đội vào chung kết (semiA, semiB), mỗi đội có parent từ cột 3:
-        // cột 3 chỉ chứa text nếu người dùng đã điền/seed; nếu rỗng dùng textOverrides
-        // hiện có.
-        // Ta tìm 2 cặp bán kết: (col3 thuTu 0,1)->semiA; (col3 thuTu 2,3)->semiB
-        String semiA1 = getTextAt(3, 0);
-        String semiA2 = getTextAt(3, 1);
-        String semiB1 = getTextAt(3, 2);
-        String semiB2 = getTextAt(3, 3);
-        // Người thắng mỗi bán kết là semiA và semiB; bronze là người còn lại trong mỗi
-        // cặp
+        // Bronzes are losers of the two semifinals: each semifinal pair is in
+        // semisInputCol
+        String semiA1 = getTextAt(semisInputCol, 0);
+        String semiA2 = getTextAt(semisInputCol, 1);
+        String semiB1 = getTextAt(semisInputCol, 2);
+        String semiB2 = getTextAt(semisInputCol, 3);
         String bronze1 = null;
         String bronze2 = null;
-        if (semiA != null && !semiA.isBlank()) {
-            if (semiA.equals(semiA1))
+        if (finalistA != null && !finalistA.isBlank()) {
+            if (finalistA.equals(semiA1))
                 bronze1 = semiA2;
-            else if (semiA.equals(semiA2))
+            else if (finalistA.equals(semiA2))
                 bronze1 = semiA1;
         }
-        if (semiB != null && !semiB.isBlank()) {
-            if (semiB.equals(semiB1))
+        if (finalistB != null && !finalistB.isBlank()) {
+            if (finalistB.equals(semiB1))
                 bronze2 = semiB2;
-            else if (semiB.equals(semiB2))
+            else if (finalistB.equals(semiB2))
                 bronze2 = semiB1;
         }
         String g = safe(gold).trim();
@@ -2458,8 +2476,10 @@ public class SoDoThiDauPanel extends JPanel {
 
     /* ===================== Canvas ===================== */
     private class BracketCanvas extends JPanel {
-        private static final int COLUMNS = 5; // 16 -> 1
-        private static final int[] SPOTS = { 16, 8, 4, 2, 1 };
+        // Configurable bracket: default 16 -> 1 (5 cột); can be switched to 32 -> 1 (6
+        // cột)
+        private int columns = 5;
+        private int[] spots = { 16, 8, 4, 2, 1 };
         private static final int CELL_WIDTH = 200; // tăng chiều ngang ô (rộng hơn để hiển thị tên)
         private static final int CELL_HEIGHT = 30;
         // Ô cuối (vô địch) sẽ to hơn một chút để nổi bật
@@ -2475,12 +2495,12 @@ public class SoDoThiDauPanel extends JPanel {
         // Canvas width will be expanded dynamically based on the longest name
 
         private List<String> participants = new ArrayList<>(); // tên tại cột seedColumn
-        private int seedColumn = 1; // cột sẽ hiển thị danh sách ban đầu (1..5)
+        private int seedColumn = 1; // cột sẽ hiển thị danh sách ban đầu (1..columns)
         private final java.util.Map<Integer, String> textOverrides = new java.util.HashMap<>();
         private boolean editMode = false;
 
         private static class Slot {
-            int col; // 1..5
+            int col; // 1..columns
             int thuTu; // 0-based among spots in that column
             int x;
             int y;
@@ -2491,11 +2511,11 @@ public class SoDoThiDauPanel extends JPanel {
         private final List<Slot> slots = new ArrayList<>();
 
         private int cellWidthForCol(int col) {
-            return (col == COLUMNS) ? FINAL_CELL_WIDTH : CELL_WIDTH;
+            return (col == columns) ? FINAL_CELL_WIDTH : CELL_WIDTH;
         }
 
         private int cellHeightForCol(int col) {
-            return (col == COLUMNS) ? FINAL_CELL_HEIGHT : CELL_HEIGHT;
+            return (col == columns) ? FINAL_CELL_HEIGHT : CELL_HEIGHT;
         }
 
         BracketCanvas() {
@@ -2545,7 +2565,7 @@ public class SoDoThiDauPanel extends JPanel {
                     JPopupMenu menu = new JPopupMenu();
                     JMenuItem mAdvance = new JMenuItem("Vẽ bản ghi");
                     JMenuItem mBack = new JMenuItem("Xoá bản ghi");
-                    mAdvance.setEnabled(s.col < COLUMNS && s.text != null && !s.text.isBlank());
+                    mAdvance.setEnabled(s.col < columns && s.text != null && !s.text.isBlank());
                     mBack.setEnabled(s.col > 1 && s.text != null && !s.text.isBlank());
                     mAdvance.addActionListener(ev -> {
                         Slot parent = parentOf(s);
@@ -2753,9 +2773,31 @@ public class SoDoThiDauPanel extends JPanel {
                     : java.awt.Cursor.getDefaultCursor());
         }
 
+        void setBracketSize(int size) {
+            if (size >= 32) {
+                this.columns = 6;
+                this.spots = new int[] { 32, 16, 8, 4, 2, 1 };
+            } else {
+                this.columns = 5;
+                this.spots = new int[] { 16, 8, 4, 2, 1 };
+            }
+            // Ensure seed column is in range
+            if (seedColumn < 1 || seedColumn > this.columns)
+                seedColumn = 1;
+            rebuildSlots();
+        }
+
+        int getSeedSpotsCount() {
+            return (spots != null && spots.length > 0) ? spots[0] : 16;
+        }
+
+        int getColumns() {
+            return columns;
+        }
+
         void setParticipantsForColumn(List<String> names, int seedCol) {
             this.participants = names != null ? names : new ArrayList<>();
-            if (seedCol < 1 || seedCol > COLUMNS)
+            if (seedCol < 1 || seedCol > columns)
                 seedCol = 1;
             this.seedColumn = seedCol;
             rebuildSlots();
@@ -2810,8 +2852,8 @@ public class SoDoThiDauPanel extends JPanel {
         private void rebuildSlots() {
             slots.clear();
             int orderCounter = 1; // continuous numbering
-            for (int col = 1; col <= COLUMNS; col++) {
-                int spotCount = SPOTS[col - 1];
+            for (int col = 1; col <= columns; col++) {
+                int spotCount = spots[col - 1];
                 int verticalStep = (int) (40 * Math.pow(2, col - 1)); // bước của cột hiện tại
                 for (int t = 0; t < spotCount; t++) {
                     int x = 35 + (col - 1) * 200 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
@@ -2834,7 +2876,7 @@ public class SoDoThiDauPanel extends JPanel {
                     s.order = orderCounter++;
                     if (s.col == seedColumn) {
                         s.text = (t < participants.size() && participants.get(t) != null) ? participants.get(t) : "";
-                    } else if (s.col == COLUMNS) {
+                    } else if (s.col == columns) {
                         s.text = "";
                     } else {
                         s.text = "";
@@ -2848,7 +2890,7 @@ public class SoDoThiDauPanel extends JPanel {
                 }
             }
             // Cập nhật preferred size dựa trên xa nhất, gồm cả phần tràn tên ở bên phải
-            int baseMaxX = 35 + (COLUMNS - 1) * 200 + cellWidthForCol(COLUMNS) + 40; // khớp với spacing mới + ô cuối to
+            int baseMaxX = 35 + (columns - 1) * 200 + cellWidthForCol(columns) + 40; // khớp với spacing mới + ô cuối to
                                                                                      // hơn
             int fontSize = getBracketNameFontSize();
             Font f = getFont().deriveFont(Font.PLAIN, (float) fontSize);
@@ -2863,7 +2905,7 @@ public class SoDoThiDauPanel extends JPanel {
                 }
             }
             int maxX = Math.max(baseMaxX, maxRight + 40); // thêm 40px để có khoảng trống
-            int lastColSpots = SPOTS[0];
+            int lastColSpots = spots[0];
             int maxY = START_Y + (lastColSpots) * (40) + 400; // dư chút để scroll
             setPreferredSize(new Dimension(maxX, maxY));
             revalidate();
@@ -2872,7 +2914,7 @@ public class SoDoThiDauPanel extends JPanel {
         private Slot parentOf(Slot s) {
             if (s == null)
                 return null;
-            if (s.col >= COLUMNS)
+            if (s.col >= columns)
                 return null;
             return find(s.col + 1, s.thuTu / 2);
         }
@@ -2922,8 +2964,8 @@ public class SoDoThiDauPanel extends JPanel {
             // Vẽ đường nối giữa các cột (pair -> parent)
             g2.setStroke(new BasicStroke(2f));
             g2.setColor(new Color(170, 170, 170));
-            for (int col = 1; col < COLUMNS; col++) {
-                int spotCount = SPOTS[col - 1];
+            for (int col = 1; col < columns; col++) {
+                int spotCount = spots[col - 1];
                 for (int t = 0; t < spotCount; t += 2) {
                     Slot a = find(col, t);
                     Slot b = find(col, t + 1);
