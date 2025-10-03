@@ -4,8 +4,8 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.sql.Connection;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -193,7 +193,6 @@ public class DangKyDoiPanel extends JPanel {
             lblHeader.setText("Đăng ký đội: (chưa chọn giải)");
             model.setRowCount(0);
             lblCount.setText("0 đội");
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn giải đấu trước trong tab 'Chọn giải đấu'.");
             return;
         }
         lblHeader.setText(

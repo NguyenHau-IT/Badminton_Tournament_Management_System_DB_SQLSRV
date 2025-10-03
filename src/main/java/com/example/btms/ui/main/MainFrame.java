@@ -167,6 +167,14 @@ public class MainFrame extends JFrame {
 
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
+        // Startup hygiene: do NOT carry over last selected tournament between app runs.
+        // Only clears transient tournament selection keys; user Settings (theme, font,
+        // etc.) remain intact.
+        try {
+            clearTournamentSelectionPrefs();
+        } catch (Exception ignore) {
+        }
+
         // Áp dụng theme từ Prefs trước khi build UI để tránh nháy
         boolean darkPref = new com.example.btms.config.Prefs().getBool("ui.darkTheme", false);
         if (darkPref) {
