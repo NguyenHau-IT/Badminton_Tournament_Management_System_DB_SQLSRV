@@ -132,9 +132,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         right.setOpaque(false);
         autoOpen.setOpaque(false);
         autoOpen.setSelected(false); // Tắt auto-open để tránh mở nhiều cửa sổ
-        right.add(btnRefresh);
-        right.add(autoOpen);
-        right.add(btnToggle);
+    right.add(btnRefresh);
+    // Bỏ tự động mở bảng điểm: không thêm checkbox autoOpen vào UI nữa
+    right.add(btnToggle);
         header.add(right, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
@@ -483,9 +483,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
         // Nếu viewer đang mở cho phiên này, cập nhật ngay nội dung
         SwingUtilities.invokeLater(() -> updateViewerIfOpen(r));
-
-        if (autoOpen.isSelected())
-            openViewerFor(r);
+        // Bỏ tự động mở bảng điểm: chỉ mở thủ công (double-click hoặc lệnh explícit)
     }
 
     private void debouncedRefresh() {
