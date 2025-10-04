@@ -246,8 +246,6 @@ public class DangKyNoiDungPanel extends JPanel {
             if (idGiai <= 0) {
                 lblGiaiInfo.setText("Giải đã chọn: (chưa chọn)");
                 model.setRowCount(0);
-                JOptionPane.showMessageDialog(this, "Vui lòng chọn giải đấu trước.", "Thông báo",
-                        JOptionPane.INFORMATION_MESSAGE);
                 updateCountLabel();
                 return;
             }

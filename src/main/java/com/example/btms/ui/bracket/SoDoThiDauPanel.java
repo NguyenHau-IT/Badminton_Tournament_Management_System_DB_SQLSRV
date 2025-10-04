@@ -140,7 +140,37 @@ public class SoDoThiDauPanel extends JPanel {
 
         setLayout(new BorderLayout(8, 8));
         add(buildTop(), BorderLayout.NORTH);
-        add(new JScrollPane(canvas), BorderLayout.CENTER);
+        // Put canvas inside a scroll pane and increase scroll sensitivity because
+        // default wheel scrolling can feel slow on some systems.
+        javax.swing.JScrollPane canvasScroll = new javax.swing.JScrollPane(canvas);
+        // Allow user to control increment via prefs (default 24)
+        int _unitInc = 24;
+        try {
+            _unitInc = Math.max(1, prefs.getInt("bracket.scroll.unitIncrement", 24));
+        } catch (Throwable ignore) {
+        }
+        final int unitInc = _unitInc;
+        canvasScroll.getVerticalScrollBar().setUnitIncrement(unitInc);
+        canvasScroll.getHorizontalScrollBar().setUnitIncrement(unitInc);
+        // Amplify wheel movement: some touchpads send tiny units; multiply them so
+        // scrolling feels snappier.
+        canvas.addMouseWheelListener(e -> {
+            javax.swing.JScrollPane sp = (javax.swing.JScrollPane) javax.swing.SwingUtilities
+                    .getAncestorOfClass(javax.swing.JScrollPane.class, canvas);
+            if (sp == null)
+                return;
+            int units = e.getUnitsToScroll(); // typically -/+ units
+            int multiplier = 1;
+            try {
+                multiplier = Math.max(1, prefs.getInt("bracket.scroll.multiplier", 3));
+            } catch (Throwable ignore) {
+            }
+            int delta = units * unitInc * multiplier;
+            javax.swing.JScrollBar bar = sp.getVerticalScrollBar();
+            bar.setValue(bar.getValue() + delta);
+            e.consume();
+        });
+        add(canvasScroll, BorderLayout.CENTER);
         add(buildRightPanel(), BorderLayout.EAST);
         setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
         // Load ngay (đồng bộ) để tránh race khi caller gọi selectNoiDungById rồi
@@ -2945,20 +2975,7 @@ public class SoDoThiDauPanel extends JPanel {
                 g2.drawLine(s.x, s.y + h, s.x + w, s.y + h);
                 // left
                 g2.drawLine(s.x, s.y, s.x, s.y + h);
-                // Text (ẩn số thứ tự slot để gọn gàng)
-                if (s.text != null && !s.text.isBlank()) {
-                    g2.setColor(Color.BLACK);
-                    // Đọc cỡ chữ từ prefs (10..24), mặc định 12
-                    int fontSize = getBracketNameFontSize();
-                    Font nameFont = getFont().deriveFont(Font.PLAIN, (float) fontSize);
-                    g2.setFont(nameFont);
-                    // Hiển thị toàn bộ tên, cho phép tràn ra ngoài ô (không dùng …)
-                    String txt = s.text;
-                    // baseline y: padding top 6 + ascent
-                    int ascent = g2.getFontMetrics().getAscent();
-                    int textY = s.y + Math.max(18, 6 + ascent);
-                    g2.drawString(txt, s.x + 10, textY);
-                }
+                // text drawing moved to render pass after connectors so text stays on top
             }
 
             // Vẽ đường nối giữa các cột (pair -> parent)
@@ -2996,6 +3013,21 @@ public class SoDoThiDauPanel extends JPanel {
                     if (py != midY) {
                         g2.drawLine(px, Math.min(py, midY), px, Math.max(py, midY));
                     }
+                }
+            }
+
+            // Final pass: draw slot texts on top of everything so they aren't covered by
+            // slot bg/lines
+            g2.setColor(Color.BLACK);
+            for (Slot s : slots) {
+                if (s.text != null && !s.text.isBlank()) {
+                    int fontSize = getBracketNameFontSize();
+                    Font nameFont = getFont().deriveFont(Font.PLAIN, (float) fontSize);
+                    g2.setFont(nameFont);
+                    String txt = s.text;
+                    int ascent = g2.getFontMetrics().getAscent();
+                    int textY = s.y + Math.max(18, 6 + ascent);
+                    g2.drawString(txt, s.x + 10, textY);
                 }
             }
 
