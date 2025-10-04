@@ -78,6 +78,7 @@ import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
+import com.example.btms.ui.report.BaoCaoPdfPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;
 import com.example.btms.ui.tournament.TournamentTabPanel;
@@ -104,6 +105,8 @@ public class MainFrame extends JFrame {
     private com.example.btms.ui.category.ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
     private com.example.btms.ui.draw.BocThamThiDau bocThamThiDauPanel; // bốc thăm thi đấu (đơn/đôi) 0-based
     private com.example.btms.ui.bracket.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
+    // Trang báo cáo PDF tổng hợp
+    private BaoCaoPdfPanel baoCaoPdfPanel;
     // Cửa sổ nổi cho "Sơ đồ thi đấu"
     private JFrame soDoThiDauFrame;
     // Dạng tab: mỗi nội dung là 1 tab riêng
@@ -516,6 +519,11 @@ public class MainFrame extends JFrame {
                         // Bốc thăm thi đấu (0-based order)
                         bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
                         soDoThiDauPanel = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
+                        // Báo cáo PDF – tổng hợp eksport
+                        try {
+                            baoCaoPdfPanel = new BaoCaoPdfPanel(conn);
+                        } catch (Exception ignore) {
+                        }
                         // Tổng sắp huy chương (kết quả toàn đoàn)
                         try {
                             com.example.btms.ui.result.TongSapHuyChuongPanel tongSapHuyChuongPanel = new com.example.btms.ui.result.TongSapHuyChuongPanel(
@@ -648,6 +656,8 @@ public class MainFrame extends JFrame {
                     mManage.add(menuItem("Đăng ký đội"));
                     mManage.add(menuItem("Đăng ký cá nhân"));
                     mManage.add(menuItem("Danh sách đăng kí"));
+                    // Báo cáo PDF tổng hợp
+                    mManage.add(menuItem("Báo cáo (PDF)"));
                     mManage.add(menuItem("Bốc thăm thi đấu"));
                     // Mặc định mở "Sơ đồ thi đấu" ở cửa sổ riêng khi chọn từ menu
                     JMenuItem miSoDo = new JMenuItem("Sơ đồ thi đấu");
@@ -827,6 +837,8 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
             ensureViewPresent("Logs", logTab);
             ensureViewPresent("Cài đặt", settingsPanel);
+            if (baoCaoPdfPanel != null)
+                ensureViewPresent("Báo cáo (PDF)", baoCaoPdfPanel);
         } else {
             ensureViewPresent("Giải đấu", tournamentTabPanel);
             ensureViewPresent("Nhiều sân", multiCourtPanel);
@@ -1629,9 +1641,11 @@ public class MainFrame extends JFrame {
                             fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF", "pdf"));
                             String tour = (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
                                     && !selectedGiaiDau.getTenGiai().isBlank())
+
                                             ? selectedGiaiDau.getTenGiai()
                                             : new com.example.btms.config.Prefs().get("selectedGiaiDauName",
                                                     "giai-dau");
+
                             String safe = normalizeFileNameUnderscore(tour);
                             fc.setSelectedFile(new java.io.File(safe + "_so_do_thi_dau.pdf"));
                             int r = fc.showSaveDialog(this);
@@ -1988,6 +2002,7 @@ public class MainFrame extends JFrame {
             DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
             result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
             result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
+            result.add(new DefaultMutableTreeNode("Báo cáo (PDF)"));
             root.add(result);
         }
 
