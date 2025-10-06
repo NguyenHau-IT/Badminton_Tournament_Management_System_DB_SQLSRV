@@ -1,4 +1,4 @@
-package com.example.btms.controller;
+package com.example.btms.controller.scoreBoard;
 
 import java.util.List;
 import java.util.Map;

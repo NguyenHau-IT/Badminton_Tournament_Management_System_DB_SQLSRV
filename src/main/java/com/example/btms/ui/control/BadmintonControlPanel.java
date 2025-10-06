@@ -54,7 +54,7 @@ import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 
 import com.example.btms.config.Prefs;
-import com.example.btms.controller.ScoreboardPinController;
+import com.example.btms.controller.scoreBoard.ScoreboardPinController;
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.model.player.VanDongVien;
 import com.example.btms.model.team.DangKiDoi;
