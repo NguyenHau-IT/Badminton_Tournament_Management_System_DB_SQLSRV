@@ -23,9 +23,15 @@ Hệ thống quản lý đa sân cầu lông cho phép:
 
 ### 🏗️ Kiến trúc hệ thống
 ```
-Desktop App ←→ CourtManagerService ←→ Multiple CourtSessions
-     ↓              ↓                        ↓
-Web Interface ←→ ScoreboardPinController ←→ BadmintonMatch
+Desktop App (Swing) ←→ CourtManagerService ←→ Multiple CourtSessions
+   ↓                  ↓                           ↓
+Web Views (Thymeleaf) ←→ ScoreboardViewController  ←→  BadmintonMatch
+   ↓
+REST API (PIN)       ←→ ScoreboardPinController   (/api/court/**)
+REST API (No-PIN)    ←→ ScoreboardController      (/api/scoreboard/**)
+
+Real-time: SSE (SseEmitter)
+Screenshots: UDP Screenshot Receiver (port 2346)
 ```
 
 ---
@@ -102,7 +108,7 @@ Tạo file `jvm-optimization.conf`:
 - **Giảm điểm**: Click nút "-" để giảm điểm
 - **Reset**: Đặt lại điểm số về 0-0
 - **Đổi sân**: Hoán đổi vị trí hai đội
-- **Đổi Giao cầu**: đổi ng giao cầu
+- **Đổi giao cầu**: Thay đổi người giao cầu hiện tại
 
 ### Hiển thị bảng điểm
 - **Mở bảng điểm**: Click "Mở bảng điểm"
@@ -143,6 +149,10 @@ Tạo file `jvm-optimization.conf`:
 #### Cách 2: Truy cập trực tiếp
 1. **Nhập URL trực tiếp**: `http://IP:2345/scoreboard/PIN`
    - Ví dụ: `http://192.168.1.100:2345/scoreboard/1234`
+
+Ghi chú:
+- Cổng mặc định: 2345; chạy trong mạng LAN để thiết bị khác truy cập.
+- Hệ thống cũng cung cấp No-PIN API tại `/api/scoreboard/**` dành cho tích hợp đặc thù (không yêu cầu PIN).
 
 
 ### Điều khiển từ web
@@ -212,9 +222,9 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar BadmintonEventTechnolo
 - **In-place data updates**: Không tạo objects mới
 
 ### Tối ưu web interface
-- **SSE throttling**: Giảm tần suất gửi events
+- **SSE throttling**: Giới hạn tần suất gửi events (~80ms)
 - **Auto-refresh interval**: Tăng thời gian refresh
-- **Efficient broadcasting**: Sử dụng thread pool
+- **Efficient broadcasting**: Sử dụng thread pool (8 threads)
 
 ---
 
@@ -252,8 +262,8 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar BadmintonEventTechnolo
 
 ### Log và Debug
 - **Console output**: Xem log trong terminal
-- **Health check**: `/health` endpoint
-- **Test endpoint**: `/test` để kiểm tra kết nối
+- **Health check**: `http://[IP]:2345/api/court/health`
+- **Web test**: `http://[IP]:2345/pin`
 
 ---
 
@@ -300,14 +310,14 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar BadmintonEventTechnolo
 ## 📞 Hỗ trợ kỹ thuật
 
 ### Thông tin liên hệ
-- **Developer**: Badminton Event Technology Team
-- **Version**: 2.0 (Multi-Court Edition)
-- **Last Updated**: 2024
+- **Developer**: Nguyen Viet Hau
+- **Version**: 2.0.0 (Multi-Court Edition)
+- **Last Updated**: 2025
 
 ### Tài liệu bổ sung
-- `PERFORMANCE_OPTIMIZATION.md` - Hướng dẫn tối ưu hiệu suất
-- `MULTI_COURT_ARCHITECTURE.md` - Kiến trúc hệ thống
-- `API_DOCUMENTATION.md` - Tài liệu API
+- `README.md` - Tổng quan dự án và cài đặt
+- `BAO_CAO_CONG_NGHE_VA_TINH_NANG_v2.md` - Báo cáo kỹ thuật & công nghệ
+- `SETTINGS.md` - Cấu hình chi tiết trong ứng dụng
 
 ### Báo cáo lỗi
 Khi gặp vấn đề, vui lòng cung cấp:
