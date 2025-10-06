@@ -23,7 +23,7 @@ public class ScoreboardViewController {
         // Kiểm tra PIN có hợp lệ không
         if (pin == null || pin.trim().isEmpty()) {
             model.addAttribute("error", "Mã PIN không hợp lệ");
-            return "error";
+            return "exception/error";
         }
 
         // Lấy thông tin sân từ CourtManagerService
@@ -58,7 +58,7 @@ public class ScoreboardViewController {
         model.addAttribute("bestOf", snapshot.bestOf);
         model.addAttribute("doubles", snapshot.doubles);
 
-        return "scoreboard";
+        return "scoreboard/scoreboard";
     }
 
     /**
@@ -66,6 +66,6 @@ public class ScoreboardViewController {
      */
     @GetMapping("/pin")
     public String showPinEntry() {
-        return "pin-entry";
+        return "pin/pin-entry";
     }
 }

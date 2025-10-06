@@ -37,8 +37,10 @@ public class HomeController {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    /** Trang chủ: liệt kê các giải đấu đã tổ chức và sắp xếp theo ngày tạo mới nhất */
-    @GetMapping({"/", "/home"})
+    /**
+     * Trang chủ: liệt kê các giải đấu đã tổ chức và sắp xếp theo ngày tạo mới nhất
+     */
+    @GetMapping({ "/", "/home" })
     public String home(
             Model model,
             @org.springframework.web.bind.annotation.RequestParam(name = "q", required = false) String q,
@@ -67,7 +69,9 @@ public class HomeController {
             java.time.LocalDate f = from;
             java.time.LocalDate t = to;
             if (f != null && t != null && f.isAfter(t)) {
-                java.time.LocalDate tmp = f; f = t; t = tmp;
+                java.time.LocalDate tmp = f;
+                f = t;
+                t = tmp;
             }
             final java.time.LocalDate ff = f;
             final java.time.LocalDate tt = t;
@@ -78,7 +82,8 @@ public class HomeController {
                 list.removeIf(gd -> gd.getNgayKt() == null || gd.getNgayKt().isAfter(tt));
             }
 
-            // Lọc theo trạng thái: UPCOMING (chưa diễn ra), ONGOING (đang diễn ra), FINISHED (đã kết thúc), ALL.
+            // Lọc theo trạng thái: UPCOMING (chưa diễn ra), ONGOING (đang diễn ra),
+            // FINISHED (đã kết thúc), ALL.
             java.time.LocalDate today = java.time.LocalDate.now();
             String st = status == null ? "UPCOMING" : status.trim().toUpperCase();
             switch (st) {
@@ -86,7 +91,9 @@ public class HomeController {
                     list.removeIf(gd -> gd.getNgayBd() == null || !today.isBefore(gd.getNgayBd()));
                     break;
                 case "ONGOING":
-                    list.removeIf(gd -> gd.getNgayBd() == null || gd.getNgayKt() == null || !( (today.isEqual(gd.getNgayBd()) || today.isAfter(gd.getNgayBd())) && (today.isBefore(gd.getNgayKt()) || today.isEqual(gd.getNgayKt())) ));
+                    list.removeIf(gd -> gd.getNgayBd() == null || gd.getNgayKt() == null
+                            || !((today.isEqual(gd.getNgayBd()) || today.isAfter(gd.getNgayBd()))
+                                    && (today.isBefore(gd.getNgayKt()) || today.isEqual(gd.getNgayKt()))));
                     break;
                 case "FINISHED":
                     list.removeIf(gd -> gd.getNgayKt() == null || !today.isAfter(gd.getNgayKt()));
@@ -98,10 +105,13 @@ public class HomeController {
 
             // Phân trang thủ công
             int total = list.size();
-            if (size < 1) size = 9;
-            if (page < 0) page = 0;
+            if (size < 1)
+                size = 9;
+            if (page < 0)
+                page = 0;
             int totalPages = (int) Math.ceil(total / (double) size);
-            if (totalPages > 0 && page >= totalPages) page = Math.max(0, totalPages - 1);
+            if (totalPages > 0 && page >= totalPages)
+                page = Math.max(0, totalPages - 1);
             int fromIdx = page * size;
             int toIdx = Math.min(fromIdx + size, total);
             List<GiaiDau> pageList = fromIdx < toIdx ? list.subList(fromIdx, toIdx) : java.util.List.of();
@@ -119,7 +129,7 @@ public class HomeController {
                     if (isTeam) {
                         totalTeamRegs += dkDoiRepo.findAllBy(gd.getId(), nd.getId()).size();
                     } else {
-                        totalSinglesRegs += dkCaNhanRepo.list(gd.getId(), nd.getId()).size();
+                        totalSinglesRegs += dkCaNhanRepo.list(gd.getId(), nd.getId(), null).size();
                     }
                 }
                 m.put("totalContents", totalContents);
@@ -146,7 +156,9 @@ public class HomeController {
         }
     }
 
-    /** Trang chi tiết giải: hiển thị nội dung, danh sách VĐV/đội và kết quả cơ bản */
+    /**
+     * Trang chi tiết giải: hiển thị nội dung, danh sách VĐV/đội và kết quả cơ bản
+     */
     @GetMapping("/tournament/{id}")
     public String tournamentDetail(@PathVariable("id") Integer id, Model model) {
         try (SQLSRVConnectionManager mgr = new SQLSRVConnectionManager()) {
@@ -185,11 +197,12 @@ public class HomeController {
                     block.put("resultsTeam", kq);
                 } else {
                     // Danh sách VĐV đăng ký (kèm tên)
-                    var regs = dkCaNhanRepo.list(giai.getId(), nd.getId());
+                    var regs = dkCaNhanRepo.list(giai.getId(), nd.getId(), null);
                     List<VanDongVien> vdvList = new ArrayList<>();
                     for (var r : regs) {
                         VanDongVien v = vdvRepo.findById(r.getIdVdv());
-                        if (v != null) vdvList.add(v);
+                        if (v != null)
+                            vdvList.add(v);
                     }
                     block.put("players", vdvList);
 
