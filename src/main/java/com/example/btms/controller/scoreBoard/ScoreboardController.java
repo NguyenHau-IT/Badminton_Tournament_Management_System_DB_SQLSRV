@@ -1,4 +1,4 @@
-package com.example.btms.controller;
+package com.example.btms.controller.scoreBoard;
 
 import java.util.List;
 import java.util.Map;
@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.example.btms.model.match.BadmintonMatch;
+import com.example.btms.service.match.CourtManagerService;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -29,6 +30,7 @@ public class ScoreboardController {
   private final BadmintonMatch match = ScoreboardRemote.get().match();
   private final Object LOCK = ScoreboardRemote.get().lock();
   private final com.example.btms.util.log.Log appLog = ScoreboardRemote.get().log();
+  private final CourtManagerService courtManager = CourtManagerService.getInstance();
 
   // SSE clients
   private final List<SseEmitter> clients = new CopyOnWriteArrayList<>();
@@ -105,6 +107,8 @@ public class ScoreboardController {
         appLog.plusA(match);
       } catch (Exception ignore) {
       }
+      // Ghi CHI_TIET_VAN cho +1 A từ web (không dùng PIN)
+      tryInvokePanelChiTietVanOnPoint(0);
       broadcastSnapshot();
       return ResponseEntity.ok(view());
     }
@@ -119,6 +123,8 @@ public class ScoreboardController {
         appLog.minusA(match);
       } catch (Exception ignore) {
       }
+      // Đồng bộ tổng điểm set hiện tại (không thêm token)
+      tryInvokePanelChiTietVanTotalsOnly();
       broadcastSnapshot();
       return ResponseEntity.ok(view());
     }
@@ -133,6 +139,8 @@ public class ScoreboardController {
         appLog.plusB(match);
       } catch (Exception ignore) {
       }
+      // Ghi CHI_TIET_VAN cho +1 B từ web (không dùng PIN)
+      tryInvokePanelChiTietVanOnPoint(1);
       broadcastSnapshot();
       return ResponseEntity.ok(view());
     }
@@ -147,6 +155,8 @@ public class ScoreboardController {
         appLog.minusB(match);
       } catch (Exception ignore) {
       }
+      // Đồng bộ tổng điểm set hiện tại (không thêm token)
+      tryInvokePanelChiTietVanTotalsOnly();
       broadcastSnapshot();
       return ResponseEntity.ok(view());
     }
@@ -188,6 +198,8 @@ public class ScoreboardController {
         appLog.swapEnds(match);
       } catch (Exception ignore) {
       }
+      // Ghi SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+      tryInvokePanelChiTietVanSwapMarker();
       broadcastSnapshot();
       return ResponseEntity.ok(match.snapshot());
     }
@@ -215,8 +227,86 @@ public class ScoreboardController {
         appLog.undo(match);
       } catch (Exception ignore) {
       }
+      // Hoàn tác: đồng bộ tổng điểm set hiện tại (không thêm token)
+      tryInvokePanelChiTietVanTotalsOnly();
       broadcastSnapshot();
       return ResponseEntity.ok(match.snapshot());
+    }
+  }
+
+  /**
+   * Tìm một control panel đang hoạt động (nếu có) và gọi helper
+   * updateChiTietVanOnPoint.
+   */
+  private void tryInvokePanelChiTietVanOnPoint(int side) {
+    try {
+      var all = courtManager.getAllCourtStatus();
+      // Chọn bất kỳ sân nào đang mở panel điều khiển
+      for (var cs : all.values()) {
+        var session = courtManager.getCourt(cs.courtId);
+        if (session != null && session.controlPanel != null) {
+          Object panel = session.controlPanel;
+          try {
+            var m = panel.getClass().getDeclaredMethod("updateChiTietVanOnPoint", int.class);
+            m.setAccessible(true);
+            m.invoke(panel, side);
+          } catch (NoSuchMethodException ignore) {
+          }
+          break; // gọi 1 panel là đủ
+        }
+      }
+    } catch (Exception ex) {
+      log.warn("CHI_TIET_VAN onPoint (web no-pin) failed: {}", ex.getMessage());
+    }
+  }
+
+  /**
+   * Tìm một control panel đang hoạt động (nếu có) và gọi helper
+   * updateChiTietVanTotalsOnly.
+   */
+  private void tryInvokePanelChiTietVanTotalsOnly() {
+    try {
+      var all = courtManager.getAllCourtStatus();
+      for (var cs : all.values()) {
+        var session = courtManager.getCourt(cs.courtId);
+        if (session != null && session.controlPanel != null) {
+          Object panel = session.controlPanel;
+          try {
+            var m = panel.getClass().getDeclaredMethod("updateChiTietVanTotalsOnly");
+            m.setAccessible(true);
+            m.invoke(panel);
+          } catch (NoSuchMethodException ignore) {
+          }
+          break;
+        }
+      }
+    } catch (Exception ex) {
+      log.warn("CHI_TIET_VAN totalsOnly (web no-pin) failed: {}", ex.getMessage());
+    }
+  }
+
+  /**
+   * Gọi control panel (nếu có) để append SWAP@ vào CHI_TIET_VAN và đồng bộ tổng
+   * điểm.
+   */
+  private void tryInvokePanelChiTietVanSwapMarker() {
+    try {
+      var all = courtManager.getAllCourtStatus();
+      for (var cs : all.values()) {
+        var session = courtManager.getCourt(cs.courtId);
+        if (session != null && session.controlPanel != null) {
+          Object panel = session.controlPanel;
+          try {
+            var m = panel.getClass().getDeclaredMethod("appendSwapMarkerAndResyncChiTietVan");
+            m.setAccessible(true);
+            m.invoke(panel);
+          } catch (NoSuchMethodException ignore) {
+          }
+          break;
+        }
+      }
+    } catch (Exception ex) {
+      log.warn("CHI_TIET_VAN swap marker (web no-pin) failed: {}", ex.getMessage());
     }
   }
 }

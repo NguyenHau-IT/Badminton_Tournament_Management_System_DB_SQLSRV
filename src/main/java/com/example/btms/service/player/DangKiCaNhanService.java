@@ -1,13 +1,13 @@
 package com.example.btms.service.player;
 
-import com.example.btms.model.player.DangKiCaNhan;
-import com.example.btms.repository.player.DangKiCaNhanRepository;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+
+import com.example.btms.model.player.DangKiCaNhan;
+import com.example.btms.repository.player.DangKiCaNhanRepository;
 
 public class DangKiCaNhanService {
 
@@ -17,12 +17,19 @@ public class DangKiCaNhanService {
         this.repo = Objects.requireNonNull(repo);
     }
 
-    /** Đăng ký mới */
+    /** Đăng ký mới (mặc định chưa kiểm tra) */
     public void register(int idGiai, int idNoiDung, int idVdv) {
+        register(idGiai, idNoiDung, idVdv, LocalDateTime.now(), false);
+    }
+
+    /** Đăng ký mới với thời điểm và trạng thái kiểm tra */
+    public void register(int idGiai, int idNoiDung, int idVdv,
+            LocalDateTime timestamp, boolean kiemTra) {
         if (exists(idGiai, idNoiDung, idVdv)) {
             throw new IllegalStateException("VĐV đã đăng ký rồi");
         }
-        repo.add(new DangKiCaNhan(idGiai, idNoiDung, idVdv, LocalDateTime.now()));
+        repo.add(new DangKiCaNhan(idGiai, idNoiDung, idVdv,
+                timestamp != null ? timestamp : LocalDateTime.now(), kiemTra));
     }
 
     /** Hủy đăng ký */
@@ -33,12 +40,11 @@ public class DangKiCaNhanService {
         repo.delete(idGiai, idNoiDung, idVdv);
     }
 
-    // updated
-    public void register(int idGiai, int idNoiDung, int idVdv, LocalDateTime timestamp) {
-        if (exists(idGiai, idNoiDung, idVdv)) {
-            throw new IllegalStateException("VĐV đã đăng ký rồi");
-        }
-        repo.add(new DangKiCaNhan(idGiai, idNoiDung, idVdv, timestamp != null ? timestamp : LocalDateTime.now()));
+    /** Đánh dấu đã/ chưa kiểm tra */
+    public void setKiemTra(int idGiai, int idNoiDung, int idVdv, boolean kiemTra) {
+        int n = repo.updateKiemTra(idGiai, idNoiDung, idVdv, kiemTra);
+        if (n == 0)
+            throw new NoSuchElementException("Không tìm thấy đăng ký để cập nhật");
     }
 
     /** Kiểm tra tồn tại */
@@ -46,8 +52,9 @@ public class DangKiCaNhanService {
         return repo.findOne(idGiai, idNoiDung, idVdv) != null;
     }
 
-    public List<DangKiCaNhan> listByGiaiAndNoiDung(int idGiai, Integer idNoiDung) {
-        return repo.list(idGiai, idNoiDung);
+    /** Danh sách theo giải + nội dung, có thể lọc theo KIEM_TRA (null = tất cả) */
+    public List<DangKiCaNhan> listByGiaiAndNoiDung(int idGiai, int idNoiDung, Boolean kiemTra) {
+        return repo.list(idGiai, idNoiDung, kiemTra);
     }
 
     public Optional<DangKiCaNhan> findOne(Integer idGiai, Integer idNoiDung, Integer idVdv) {

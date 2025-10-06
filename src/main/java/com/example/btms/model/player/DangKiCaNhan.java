@@ -8,15 +8,24 @@ public class DangKiCaNhan {
     private Integer idNoiDung;
     private Integer idVdv;
     private LocalDateTime thoiGianTao;
+    /** cột mới */
+    private Boolean kiemTra; // null/false: chưa kiểm tra, true: đã kiểm
 
     public DangKiCaNhan() {
     }
 
-    public DangKiCaNhan(Integer idGiai, Integer idNoiDung, Integer idVdv, LocalDateTime thoiGianTao) {
+    public DangKiCaNhan(Integer idGiai, Integer idNoiDung, Integer idVdv,
+            LocalDateTime thoiGianTao, Boolean kiemTra) {
         this.idGiai = idGiai;
         this.idNoiDung = idNoiDung;
         this.idVdv = idVdv;
         this.thoiGianTao = thoiGianTao;
+        this.kiemTra = kiemTra;
+    }
+
+    /** tiện cho nơi chưa dùng KIEM_TRA */
+    public DangKiCaNhan(Integer idGiai, Integer idNoiDung, Integer idVdv, LocalDateTime thoiGianTao) {
+        this(idGiai, idNoiDung, idVdv, thoiGianTao, Boolean.FALSE);
     }
 
     public Integer getIdGiai() {
@@ -49,6 +58,14 @@ public class DangKiCaNhan {
 
     public void setThoiGianTao(LocalDateTime thoiGianTao) {
         this.thoiGianTao = thoiGianTao;
+    }
+
+    public Boolean getKiemTra() {
+        return kiemTra;
+    }
+
+    public void setKiemTra(Boolean kiemTra) {
+        this.kiemTra = kiemTra;
     }
 
     @Override

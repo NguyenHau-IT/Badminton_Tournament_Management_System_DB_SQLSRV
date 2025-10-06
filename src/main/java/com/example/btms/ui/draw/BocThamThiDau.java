@@ -150,11 +150,19 @@ public class BocThamThiDau extends JPanel {
         });
         txtFilter.getDocument().addDocumentListener(new DocumentListener() {
             @Override
-            public void insertUpdate(DocumentEvent e) { applyFilter(); }
+            public void insertUpdate(DocumentEvent e) {
+                applyFilter();
+            }
+
             @Override
-            public void removeUpdate(DocumentEvent e) { applyFilter(); }
+            public void removeUpdate(DocumentEvent e) {
+                applyFilter();
+            }
+
             @Override
-            public void changedUpdate(DocumentEvent e) { applyFilter(); }
+            public void changedUpdate(DocumentEvent e) {
+                applyFilter();
+            }
         });
         return p;
     }
@@ -177,7 +185,8 @@ public class BocThamThiDau extends JPanel {
                 table.getColumnModel().getColumn(viewIdx).setHeaderValue(header);
                 table.getTableHeader().repaint();
             }
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
     }
 
     private void loadNoiDungOptions() {
@@ -187,19 +196,24 @@ public class BocThamThiDau extends JPanel {
             Map<String, Integer>[] maps = new NoiDungRepository(conn).loadCategories();
             java.util.Set<Integer> ids = new java.util.LinkedHashSet<>();
             if (maps != null) {
-                if (maps.length > 0 && maps[0] != null) ids.addAll(maps[0].values());
-                if (maps.length > 1 && maps[1] != null) ids.addAll(maps[1].values());
+                if (maps.length > 0 && maps[0] != null)
+                    ids.addAll(maps[0].values());
+                if (maps.length > 1 && maps[1] != null)
+                    ids.addAll(maps[1].values());
             }
 
             List<NoiDung> all = noiDungService.getAllNoiDung();
             for (NoiDung nd : all) {
-                if (nd.getId() != null && ids.contains(nd.getId())) result.add(nd);
+                if (nd.getId() != null && ids.contains(nd.getId()))
+                    result.add(nd);
             }
             result.sort(java.util.Comparator.comparing(NoiDung::getId));
 
             cboNoiDung.removeAllItems();
-            for (NoiDung nd : result) cboNoiDung.addItem(nd);
-            if (cboNoiDung.getItemCount() > 0) cboNoiDung.setSelectedIndex(0);
+            for (NoiDung nd : result)
+                cboNoiDung.addItem(nd);
+            if (cboNoiDung.getItemCount() > 0)
+                cboNoiDung.setSelectedIndex(0);
 
             updateIdColumnHeader();
         } catch (Exception ex) {
@@ -208,13 +222,21 @@ public class BocThamThiDau extends JPanel {
         }
     }
 
-    private NoiDung selectedNd() { return (NoiDung) cboNoiDung.getSelectedItem(); }
+    private NoiDung selectedNd() {
+        return (NoiDung) cboNoiDung.getSelectedItem();
+    }
 
     private void loadFromRegistration() {
         NoiDung nd = selectedNd();
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-        if (nd == null) { JOptionPane.showMessageDialog(this, "Chưa chọn nội dung."); return; }
-        if (idGiai <= 0) { JOptionPane.showMessageDialog(this, "Chưa chọn giải."); return; }
+        if (nd == null) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn nội dung.");
+            return;
+        }
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
+            return;
+        }
 
         model.setRowCount(0);
         ensureClbCache();
@@ -225,18 +247,22 @@ public class BocThamThiDau extends JPanel {
                 int idx = 0;
                 for (DangKiDoi t : teams) {
                     Integer idClb = t.getIdCauLacBo();
-                    if (idClb == null) idClb = 0;
+                    if (idClb == null)
+                        idClb = 0;
                     String clbName = clbNameCache.getOrDefault(idClb, idClb == 0 ? "" : ("CLB#" + idClb));
                     model.addRow(new Object[] { idx++, t.getTenTeam(), idClb, clbName });
                 }
             } else {
                 // ĐƠN/CÁ NHÂN
-                var regs = dkCaNhanService.listByGiaiAndNoiDung(idGiai, nd.getId());
+                var regs = dkCaNhanService.listByGiaiAndNoiDung(idGiai, nd.getId(), null);
                 int idx = 0;
                 for (var r : regs) {
                     int vdvId = r.getIdVdv();
                     VanDongVien v = null;
-                    try { v = vdvService.findOne(vdvId); } catch (Exception ignore) {}
+                    try {
+                        v = vdvService.findOne(vdvId);
+                    } catch (Exception ignore) {
+                    }
                     String ten = (v != null && v.getHoTen() != null) ? v.getHoTen() : ("VDV#" + vdvId);
                     String clbName = v != null && v.getIdClb() != null
                             ? clbNameCache.getOrDefault(v.getIdClb(), vdvService.getClubNameById(vdvId))
@@ -252,7 +278,8 @@ public class BocThamThiDau extends JPanel {
 
     private void shuffleCurrent() {
         int rowCount = model.getRowCount();
-        if (rowCount <= 1) return;
+        if (rowCount <= 1)
+            return;
         List<Object[]> rows = new ArrayList<>();
         for (int i = 0; i < rowCount; i++) {
             rows.add(new Object[] { model.getValueAt(i, 1), model.getValueAt(i, 2), model.getValueAt(i, 3) });
@@ -267,10 +294,12 @@ public class BocThamThiDau extends JPanel {
 
     private void moveSelected(int delta) {
         int view = table.getSelectedRow();
-        if (view < 0) return;
+        if (view < 0)
+            return;
         int modelRow = table.convertRowIndexToModel(view);
         int target = modelRow + delta;
-        if (target < 0 || target >= model.getRowCount()) return;
+        if (target < 0 || target >= model.getRowCount())
+            return;
         Object ten1 = model.getValueAt(modelRow, 1);
         Object id1 = model.getValueAt(modelRow, 2);
         Object clb1 = model.getValueAt(modelRow, 3);
@@ -283,7 +312,8 @@ public class BocThamThiDau extends JPanel {
         model.setValueAt(ten1, target, 1);
         model.setValueAt(id1, target, 2);
         model.setValueAt(clb1, target, 3);
-        for (int i = 0; i < model.getRowCount(); i++) model.setValueAt(i, i, 0);
+        for (int i = 0; i < model.getRowCount(); i++)
+            model.setValueAt(i, i, 0);
         table.getSelectionModel().setSelectionInterval(table.convertRowIndexToView(target),
                 table.convertRowIndexToView(target));
     }
@@ -327,7 +357,8 @@ public class BocThamThiDau extends JPanel {
     private void loadDrawFromDb() {
         NoiDung nd = selectedNd();
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
-        if (nd == null || idGiai <= 0) return;
+        if (nd == null || idGiai <= 0)
+            return;
         try {
             model.setRowCount(0);
             ensureClbCache();
@@ -343,7 +374,10 @@ public class BocThamThiDau extends JPanel {
                 for (BocThamCaNhan r : list) {
                     int vdvId = r.getIdVdv();
                     VanDongVien v = null;
-                    try { v = vdvService.findOne(vdvId); } catch (Exception ignore) {}
+                    try {
+                        v = vdvService.findOne(vdvId);
+                    } catch (Exception ignore) {
+                    }
                     String ten = (v != null && v.getHoTen() != null) ? v.getHoTen() : ("VDV#" + vdvId);
                     String clbName = v != null && v.getIdClb() != null
                             ? clbNameCache.getOrDefault(v.getIdClb(), vdvService.getClubNameById(vdvId))
@@ -358,12 +392,15 @@ public class BocThamThiDau extends JPanel {
     }
 
     private void ensureClbCache() {
-        if (!clbNameCache.isEmpty()) return;
+        if (!clbNameCache.isEmpty())
+            return;
         try {
             for (CauLacBo c : clbService.findAll()) {
-                if (c.getId() != null) clbNameCache.put(c.getId(), c.getTenClb());
+                if (c.getId() != null)
+                    clbNameCache.put(c.getId(), c.getTenClb());
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     private void hideTechnicalColumns() {
@@ -375,6 +412,7 @@ public class BocThamThiDau extends JPanel {
                 col.setMaxWidth(0);
                 col.setPreferredWidth(0);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 }

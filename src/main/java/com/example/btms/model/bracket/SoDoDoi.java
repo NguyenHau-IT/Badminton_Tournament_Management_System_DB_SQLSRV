@@ -10,16 +10,18 @@ public class SoDoDoi {
     private String tenTeam;
     private Integer toaDoX;
     private Integer toaDoY;
-    private Integer viTri; // khóa cùng với ID_GIAI, ID_NOI_DUNG
+    private Integer viTri; // PK cùng với (ID_GIAI, ID_NOI_DUNG)
     private Integer soDo; // vòng/nhánh
     private LocalDateTime thoiGian;
+    private Integer diem; // NEW
+    private String idTranDau; // NEW: store UUID (char(36))
 
     public SoDoDoi() {
     }
 
-    public SoDoDoi(Integer idGiai, Integer idNoiDung, Integer idClb,
-            String tenTeam, Integer toaDoX, Integer toaDoY,
-            Integer viTri, Integer soDo, LocalDateTime thoiGian) {
+    public SoDoDoi(Integer idGiai, Integer idNoiDung, Integer idClb, String tenTeam,
+            Integer toaDoX, Integer toaDoY, Integer viTri, Integer soDo,
+            LocalDateTime thoiGian, Integer diem, String idTranDau) {
         this.idGiai = idGiai;
         this.idNoiDung = idNoiDung;
         this.idClb = idClb;
@@ -29,8 +31,11 @@ public class SoDoDoi {
         this.viTri = viTri;
         this.soDo = soDo;
         this.thoiGian = thoiGian;
+        this.diem = diem;
+        this.idTranDau = idTranDau;
     }
 
+    // getters/setters
     public Integer getIdGiai() {
         return idGiai;
     }
@@ -101,6 +106,22 @@ public class SoDoDoi {
 
     public void setThoiGian(LocalDateTime thoiGian) {
         this.thoiGian = thoiGian;
+    }
+
+    public Integer getDiem() {
+        return diem;
+    }
+
+    public void setDiem(Integer diem) {
+        this.diem = diem;
+    }
+
+    public String getIdTranDau() {
+        return idTranDau;
+    }
+
+    public void setIdTranDau(String idTranDau) {
+        this.idTranDau = idTranDau;
     }
 
     @Override

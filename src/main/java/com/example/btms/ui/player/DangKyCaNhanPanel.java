@@ -249,7 +249,7 @@ public class DangKyCaNhanPanel extends JPanel {
             vdvService.findAll().forEach(v -> vdvNameById.put(v.getId(), v.getHoTen()));
 
             for (NoiDung nd : toLoad) {
-                List<DangKiCaNhan> regs = dkService.listByGiaiAndNoiDung(idGiai, nd.getId());
+                List<DangKiCaNhan> regs = dkService.listByGiaiAndNoiDung(idGiai, nd.getId(),null);
                 for (DangKiCaNhan r : regs) {
                     String tenVdv = vdvNameById.getOrDefault(r.getIdVdv(), "");
                     // Lưu trực tiếp bộ 3 khóa (idGiai, idNoiDung, idVdv)

@@ -1,12 +1,20 @@
 package com.example.btms.repository.category;
 
-import com.example.btms.config.Prefs;
-import com.example.btms.model.category.NoiDung;
-
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import javax.swing.JOptionPane;
+
+import com.example.btms.config.Prefs;
+import com.example.btms.model.category.NoiDung;
 
 public class NoiDungRepository {
     // Đồng bộ tên biến với các repository khác (thường dùng 'conn')
@@ -55,19 +63,45 @@ public class NoiDungRepository {
 
     public List<NoiDung> findByTournament(Integer idGiai) throws SQLException {
         List<NoiDung> list = new ArrayList<>();
-        String sql = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM " +
+        // Nếu chưa chọn giải, trả về rỗng để tránh lỗi tải sớm
+        if (idGiai == null || idGiai <= 0)
+            return list;
+
+        // Ưu tiên dùng cột ID_GIAI_DAU; nếu không tồn tại (schema khác), fallback sang
+        // ID_GIAI
+        String sql1 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM " +
                 "FROM NOI_DUNG nd " +
                 "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
                 "WHERE ctgd.ID_GIAI_DAU = ?";
+        String sql2 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM " +
+                "FROM NOI_DUNG nd " +
+                "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
+                "WHERE ctgd.ID_GIAI = ?";
 
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        SQLException firstEx = null;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql1)) {
             pstmt.setInt(1, idGiai);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next())
                     list.add(mapResultSetToNoiDung(rs));
             }
+            return list;
+        } catch (SQLException e1) {
+            firstEx = e1;
+            // thử fallback với cột ID_GIAI
+            list.clear();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql2)) {
+                pstmt.setInt(1, idGiai);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next())
+                        list.add(mapResultSetToNoiDung(rs));
+                }
+                return list;
+            } catch (SQLException e2) {
+                // ném lại lỗi đầu tiên để giữ nguyên ngữ cảnh
+                throw firstEx;
+            }
         }
-        return list;
     }
 
     public Optional<NoiDung> findById(Integer id) throws SQLException {
@@ -141,31 +175,42 @@ public class NoiDungRepository {
         if (vernr < 0)
             return (Map<String, Integer>[]) new Map[] { singles, doubles };
 
-        String sql = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM " +
+        String sql1 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM " +
                 "FROM NOI_DUNG nd " +
                 "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
                 "WHERE ctgd.ID_GIAI_DAU = ? " +
                 "ORDER BY nd.ID ASC";
+        String sql2 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM " +
+                "FROM NOI_DUNG nd " +
+                "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
+                "WHERE ctgd.ID_GIAI = ? " +
+                "ORDER BY nd.ID ASC";
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, vernr);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    int id = rs.getInt(1);
-                    String tenNoiDung = rs.getString(2);
-                    Object teamVal = rs.getObject(3);
-
-                    boolean isTeam = parseTeamFlag(teamVal);
-                    if (tenNoiDung != null && !tenNoiDung.isBlank()) {
-                        (isTeam ? doubles : singles).put(tenNoiDung, id);
+        // Thử SQL với ID_GIAI_DAU; nếu lỗi cột không tồn tại, fallback sang ID_GIAI
+        boolean loaded = false;
+        for (String sql : new String[] { sql1, sql2 }) {
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, vernr);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        int id = rs.getInt(1);
+                        String tenNoiDung = rs.getString(2);
+                        Object teamVal = rs.getObject(3);
+                        boolean isTeam = parseTeamFlag(teamVal);
+                        if (tenNoiDung != null && !tenNoiDung.isBlank()) {
+                            (isTeam ? doubles : singles).put(tenNoiDung, id);
+                        }
                     }
                 }
+                loaded = true;
+                break;
+            } catch (SQLException ex) {
+                // thử câu tiếp theo
             }
-
-        } catch (SQLException ex) {
+        }
+        if (!loaded) {
             JOptionPane.showMessageDialog(null,
-                    "Tải \"nội dung\" từ DB lỗi: " + ex.getMessage(),
+                    "Tải \"nội dung\" từ DB lỗi: Không xác định được cấu trúc CHI_TIET_GIAI_DAU (thiếu cột ID_GIAI/ID_GIAI_DAU)",
                     "Lỗi DB", JOptionPane.ERROR_MESSAGE);
         }
 

@@ -1,4 +1,4 @@
-package com.example.btms.controller;
+package com.example.btms.controller.scoreBoard;
 
 import java.util.List;
 import java.util.Map;
@@ -88,6 +88,71 @@ public class ScoreboardPinController {
                 log.warn("Error broadcasting to PIN {}: {}", pinCode, e.getMessage());
             }
         });
+    }
+
+    /**
+     * Tìm control panel theo PIN và gọi helper trong BadmintonControlPanel để
+     * ghi CHI_TIET_VAN khi +1 điểm (append "P1/P2@<millis>" và update tổng điểm).
+     * side = 0 (A), 1 (B)
+     */
+    private void tryUpdateChiTietVanOnPointForPin(String pinCode, int side) {
+        try {
+            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
+            String courtId = null;
+            for (var cs : all.values()) {
+                if (pinCode != null && pinCode.equals(cs.pinCode)) {
+                    courtId = cs.courtId;
+                    break;
+                }
+            }
+            if (courtId == null)
+                return;
+            var session = courtManager.getCourt(courtId);
+            if (session == null || session.controlPanel == null)
+                return;
+            Object panel = session.controlPanel;
+            try {
+                var m = panel.getClass().getDeclaredMethod("updateChiTietVanOnPoint", int.class);
+                m.setAccessible(true);
+                m.invoke(panel, side);
+            } catch (NoSuchMethodException ignore) {
+                // Control panel chưa có helper (phiên bản cũ) → bỏ qua nhẹ nhàng
+            }
+        } catch (Exception ex) {
+            log.warn("CHI_TIET_VAN onPoint (web) failed for PIN {}: {}", pinCode, ex.getMessage());
+        }
+    }
+
+    /**
+     * Tìm control panel theo PIN và đồng bộ lại tổng điểm của set hiện tại (không
+     * thêm token). Dùng cho -1/undo từ web.
+     */
+    private void tryUpdateChiTietVanTotalsOnlyForPin(String pinCode) {
+        try {
+            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
+            String courtId = null;
+            for (var cs : all.values()) {
+                if (pinCode != null && pinCode.equals(cs.pinCode)) {
+                    courtId = cs.courtId;
+                    break;
+                }
+            }
+            if (courtId == null)
+                return;
+            var session = courtManager.getCourt(courtId);
+            if (session == null || session.controlPanel == null)
+                return;
+            Object panel = session.controlPanel;
+            try {
+                var m = panel.getClass().getDeclaredMethod("updateChiTietVanTotalsOnly");
+                m.setAccessible(true);
+                m.invoke(panel);
+            } catch (NoSuchMethodException ignore) {
+                // Control panel chưa có helper (phiên bản cũ) → bỏ qua nhẹ nhàng
+            }
+        } catch (Exception ex) {
+            log.warn("CHI_TIET_VAN totalsOnly (web) failed for PIN {}: {}", pinCode, ex.getMessage());
+        }
     }
 
     /**
@@ -239,6 +304,8 @@ public class ScoreboardPinController {
 
                 match.pointTo(0);
                 log.info("Increased score for Team A (PIN: {}), new score: {}", pin, match.getScore()[0]);
+                // Ghi CHI_TIET_VAN cho +1 A
+                tryUpdateChiTietVanOnPointForPin(pin, 0);
 
                 try {
                     appLog.plusA(match);
@@ -264,6 +331,8 @@ public class ScoreboardPinController {
             BadmintonMatch match = getOrCreateMatch(pin);
             match.pointDown(0, -1);
             log.info("Decreased score for Team A (PIN: {})", pin);
+            // Đồng bộ tổng điểm set hiện tại (không thêm token)
+            tryUpdateChiTietVanTotalsOnlyForPin(pin);
             try {
                 appLog.minusA(match);
             } catch (Exception ignore) {
@@ -284,6 +353,8 @@ public class ScoreboardPinController {
 
                 match.pointTo(1);
                 log.info("Increased score for Team B (PIN: {}), new score: {}", pin, match.getScore()[1]);
+                // Ghi CHI_TIET_VAN cho +1 B
+                tryUpdateChiTietVanOnPointForPin(pin, 1);
 
                 try {
                     appLog.plusB(match);
@@ -309,6 +380,8 @@ public class ScoreboardPinController {
             BadmintonMatch match = getOrCreateMatch(pin);
             match.pointDown(1, -1);
             log.info("Decreased score for Team B (PIN: {})", pin);
+            // Đồng bộ tổng điểm set hiện tại (không thêm token)
+            tryUpdateChiTietVanTotalsOnlyForPin(pin);
             try {
                 appLog.minusB(match);
             } catch (Exception ignore) {
@@ -360,6 +433,8 @@ public class ScoreboardPinController {
                 appLog.swapEnds(match);
             } catch (Exception ignore) {
             }
+            // Ghi dấu SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+            tryUpdateChiTietVanSwapMarkerForPin(pin);
             broadcastSnapshotToPin(pin);
             return ResponseEntity.ok(match.snapshot());
         }
@@ -391,6 +466,8 @@ public class ScoreboardPinController {
                 appLog.undo(match);
             } catch (Exception ignore) {
             }
+            // Hoàn tác: đồng bộ tổng điểm set hiện tại (không thêm token)
+            tryUpdateChiTietVanTotalsOnlyForPin(pin);
             broadcastSnapshotToPin(pin);
             return ResponseEntity.ok(match.snapshot());
         }
@@ -433,6 +510,7 @@ public class ScoreboardPinController {
                             appLog.plusA(match);
                         } catch (Exception ignore) {
                         }
+                        tryUpdateChiTietVanOnPointForPin(pin, 0);
                         break;
                     case "decreaseA":
                         match.pointDown(0, -1);
@@ -441,6 +519,7 @@ public class ScoreboardPinController {
                             appLog.minusA(match);
                         } catch (Exception ignore) {
                         }
+                        tryUpdateChiTietVanTotalsOnlyForPin(pin);
                         break;
                     case "increaseB":
                         match.pointTo(1);
@@ -449,6 +528,7 @@ public class ScoreboardPinController {
                             appLog.plusB(match);
                         } catch (Exception ignore) {
                         }
+                        tryUpdateChiTietVanOnPointForPin(pin, 1);
                         break;
                     case "decreaseB":
                         match.pointDown(1, -1);
@@ -457,6 +537,7 @@ public class ScoreboardPinController {
                             appLog.minusB(match);
                         } catch (Exception ignore) {
                         }
+                        tryUpdateChiTietVanTotalsOnlyForPin(pin);
                         break;
                     case "reset":
                         match.resetAll();
@@ -498,6 +579,8 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                             log.warn("Error logging swapEnds for PIN {}: {}", pin, ignore.getMessage());
                         }
+                        // Ghi dấu SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+                        tryUpdateChiTietVanSwapMarkerForPin(pin);
                         break;
                     case "change-server":
                         log.info("=== CHANGE SERVER REQUEST for PIN: {} ===", pin);
@@ -517,6 +600,7 @@ public class ScoreboardPinController {
                             appLog.undo(match);
                         } catch (Exception ignore) {
                         }
+                        tryUpdateChiTietVanTotalsOnlyForPin(pin);
                         break;
                     default:
                         log.warn("Unknown action '{}' for PIN: {}", action, pin);
@@ -532,6 +616,35 @@ public class ScoreboardPinController {
                 log.error("Error in action {} for PIN {}: {}", action, pin, e.getMessage(), e);
                 return ResponseEntity.status(500).body(Map.of("teamAScore", 0, "teamBScore", 0));
             }
+        }
+    }
+
+    /** Gọi helper trên control panel để append SWAP@ và đồng bộ tổng điểm. */
+    private void tryUpdateChiTietVanSwapMarkerForPin(String pinCode) {
+        try {
+            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
+            String courtId = null;
+            for (var cs : all.values()) {
+                if (pinCode != null && pinCode.equals(cs.pinCode)) {
+                    courtId = cs.courtId;
+                    break;
+                }
+            }
+            if (courtId == null)
+                return;
+            var session = courtManager.getCourt(courtId);
+            if (session == null || session.controlPanel == null)
+                return;
+            Object panel = session.controlPanel;
+            try {
+                var m = panel.getClass().getDeclaredMethod("appendSwapMarkerAndResyncChiTietVan");
+                m.setAccessible(true);
+                m.invoke(panel);
+            } catch (NoSuchMethodException ignore) {
+                // Control panel chưa có helper (phiên bản cũ)
+            }
+        } catch (Exception ex) {
+            log.warn("CHI_TIET_VAN swap marker (web) failed for PIN {}: {}", pinCode, ex.getMessage());
         }
     }
 }

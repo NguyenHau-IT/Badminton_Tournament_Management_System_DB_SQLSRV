@@ -1,10 +1,10 @@
 package com.example.btms.repository.bracket;
 
-import java.sql.Statement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -19,77 +19,62 @@ public class SoDoDoiRepository {
         this.conn = conn;
     }
 
+    /** CREATE */
     public int add(SoDoDoi row) {
-        final String sql = "INSERT INTO SO_DO_DOI " +
-                "(ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM, TOA_DO_X, TOA_DO_Y, VI_TRI, SO_DO, THOI_GIAN) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-        // TODO: validate nếu cần
-        // Objects.requireNonNull(row.getTenTeam(), "TEN_TEAM không được null");
-        // Objects.requireNonNull(row.getViTri(), "VI_TRI không được null");
-
+        final String sql = """
+                INSERT INTO SO_DO_DOI
+                    (ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM, TOA_DO_X, TOA_DO_Y,
+                     VI_TRI, SO_DO, THOI_GIAN, DIEM, ID_TRAN_DAU)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, row.getIdGiai());
             ps.setInt(2, row.getIdNoiDung());
-
-            // Integer -> nullable int
             if (row.getIdClb() == null)
                 ps.setNull(3, Types.INTEGER);
             else
                 ps.setInt(3, row.getIdClb());
-
             ps.setString(4, row.getTenTeam());
-
             if (row.getToaDoX() == null)
                 ps.setNull(5, Types.INTEGER);
             else
                 ps.setInt(5, row.getToaDoX());
-
             if (row.getToaDoY() == null)
                 ps.setNull(6, Types.INTEGER);
             else
                 ps.setInt(6, row.getToaDoY());
-
-            ps.setInt(7, row.getViTri()); // giả định không null
-
+            ps.setInt(7, row.getViTri());
             if (row.getSoDo() == null)
                 ps.setNull(8, Types.INTEGER);
             else
                 ps.setInt(8, row.getSoDo());
-
-            // THOI_GIAN: ưu tiên setObject để tương thích DATETIME2/OffsetDateTime
-            if (row.getThoiGian() == null) {
+            if (row.getThoiGian() == null)
                 ps.setNull(9, Types.TIMESTAMP);
-            } else {
-                // Nếu là LocalDateTime:
-                // ps.setTimestamp(9, Timestamp.valueOf(row.getThoiGian()));
-                // Nếu là OffsetDateTime/Instant/LocalDateTime: dùng setObject cho gọn
-                ps.setObject(9, row.getThoiGian());
-            }
+            else
+                ps.setTimestamp(9, Timestamp.valueOf(row.getThoiGian()));
+            if (row.getDiem() == null)
+                ps.setNull(10, Types.INTEGER);
+            else
+                ps.setInt(10, row.getDiem());
+            if (row.getIdTranDau() == null)
+                ps.setNull(11, Types.VARCHAR);
+            else
+                ps.setString(11, row.getIdTranDau());
 
             int affected = ps.executeUpdate();
-
-            // Nếu cần lấy khóa tự tăng:
             try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) {
+                if (keys.next())
                     return keys.getInt(1);
-                }
             }
-            return affected; // hoặc trả về 1/0 nếu bạn không cần id
+            return affected;
         } catch (SQLException e) {
-            // Nếu dùng SQL Server: 2601 (duplicate key), 2627 (unique constraint)
-            // Có thể phân nhánh để báo lỗi rõ hơn
-            // if (e instanceof SQLIntegrityConstraintViolationException || e.getErrorCode()
-            // == 2601 || e.getErrorCode() == 2627) { ... }
-            throw new RuntimeException(
-                    "Lỗi thêm SO_DO_DOI (SQLState=" + e.getSQLState() + ", Code=" + e.getErrorCode() + "): "
-                            + e.getMessage(),
-                    e);
+            throw new RuntimeException("Lỗi thêm SO_DO_DOI", e);
         }
     }
 
+    /** READ one */
     public SoDoDoi findOne(int idGiai, int idNoiDung, int viTri) {
-        String sql = "SELECT * FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
+        final String sql = "SELECT * FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
@@ -102,9 +87,10 @@ public class SoDoDoiRepository {
         }
     }
 
+    /** LIST by bracket */
     public List<SoDoDoi> list(int idGiai, int idNoiDung) {
-        String sql = "SELECT * FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY VI_TRI";
-        List<SoDoDoi> list = new ArrayList<>();
+        final String sql = "SELECT * FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY VI_TRI";
+        final List<SoDoDoi> list = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
@@ -118,43 +104,91 @@ public class SoDoDoiRepository {
         return list;
     }
 
+    /** UPDATE full row (ten, tọa độ, sơ đồ, thời gian, điểm, id trận) */
     public void update(SoDoDoi row) {
-        String sql = "UPDATE SO_DO_DOI SET ID_CLB=?, TEN_TEAM=?, TOA_DO_X=?, TOA_DO_Y=?, SO_DO=?, THOI_GIAN=? " +
-                "WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
+        final String sql = """
+                UPDATE SO_DO_DOI
+                   SET ID_CLB=?, TEN_TEAM=?, TOA_DO_X=?, TOA_DO_Y=?, SO_DO=?,
+                       THOI_GIAN=?, DIEM=?, ID_TRAN_DAU=?
+                 WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (row.getIdClb() != null)
-                ps.setInt(1, row.getIdClb());
-            else
+            if (row.getIdClb() == null)
                 ps.setNull(1, Types.INTEGER);
+            else
+                ps.setInt(1, row.getIdClb());
             ps.setString(2, row.getTenTeam());
-            if (row.getToaDoX() != null)
-                ps.setInt(3, row.getToaDoX());
-            else
+            if (row.getToaDoX() == null)
                 ps.setNull(3, Types.INTEGER);
-            if (row.getToaDoY() != null)
-                ps.setInt(4, row.getToaDoY());
             else
+                ps.setInt(3, row.getToaDoX());
+            if (row.getToaDoY() == null)
                 ps.setNull(4, Types.INTEGER);
-            if (row.getSoDo() != null)
-                ps.setInt(5, row.getSoDo());
             else
+                ps.setInt(4, row.getToaDoY());
+            if (row.getSoDo() == null)
                 ps.setNull(5, Types.INTEGER);
-            if (row.getThoiGian() != null)
-                ps.setTimestamp(6, Timestamp.valueOf(row.getThoiGian()));
             else
+                ps.setInt(5, row.getSoDo());
+            if (row.getThoiGian() == null)
                 ps.setNull(6, Types.TIMESTAMP);
+            else
+                ps.setTimestamp(6, Timestamp.valueOf(row.getThoiGian()));
+            if (row.getDiem() == null)
+                ps.setNull(7, Types.INTEGER);
+            else
+                ps.setInt(7, row.getDiem());
+            if (row.getIdTranDau() == null)
+                ps.setNull(8, Types.VARCHAR);
+            else
+                ps.setString(8, row.getIdTranDau());
 
-            ps.setInt(7, row.getIdGiai());
-            ps.setInt(8, row.getIdNoiDung());
-            ps.setInt(9, row.getViTri());
+            ps.setInt(9, row.getIdGiai());
+            ps.setInt(10, row.getIdNoiDung());
+            ps.setInt(11, row.getViTri());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi cập nhật SO_DO_DOI", e);
         }
     }
 
+    /** PATCH tiện dụng: chỉ đổi điểm */
+    public int updateDiem(int idGiai, int idNoiDung, int viTri, Integer diem) {
+        final String sql = "UPDATE SO_DO_DOI SET DIEM=? WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (diem == null)
+                ps.setNull(1, Types.INTEGER);
+            else
+                ps.setInt(1, diem);
+            ps.setInt(2, idGiai);
+            ps.setInt(3, idNoiDung);
+            ps.setInt(4, viTri);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật điểm", e);
+        }
+    }
+
+    /** PATCH: gán/huỷ liên kết trận đấu */
+    public int updateTranDau(int idGiai, int idNoiDung, int viTri, String idTranDau) {
+        final String sql = "UPDATE SO_DO_DOI SET ID_TRAN_DAU=? WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            if (idTranDau == null)
+                ps.setNull(1, Types.VARCHAR);
+            else
+                ps.setString(1, idTranDau);
+            ps.setInt(2, idGiai);
+            ps.setInt(3, idNoiDung);
+            ps.setInt(4, viTri);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật ID_TRAN_DAU", e);
+        }
+    }
+
+    /** DELETE */
     public void delete(int idGiai, int idNoiDung, int viTri) {
-        String sql = "DELETE FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
+        final String sql = "DELETE FROM SO_DO_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
@@ -175,6 +209,9 @@ public class SoDoDoiRepository {
                 rs.getObject("TOA_DO_Y") != null ? rs.getInt("TOA_DO_Y") : null,
                 rs.getInt("VI_TRI"),
                 rs.getObject("SO_DO") != null ? rs.getInt("SO_DO") : null,
-                rs.getTimestamp("THOI_GIAN") != null ? rs.getTimestamp("THOI_GIAN").toLocalDateTime() : null);
+                rs.getTimestamp("THOI_GIAN") != null ? rs.getTimestamp("THOI_GIAN").toLocalDateTime() : null,
+                rs.getObject("DIEM") != null ? rs.getInt("DIEM") : null, // NEW
+                rs.getString("ID_TRAN_DAU") != null ? rs.getString("ID_TRAN_DAU") : null // NEW
+        );
     }
 }

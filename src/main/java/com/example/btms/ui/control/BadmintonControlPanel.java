@@ -54,12 +54,20 @@ import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 
 import com.example.btms.config.Prefs;
-import com.example.btms.controller.ScoreboardPinController;
+import com.example.btms.controller.scoreBoard.ScoreboardPinController;
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.model.player.VanDongVien;
 import com.example.btms.model.team.DangKiDoi;
+import com.example.btms.repository.bracket.SoDoCaNhanRepository;
+import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
+import com.example.btms.repository.match.ChiTietTranDauRepository;
+import com.example.btms.repository.match.ChiTietVanRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
+import com.example.btms.service.bracket.SoDoCaNhanService;
+import com.example.btms.service.bracket.SoDoDoiService;
+import com.example.btms.service.match.ChiTietTranDauService;
+import com.example.btms.service.match.ChiTietVanService;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
 import com.example.btms.service.scoreboard.ScoreboardService;
 import com.example.btms.service.team.DoiService;
@@ -98,6 +106,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private final JComboBox<String> cboScreen = new JComboBox<>();
     private JButton btnStart, btnFinish, btnReset, btnOpenDisplay, btnOpenDisplayH, btnCloseDisplay, btnReloadLists;
     private JButton pauseResume; // Nút tạm dừng/tiếp tục trận
+    // Lưu ID trận (UUID v7) khi bắt đầu để liên kết dữ liệu ván (CHI_TIET_VAN)
+    private String currentMatchId = null;
 
     /* ===== Score buttons ===== */
     private JButton aPlus, bPlus, aMinus, bMinus, undo, nextGame, swapEnds, toggleServe;
@@ -134,6 +144,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private boolean hasStarted = false;
     private boolean finishScheduled = false;
     private javax.swing.Timer finishTimer = null;
+    // Khi reset trận và bắt đầu lại ván 1, lần +1 đầu tiên của ván phải "ghi mới"
+    // (xóa bản ghi set cũ, không append)
+    private volatile boolean restartSetPending = false;
 
     /* ===== Split panes & prefs ===== */
     private final JSplitPane mainSplit; // Left | CenterRight
@@ -257,7 +270,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     public BadmintonControlPanel() {
         super(new BorderLayout());
         initializeMatch();
-        match.addPropertyChangeListener(this);
+        // Tránh "leaking this" trong constructor
+        SwingUtilities.invokeLater(() -> {
+            if (match != null) {
+                match.addPropertyChangeListener(this);
+            }
+        });
 
         // Debug: Kiểm tra port khi khởi tạo
         logger.logTs("BadmintonControlPanel constructor: courtPort = %d", this.courtPort);
@@ -658,6 +676,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] +1 A", sdf.format(new Date()));
             logScore.run();
+            // Cập nhật CHI_TIET_VAN: cộng điểm A -> ghi P1@ts và tổng điểm
+            updateChiTietVanOnPoint(0);
         });
         bPlus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -665,6 +685,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] +1 B", sdf.format(new Date()));
             logScore.run();
+            // Cập nhật CHI_TIET_VAN: cộng điểm B -> ghi P2@ts và tổng điểm
+            updateChiTietVanOnPoint(1);
         });
         aMinus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -672,6 +694,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] -1 A", sdf.format(new Date()));
             logScore.run();
+            // Giảm điểm: chỉ đồng bộ tổng điểm nếu set record đã tồn tại, không thêm sự
+            // kiện
+            updateChiTietVanTotalsOnly();
         });
         bMinus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -679,6 +704,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] -1 B", sdf.format(new Date()));
             logScore.run();
+            // Giảm điểm: chỉ đồng bộ tổng điểm nếu set record đã tồn tại, không thêm sự
+            // kiện
+            updateChiTietVanTotalsOnly();
         });
         undo.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -686,6 +714,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] Hoàn tác", sdf.format(new Date()));
             logScore.run();
+            // Hoàn tác: đồng bộ tổng điểm nếu có bản ghi cho set hiện tại
+            updateChiTietVanTotalsOnly();
         });
         nextGame.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -701,6 +731,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] Đổi sân", sdf.format(new Date()));
             logScore.run();
+            // Ghi dấu mốc SWAP vào CHI_TIET_VAN và đồng bộ tổng điểm theo token
+            appendSwapMarkerAndResyncChiTietVan();
         });
         toggleServe.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -1109,8 +1141,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         Integer knr = headerKnrSingles.get(header);
         // ID giải lưu trong Prefs dưới key 'selectedGiaiDauId' (đồng bộ với
         // NoiDungRepository)
-        Integer vernr = new Prefs().getInt("selectedGiaiDauId", -1);
-        if (knr == null || vernr == null)
+        int vernr = new Prefs().getInt("selectedGiaiDauId", -1);
+        if (knr == null || vernr <= 0)
             return;
 
         var repo = new VanDongVienRepository(conn);
@@ -1159,8 +1191,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             return;
         }
         Integer knr = headerKnrDoubles.get(header);
-        Integer vernr = new Prefs().getInt("selectedGiaiDauId", -1);
-        if (knr == null || vernr == null)
+        int vernr = new Prefs().getInt("selectedGiaiDauId", -1);
+        if (knr == null || vernr <= 0)
             return;
 
         // Dùng DoiService mới thay vì TeamAndPlayerRepository cũ
@@ -1344,6 +1376,29 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     + doiService.getClubNameByTeamId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
+            // Lấy hoặc tạo ID trận cho lựa chọn hiện tại, rồi liên kết vào sơ đồ
+            try {
+                if (conn != null) {
+                    int theThuc = (bo == 1 ? 1 : 3); // map BO -> theThuc
+                    int san = Math.max(1, getCourtPort());
+                    String existing = resolveExistingMatchId(header, /* isDoubles */ true, null, null, ta, tb);
+                    if (existing != null && !existing.isBlank()) {
+                        currentMatchId = existing;
+                        logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
+                        ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
+                    } else {
+                        ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+                        currentMatchId = msvc.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                        logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
+                        // Bản ghi đã vừa được tạo: không cần align thêm
+                    }
+                    // Liên kết ID trận vào sơ đồ ĐÔI (SO_DO_DOI) — chỉ ghi vào các ô còn null
+                    linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ true, currentMatchId,
+                            null, null, ta, tb);
+                }
+            } catch (Exception ex) {
+                logger.logTs("Lỗi lấy/tạo ID_TRẬN: %s", ex.getMessage());
+            }
             com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
             hasStarted = true;
             afterStartUi();
@@ -1368,6 +1423,31 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             System.out.println("Club A: " + getClubNameByVdvId(idA) + ", Club B: " + getClubNameByVdvId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
+            // Lấy hoặc tạo ID trận cho lựa chọn hiện tại, rồi liên kết vào sơ đồ
+            try {
+                if (conn != null) {
+                    int theThuc = (bo == 1 ? 1 : 3);
+                    int san = Math.max(1, getCourtPort());
+                    Integer idAVal = singlesNameToId.getOrDefault(nameA, -1);
+                    Integer idBVal = singlesNameToId.getOrDefault(nameB, -1);
+                    String existing = resolveExistingMatchId(header, /* isDoubles */ false, idAVal, idBVal, null, null);
+                    if (existing != null && !existing.isBlank()) {
+                        currentMatchId = existing;
+                        logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
+                        ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
+                    } else {
+                        ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+                        currentMatchId = msvc.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                        logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
+                        // Bản ghi đã vừa được tạo: không cần align thêm
+                    }
+                    // Liên kết ID trận vào sơ đồ ĐƠN (SO_DO_CA_NHAN) — chỉ ghi vào các ô còn null
+                    linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ false, currentMatchId,
+                            idAVal, idBVal, null, null);
+                }
+            } catch (Exception ex) {
+                logger.logTs("Lỗi lấy/tạo ID_TRẬN: %s", ex.getMessage());
+            }
             com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
 
             hasStarted = true;
@@ -1378,6 +1458,185 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             // Gắn match lên HTTP server theo port của sân
             logger.startSingles(header, nameA, idA, nameB, idB, bo);
             updateRemoteLinkUi();
+        }
+    }
+
+    /**
+     * Ghi UUID trận (currentMatchId) vào cột ID_TRAN_DAU trong sơ đồ tương ứng với
+     * lựa chọn hiện tại.
+     * - ĐƠN: cập nhật theo ID_VDV (cả A và B) trong SO_DO_CA_NHAN
+     * - ĐÔI: cập nhật theo TEN_TEAM (cả A và B) trong SO_DO_DOI
+     */
+    private void linkMatchIdToBracketForCurrentSelection(String header, boolean isDoubles, String matchId,
+            Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB) {
+        if (conn == null || matchId == null || matchId.isBlank())
+            return;
+        try {
+            int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
+            if (idGiai <= 0) {
+                logger.logTs("Bỏ qua link ID_TRAN_DAU: ID_GIAI không hợp lệ (%d)", idGiai);
+                return;
+            }
+            Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
+            if (idNoiDung == null || idNoiDung <= 0) {
+                logger.logTs("Bỏ qua link ID_TRAN_DAU: ID_NOI_DUNG không hợp lệ (%s)", String.valueOf(idNoiDung));
+                return;
+            }
+
+            if (!isDoubles) {
+                SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+                int updated = 0;
+                if (idVdvA != null && idVdvA > 0)
+                    updated += ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvA, matchId);
+                if (idVdvB != null && idVdvB > 0)
+                    updated += ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvB, matchId);
+                logger.logTs("SO_DO_CA_NHAN: đã liên kết ID_TRAN_DAU=%s cho %d vị trí (giai=%d, nd=%d)", matchId,
+                        updated, idGiai, idNoiDung);
+            } else {
+                SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+                int updated = 0;
+                if (teamA != null && teamA.getTenTeam() != null)
+                    updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, teamA.getTenTeam(), matchId);
+                if (teamB != null && teamB.getTenTeam() != null)
+                    updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, teamB.getTenTeam(), matchId);
+                logger.logTs("SO_DO_DOI: đã liên kết ID_TRAN_DAU=%s cho %d vị trí (giai=%d, nd=%d)", matchId, updated,
+                        idGiai, idNoiDung);
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi liên kết ID_TRAN_DAU vào sơ đồ: %s", ex.getMessage());
+        }
+    }
+
+    /**
+     * Tìm ID_TRẬN đã có sẵn trong sơ đồ cho lựa chọn hiện tại.
+     * - ĐƠN: tìm theo ID_VDV A/B trong bảng SO_DO_CA_NHAN, nếu có ID_TRAN_DAU thì
+     * trả về.
+     * - ĐÔI: tìm theo TEN_TEAM A/B trong bảng SO_DO_DOI, nếu có ID_TRAN_DAU thì trả
+     * về.
+     * Ưu tiên: nếu cả hai bên đều có ID và giống nhau → dùng ID đó; nếu chỉ một bên
+     * có → dùng ID đó;
+     * nếu hai bên có ID khác nhau → log cảnh báo và trả null để tạo mới.
+     */
+    private String resolveExistingMatchId(String header, boolean isDoubles,
+            Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB) {
+        if (conn == null)
+            return null;
+        int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
+        if (idGiai <= 0 || header == null || header.isBlank())
+            return null;
+        Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
+        if (idNoiDung == null || idNoiDung <= 0)
+            return null;
+
+        try {
+            String idA = null;
+            String idB = null;
+            if (!isDoubles) {
+                SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+                List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
+                if (idVdvA != null && idVdvA > 0) {
+                    for (var r : rows) {
+                        if (r.getIdVdv() != null && r.getIdVdv().intValue() == idVdvA.intValue()
+                                && r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
+                            idA = r.getIdTranDau();
+                            break;
+                        }
+                    }
+                }
+                if (idVdvB != null && idVdvB > 0) {
+                    for (var r : rows) {
+                        if (r.getIdVdv() != null && r.getIdVdv().intValue() == idVdvB.intValue()
+                                && r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
+                            idB = r.getIdTranDau();
+                            break;
+                        }
+                    }
+                }
+            } else {
+                SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+                List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
+                String tenA = teamA != null ? teamA.getTenTeam() : null;
+                String tenB = teamB != null ? teamB.getTenTeam() : null;
+                if (tenA != null && !tenA.isBlank()) {
+                    for (var r : rows) {
+                        if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenA)
+                                && r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
+                            idA = r.getIdTranDau();
+                            break;
+                        }
+                    }
+                }
+                if (tenB != null && !tenB.isBlank()) {
+                    for (var r : rows) {
+                        if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenB)
+                                && r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
+                            idB = r.getIdTranDau();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (idA != null && idB != null) {
+                if (idA.equals(idB)) {
+                    return idA;
+                } else {
+                    logger.logTs("CẢNH BÁO: Hai bên có ID_TRẬN khác nhau (A=%s, B=%s). Bỏ qua để tạo ID mới.", idA,
+                            idB);
+                    return null;
+                }
+            }
+            if (idA != null)
+                return idA;
+            if (idB != null)
+                return idB;
+        } catch (Exception ex) {
+            logger.logTs("Lỗi kiểm tra ID_TRẬN sẵn có: %s", ex.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Khi tái sử dụng ID_TRẬN đã có, kiểm tra cập nhật các trường trong
+     * CHI_TIET_TRAN_DAU
+     * cho phù hợp với cấu hình hiện tại: thể thức (theThuc) và sân (san).
+     * - Nếu bản ghi không tồn tại (bị xóa), tạo mới theo tham số đầu vào.
+     * - Nếu tồn tại nhưng theThuc/san khác, thực hiện update giữ nguyên
+     * batDau/ketThuc hiện có.
+     */
+    private void ensureAndAlignMatchRecord(String matchId, int theThuc, int san) {
+        if (conn == null || matchId == null || matchId.isBlank())
+            return;
+        try {
+            ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+            try {
+                var cur = msvc.get(matchId);
+                boolean needUpdate = false;
+                Integer curTheThuc = cur.getTheThuc();
+                Integer curSan = cur.getSan();
+                int newTheThuc = (curTheThuc != null) ? curTheThuc.intValue() : theThuc;
+                int newSan = (curSan != null) ? curSan.intValue() : san;
+                if (newTheThuc != theThuc) {
+                    newTheThuc = theThuc; // align to current selection
+                    needUpdate = true;
+                }
+                if (newSan != san) {
+                    newSan = san; // align to current court
+                    needUpdate = true;
+                }
+                if (needUpdate) {
+                    msvc.update(matchId, newTheThuc, cur.getIdVdvThang(), cur.getBatDau(), cur.getKetThuc(), newSan);
+                    logger.logTs("Đã đồng bộ CHI_TIET_TRAN_DAU: theThuc=%d, san=%d (id=%s)", newTheThuc, newSan,
+                            matchId);
+                }
+            } catch (Exception notFound) {
+                // Không tồn tại: tạo mới theo cấu hình hiện tại, GIỮ NGUYÊN ID
+                var now = java.time.LocalDateTime.now();
+                msvc.create(matchId, theThuc, 0 /* chưa biết VĐV thắng */, now, now, san);
+                logger.logTs("Không tìm thấy CHI_TIET_TRAN_DAU id=%s, đã tạo mới với cùng ID.", matchId);
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi align CHI_TIET_TRAN_DAU: %s", ex.getMessage());
         }
     }
 
@@ -1461,6 +1720,32 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         closeDisplays();
         // Không dừng broadcast để card Monitor vẫn còn. Chỉ dừng khi xoá sân.
 
+        // Nếu có matchId, cập nhật thời gian kết thúc vào CHI_TIET_TRAN_DAU
+        try {
+            if (conn != null && currentMatchId != null && !currentMatchId.isBlank()) {
+                ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+                var now = java.time.LocalDateTime.now();
+                // Lấy record hiện tại để lấy các trường khác
+                var cur = msvc.get(currentMatchId);
+                // Xác định ID VĐV thắng nếu là đơn, nếu không xác định được thì giữ giá trị cũ
+                Integer curWinner = cur.getIdVdvThang();
+                int idVdvThang = computeWinnerVdvIdOrDefault(curWinner != null ? curWinner.intValue() : 0);
+                msvc.update(currentMatchId, cur.getTheThuc(), idVdvThang, cur.getBatDau(), now,
+                        cur.getSan());
+
+                // Đồng thời cập nhật tỉ số cuối cùng vào cột DIEM cho 2 VĐV/đội trong sơ đồ
+                try {
+                    updateBracketScoresOnFinish(currentMatchId);
+                } catch (Exception ex2) {
+                    logger.logTs("Lỗi cập nhật DIEM cho sơ đồ khi kết thúc: %s", ex2.getMessage());
+                }
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi cập nhật kết thúc trận: %s", ex.getMessage());
+        } finally {
+            currentMatchId = null;
+        }
+
         // Cập nhật trạng thái sân: đặt trận về trạng thái sẵn sàng (không thi đấu)
         try {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -1498,6 +1783,110 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         lblServer.setText("Giao cầu: A (R)");
 
         logger.finishMatch();
+    }
+
+    /**
+     * Trả về ID_VDV_THANG nếu trận là ĐƠN và xác định được bên thắng từ tên VĐV
+     * hiện tại;
+     * nếu không, trả về giá trị mặc định (thường là giá trị đang có trong DB hoặc
+     * 0).
+     */
+    private int computeWinnerVdvIdOrDefault(int defaultValue) {
+        try {
+            if (match != null && !match.isDoubles() && match.isMatchFinished()) {
+                int[] games = match.getGames();
+                if (games[0] == games[1])
+                    return defaultValue; // không rõ bên thắng
+                int winnerSide = (games[0] > games[1]) ? 0 : 1;
+                String[] names = match.getNames();
+                String winnerName = names[winnerSide];
+                if (winnerName != null && !winnerName.isBlank()) {
+                    Integer id = singlesNameToId.get(winnerName);
+                    if (id != null && id > 0)
+                        return id;
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Khi kết thúc trận, ghi tỉ số (số ván thắng) vào cột DIEM cho 2 VĐV/đội
+     * tương ứng với trận hiện tại (nhận diện bằng ID_TRAN_DAU = matchId).
+     */
+    private void updateBracketScoresOnFinish(String matchId) {
+        if (conn == null || matchId == null || matchId.isBlank())
+            return;
+        // Tự động đưa VĐV/Đội thắng vào vòng kế tiếp
+        try {
+            autoAdvanceWinnerToNextRound(currentMatchId);
+        } catch (Exception advEx) {
+            logger.logTs("Lỗi auto-advance winner: %s", advEx.getMessage());
+        }
+
+        // Lấy context hiện tại
+        String header = currentHeader();
+        int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
+        if (header == null || header.isBlank() || idGiai <= 0)
+            return; // thiếu ngữ cảnh
+
+        boolean isDoubles = doubles.isSelected();
+        Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
+        if (idNoiDung == null || idNoiDung <= 0)
+            return;
+
+        // Tính tỉ số cuối (số ván thắng) từ match hiện tại
+        int[] games = match != null ? match.getGames() : new int[] { 0, 0 };
+        int diemA = games[0];
+        int diemB = games[1];
+
+        if (!isDoubles) {
+            // ĐƠN: xác định theo ID_VDV A/B + ID_TRAN_DAU
+            SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+            List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
+            String nameA = sel(cboNameA);
+            String nameB = sel(cboNameB);
+            Integer idVdvA = (nameA == null || nameA.isBlank()) ? null : singlesNameToId.get(nameA);
+            Integer idVdvB = (nameB == null || nameB.isBlank()) ? null : singlesNameToId.get(nameB);
+            int updatedA = 0, updatedB = 0;
+            for (var r : rows) {
+                if (r.getIdTranDau() != null && r.getIdTranDau().equals(matchId)) {
+                    if (idVdvA != null && r.getIdVdv() != null && r.getIdVdv().intValue() == idVdvA.intValue()) {
+                        ssvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemA);
+                        updatedA++;
+                    } else if (idVdvB != null && r.getIdVdv() != null
+                            && r.getIdVdv().intValue() == idVdvB.intValue()) {
+                        ssvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemB);
+                        updatedB++;
+                    }
+                }
+            }
+            logger.logTs("Cập nhật DIEM (đơn): A=%d (%d vị trí), B=%d (%d vị trí) [giai=%d, nd=%d]",
+                    diemA, updatedA, diemB, updatedB, idGiai, idNoiDung);
+        } else {
+            // ĐÔI: xác định theo TEN_TEAM A/B + ID_TRAN_DAU
+            SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+            List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
+            DangKiDoi teamA = (DangKiDoi) cboTeamA.getSelectedItem();
+            DangKiDoi teamB = (DangKiDoi) cboTeamB.getSelectedItem();
+            String tenA = teamA != null ? teamA.getTenTeam() : null;
+            String tenB = teamB != null ? teamB.getTenTeam() : null;
+            int updatedA = 0, updatedB = 0;
+            for (var r : rows) {
+                if (r.getIdTranDau() != null && r.getIdTranDau().equals(matchId)) {
+                    if (tenA != null && r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenA)) {
+                        dsvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemA);
+                        updatedA++;
+                    } else if (tenB != null && r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenB)) {
+                        dsvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemB);
+                        updatedB++;
+                    }
+                }
+            }
+            logger.logTs("Cập nhật DIEM (đôi): A=%d (%d vị trí), B=%d (%d vị trí) [giai=%d, nd=%d]",
+                    diemA, updatedA, diemB, updatedB, idGiai, idNoiDung);
+        }
     }
 
     private void onReset() {
@@ -1552,6 +1941,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
             hasStarted = true;
+            // Đánh dấu ván mới bắt đầu lại → lần +1 đầu tiên sẽ ghi mới (xóa set cũ nếu có)
+            restartSetPending = true;
             afterStartUi();
             openDisplayAuto();
             scoreboardSvc.startBroadcast(
@@ -1580,6 +1971,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             match.startMatch(initialServer.getSelectedIndex());
 
             hasStarted = true;
+            // Đánh dấu ván mới bắt đầu lại → lần +1 đầu tiên sẽ ghi mới (xóa set cũ nếu có)
+            restartSetPending = true;
             afterStartUi();
             openDisplayAuto();
             scoreboardSvc.startBroadcast(
@@ -1669,8 +2062,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 try {
                     // Tìm và cập nhật label link PIN
                     for (java.awt.Component comp : getComponents()) {
-                        if (comp instanceof JPanel) {
-                            updatePinLinkInPanel((JPanel) comp);
+                        if (comp instanceof JPanel panel) {
+                            updatePinLinkInPanel(panel);
                         }
                     }
                 } catch (Exception ex) {
@@ -1772,10 +2165,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 screenshotDir.mkdirs();
             }
 
-            // Tạo tên file với timestamp
+            // Tạo tên file theo ID_TRẬN + thời gian
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
             String timestamp = sdf.format(new Date());
-            String fileName = String.format("scoreboard_%s.png", timestamp);
+            String idForName = (currentMatchId != null && !currentMatchId.isBlank()) ? currentMatchId : "no_match_id";
+            String fileName = String.format("%s_%s.png", idForName, timestamp);
             File outputFile = new File(screenshotDir, fileName);
 
             // Chụp ảnh bảng điểm mini
@@ -1864,6 +2258,29 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
             setScoreButtonsEnabled(false);
             nextGame.setEnabled(false);
+
+            // Cập nhật SO_DO (DIEM) và ID_VDV_THANG ngay khi có kết quả thắng, không đợi
+            // bấm Kết thúc
+            try {
+                if (conn != null && currentMatchId != null && !currentMatchId.isBlank()) {
+                    // Ghi điểm cuối vào sơ đồ ngay
+                    updateBracketScoresOnFinish(currentMatchId);
+
+                    // Ghi ID_VDV_THANG cho trận ĐƠN ngay (nếu xác định được)
+                    ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+                    var cur = msvc.get(currentMatchId);
+                    Integer curWinner = cur.getIdVdvThang();
+                    int idVdvThang = computeWinnerVdvIdOrDefault(curWinner != null ? curWinner.intValue() : 0);
+                    if (idVdvThang != (curWinner != null ? curWinner.intValue() : 0)) {
+                        // Không đổi thời gian ở đây, chỉ set người thắng; KET_THUC sẽ cập nhật trong
+                        // onFinish()
+                        msvc.update(currentMatchId, cur.getTheThuc(), idVdvThang, cur.getBatDau(), cur.getKetThuc(),
+                                cur.getSan());
+                    }
+                }
+            } catch (Exception ex) {
+                logger.logTs("Lỗi cập nhật SO_DO/ID_VDV_THANG khi kết thúc tự động: %s", ex.getMessage());
+            }
 
             if (!finishScheduled) {
                 finishScheduled = true;
@@ -2112,14 +2529,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      */
     private void updatePinLinkInPanel(JPanel panel) {
         for (java.awt.Component comp : panel.getComponents()) {
-            if (comp instanceof JLabel) {
-                JLabel label = (JLabel) comp;
+            if (comp instanceof JLabel label) {
                 if (label.getText() != null && label.getText().contains("Link nhập PIN:")) {
                     label.setText("🔗 Link nhập PIN: " + getPinEntryUrl());
                     return;
                 }
-            } else if (comp instanceof JPanel) {
-                updatePinLinkInPanel((JPanel) comp);
+            } else if (comp instanceof JPanel panel2) {
+                updatePinLinkInPanel(panel2);
             }
         }
     }
@@ -2236,5 +2652,424 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         if (!c1.isBlank() && !c2.isBlank() && !c1.equalsIgnoreCase(c2))
             return c1 + " / " + c2;
         return "";
+    }
+
+    /* =================== Auto-advance winner to next round =================== */
+
+    private void autoAdvanceWinnerToNextRound(String matchId) {
+        if (conn == null)
+            return;
+        // Note: matchId is used for traceability in logs
+        if (matchId != null && !matchId.isBlank()) {
+            logger.logTs("Auto-advance triggered for matchId=%s", matchId);
+        }
+        String header = currentHeader();
+        int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
+        if (header == null || header.isBlank() || idGiai <= 0)
+            return;
+        boolean isDoubles = doubles.isSelected();
+        Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
+        if (idNoiDung == null || idNoiDung <= 0)
+            return;
+
+        int[] games = match != null ? match.getGames() : new int[] { 0, 0 };
+        if (games[0] == games[1])
+            return;
+        int winnerSide = (games[0] > games[1]) ? 0 : 1;
+        if (!isDoubles)
+            autoAdvanceSingles(idGiai, idNoiDung, winnerSide);
+        else
+            autoAdvanceDoubles(idGiai, idNoiDung, winnerSide);
+    }
+
+    private void autoAdvanceSingles(int idGiai, int idNoiDung, int winnerSide) {
+        try {
+            SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+            java.util.List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
+            if (rows == null || rows.isEmpty())
+                return;
+
+            String nameA = sel(cboNameA);
+            String nameB = sel(cboNameB);
+            Integer idVdvA = (nameA == null || nameA.isBlank()) ? null : singlesNameToId.get(nameA);
+            Integer idVdvB = (nameB == null || nameB.isBlank()) ? null : singlesNameToId.get(nameB);
+            if (idVdvA == null || idVdvA <= 0 || idVdvB == null || idVdvB <= 0)
+                return;
+
+            int columns = detectColumnsByMaxOrder(rows);
+            int[] offsets = columnOffsets(columns);
+
+            for (int col = 1; col < columns; col++) {
+                com.example.btms.model.bracket.SoDoCaNhan rA = findRowByVdvAndCol(rows, idVdvA, col);
+                com.example.btms.model.bracket.SoDoCaNhan rB = findRowByVdvAndCol(rows, idVdvB, col);
+                if (rA == null || rB == null)
+                    continue;
+                int tA = toThuTu(rA.getViTri(), col, offsets);
+                int tB = toThuTu(rB.getViTri(), col, offsets);
+                if (tA < 0 || tB < 0)
+                    continue;
+                if ((tA / 2) == (tB / 2)) {
+                    int parentCol = col + 1;
+                    if (parentCol > columns)
+                        return;
+                    int parentThuTu = Math.min(tA, tB) / 2;
+                    int parentOrder = offsets[parentCol - 1] + parentThuTu + 1;
+                    int winnerVdv = (winnerSide == 0) ? idVdvA : idVdvB;
+                    upsertSinglesParentSlot(idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerVdv);
+                    return;
+                }
+            }
+        } catch (Exception ex) {
+            logger.logTs("Auto-advance (đơn) lỗi: %s", ex.getMessage());
+        }
+    }
+
+    private void autoAdvanceDoubles(int idGiai, int idNoiDung, int winnerSide) {
+        try {
+            SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+            java.util.List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
+            if (rows == null || rows.isEmpty())
+                return;
+
+            DangKiDoi teamA = (DangKiDoi) cboTeamA.getSelectedItem();
+            DangKiDoi teamB = (DangKiDoi) cboTeamB.getSelectedItem();
+            String tenA = teamA != null ? teamA.getTenTeam() : null;
+            String tenB = teamB != null ? teamB.getTenTeam() : null;
+            if (tenA == null || tenA.isBlank() || tenB == null || tenB.isBlank())
+                return;
+
+            int columns = detectColumnsByMaxOrder(rows);
+            int[] offsets = columnOffsets(columns);
+
+            for (int col = 1; col < columns; col++) {
+                com.example.btms.model.bracket.SoDoDoi rA = findRowByTeamAndCol(rows, tenA, col);
+                com.example.btms.model.bracket.SoDoDoi rB = findRowByTeamAndCol(rows, tenB, col);
+                if (rA == null || rB == null)
+                    continue;
+                int tA = toThuTu(rA.getViTri(), col, offsets);
+                int tB = toThuTu(rB.getViTri(), col, offsets);
+                if (tA < 0 || tB < 0)
+                    continue;
+                if ((tA / 2) == (tB / 2)) {
+                    int parentCol = col + 1;
+                    if (parentCol > columns)
+                        return;
+                    int parentThuTu = Math.min(tA, tB) / 2;
+                    int parentOrder = offsets[parentCol - 1] + parentThuTu + 1;
+                    String winnerTeamName = (winnerSide == 0) ? tenA : tenB;
+                    Integer winnerClb = null;
+                    try {
+                        DangKiDoi teamWinner = (winnerSide == 0 ? teamA : teamB);
+                        winnerClb = (teamWinner != null) ? teamWinner.getIdCauLacBo() : null;
+                        if ((winnerClb == null || winnerClb <= 0) && winnerTeamName != null
+                                && !winnerTeamName.isBlank()) {
+                            DoiService ds = new DoiService(conn);
+                            int found = ds.getIdClbByTeamName(winnerTeamName, idNoiDung, idGiai);
+                            if (found > 0)
+                                winnerClb = found;
+                        }
+                    } catch (Exception ignore) {
+                    }
+                    upsertDoublesParentSlot(idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerTeamName,
+                            winnerClb);
+                    return;
+                }
+            }
+        } catch (Exception ex) {
+            logger.logTs("Auto-advance (đôi) lỗi: %s", ex.getMessage());
+        }
+    }
+
+    private int detectColumnsByMaxOrder(java.util.List<?> rows) {
+        int maxOrder = 0;
+        if (rows != null) {
+            for (Object o : rows) {
+                try {
+                    int viTri;
+                    if (o instanceof com.example.btms.model.bracket.SoDoCaNhan r) {
+                        viTri = r.getViTri();
+                    } else if (o instanceof com.example.btms.model.bracket.SoDoDoi r2) {
+                        viTri = r2.getViTri();
+                    } else {
+                        continue;
+                    }
+                    if (viTri > maxOrder)
+                        maxOrder = viTri;
+                } catch (Exception ignore) {
+                }
+            }
+        }
+        return (maxOrder > 31) ? 6 : 5;
+    }
+
+    private int[] columnOffsets(int columns) {
+        if (columns >= 6) {
+            return new int[] { 0, 32, 48, 56, 60, 62 };
+        } else {
+            return new int[] { 0, 16, 24, 28, 30 };
+        }
+    }
+
+    private int toThuTu(int viTri, int col, int[] offsets) {
+        if (col <= 0 || col > offsets.length)
+            return -1;
+        int base = offsets[col - 1];
+        return viTri - base - 1;
+    }
+
+    private com.example.btms.model.bracket.SoDoCaNhan findRowByVdvAndCol(
+            java.util.List<com.example.btms.model.bracket.SoDoCaNhan> rows, int idVdv, int col) {
+        com.example.btms.model.bracket.SoDoCaNhan best = null;
+        for (var r : rows) {
+            Integer rid = r.getIdVdv();
+            Integer soDo = r.getSoDo();
+            if (rid != null && rid.intValue() == idVdv && soDo != null && soDo.intValue() == col) {
+                if (best == null || r.getViTri() < best.getViTri())
+                    best = r;
+            }
+        }
+        return best;
+    }
+
+    private com.example.btms.model.bracket.SoDoDoi findRowByTeamAndCol(
+            java.util.List<com.example.btms.model.bracket.SoDoDoi> rows, String teamName, int col) {
+        com.example.btms.model.bracket.SoDoDoi best = null;
+        if (teamName == null)
+            return null;
+        for (var r : rows) {
+            Integer soDo = r.getSoDo();
+            if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(teamName)
+                    && soDo != null && soDo.intValue() == col) {
+                if (best == null || r.getViTri() < best.getViTri())
+                    best = r;
+            }
+        }
+        return best;
+    }
+
+    private void upsertSinglesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
+            int winnerVdv) {
+        try {
+            SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+            com.example.btms.model.bracket.SoDoCaNhan existing = null;
+            try {
+                existing = ssvc.getOne(idGiai, idNoiDung, parentOrder);
+            } catch (Exception ignore) {
+            }
+            if (existing != null) {
+                ssvc.update(idGiai, idNoiDung, parentOrder,
+                        winnerVdv,
+                        existing.getToaDoX(), existing.getToaDoY(), parentCol,
+                        java.time.LocalDateTime.now(), null, null);
+            } else {
+                int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
+                ssvc.create(idGiai, idNoiDung, winnerVdv,
+                        xy[0], xy[1], parentOrder, parentCol,
+                        java.time.LocalDateTime.now(), null, null);
+            }
+            logger.logTs("Auto-advance (đơn): đưa VĐV #%d vào VI_TRI=%d (cột %d, t=%d)", winnerVdv, parentOrder,
+                    parentCol, parentThuTu);
+        } catch (Exception ex) {
+            logger.logTs("Lỗi upsert slot cha (đơn): %s", ex.getMessage());
+        }
+    }
+
+    private void upsertDoublesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
+            String winnerTeamName, Integer winnerClb) {
+        try {
+            SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+            com.example.btms.model.bracket.SoDoDoi existing = null;
+            try {
+                existing = dsvc.getOne(idGiai, idNoiDung, parentOrder);
+            } catch (Exception ignore) {
+            }
+            if (existing != null) {
+                dsvc.update(idGiai, idNoiDung, parentOrder,
+                        winnerClb, winnerTeamName,
+                        existing.getToaDoX(), existing.getToaDoY(), parentCol,
+                        java.time.LocalDateTime.now(), null, null);
+            } else {
+                int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
+                dsvc.create(idGiai, idNoiDung, winnerClb, winnerTeamName,
+                        xy[0], xy[1], parentOrder, parentCol,
+                        java.time.LocalDateTime.now(), null, null);
+            }
+            logger.logTs("Auto-advance (đôi): đưa ĐỘI '%s' vào VI_TRI=%d (cột %d, t=%d)", winnerTeamName,
+                    parentOrder, parentCol, parentThuTu);
+        } catch (Exception ex) {
+            logger.logTs("Lỗi upsert slot cha (đôi): %s", ex.getMessage());
+        }
+    }
+
+    private int[] computeSlotCoordinates(int col, int thuTu) {
+        int x = 35 + (col - 1) * 200 + (col > 1 ? (col - 1) * 60 : 0);
+        int step = (int) (40 * Math.pow(2, Math.max(0, col - 1)));
+        int y;
+        if (col <= 1) {
+            y = 20 + thuTu * step;
+        } else {
+            y = 20 + thuTu * step + step / 2 - 20;
+            if (y < 0)
+                y = 0;
+        }
+        return new int[] { x, y };
+    }
+
+    /* =================== CHI_TIET_VAN (per-set logs) =================== */
+
+    /**
+     * Gọi khi ấn +1 cho A/B. side = 0 (A) hoặc 1 (B).
+     * - Upsert CHI_TIET_VAN cho (currentMatchId, setNo = gameNumber)
+     * - Cập nhật tổng điểm theo snapshot.score
+     * - Append "P1@<millis>" hoặc "P2@<millis>" vào DAU_THOI_GIAN, ngăn bằng "; "
+     */
+    private void updateChiTietVanOnPoint(int side) {
+        try {
+            if (conn == null) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (+1): Chưa kết nối DB");
+                return;
+            }
+            if (currentMatchId == null || currentMatchId.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (+1): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
+                return;
+            }
+            var s = match.snapshot();
+            int setNo = Math.max(1, s.gameNumber);
+
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            // Nếu vừa reset ván, xóa bản ghi set cũ để lần +1 này ghi mới hoàn toàn
+            if (restartSetPending) {
+                try {
+                    if (vs.exists(currentMatchId, setNo)) {
+                        vs.delete(currentMatchId, setNo);
+                        logger.logTs("Đã xóa bản ghi set %d cũ do bắt đầu lại", setNo);
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+            String token = (side == 0 ? "P1@" : "P2@") + System.currentTimeMillis();
+            if (vs.exists(currentMatchId, setNo)) {
+                var cur = vs.get(currentMatchId, setNo);
+                String prev = cur.getDauThoiGian();
+                String newTime;
+                if (prev == null || prev.isBlank()) {
+                    newTime = token;
+                } else {
+                    newTime = prev.endsWith(";") ? (prev + " " + token) : (prev + "; " + token);
+                }
+                int[] totals = computeTokenTotalsConsideringSwap(newTime);
+                vs.update(currentMatchId, setNo, totals[0], totals[1], newTime);
+                logger.logTs("CHI_TIET_VAN cập nhật (+1, set=%d): %d-%d", setNo, totals[0], totals[1]);
+            } else {
+                int[] totals = computeTokenTotalsConsideringSwap(token);
+                vs.addSet(currentMatchId, setNo, totals[0], totals[1], token);
+                logger.logTs("CHI_TIET_VAN thêm mới (+1, set=%d): %d-%d", setNo, totals[0], totals[1]);
+            }
+            // Sau lần +1 đầu tiên của ván sau reset, tắt cờ
+            restartSetPending = false;
+        } catch (Exception ex) {
+            logger.logTs("Lỗi cập nhật CHI_TIET_VAN (+1): %s", ex.getMessage());
+        }
+    }
+
+    /**
+     * Đồng bộ lại tổng điểm của ván hiện tại vào CHI_TIET_VAN nếu record đã tồn
+     * tại.
+     * Không tạo mới và không append sự kiện.
+     */
+    private void updateChiTietVanTotalsOnly() {
+        try {
+            if (conn == null) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): Chưa kết nối DB");
+                return;
+            }
+            if (currentMatchId == null || currentMatchId.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
+                return;
+            }
+            var s = match.snapshot();
+            int setNo = Math.max(1, s.gameNumber);
+
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            if (!vs.exists(currentMatchId, setNo)) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): chưa có bản ghi set %d để đồng bộ", setNo);
+                return;
+            }
+            var cur = vs.get(currentMatchId, setNo);
+            String timeStr = cur.getDauThoiGian();
+            if (timeStr == null || timeStr.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): DAU_THOI_GIAN trống (set %d)", setNo);
+                return; // service yêu cầu không rỗng; bỏ qua nếu trống
+            }
+            int[] totals = computeTokenTotalsConsideringSwap(timeStr);
+            vs.update(currentMatchId, setNo, totals[0], totals[1], timeStr);
+            logger.logTs("CHI_TIET_VAN đồng bộ totals (set=%d): %d-%d", setNo, totals[0], totals[1]);
+        } catch (Exception ex) {
+            logger.logTs("Lỗi cập nhật CHI_TIET_VAN (totals only): %s", ex.getMessage());
+        }
+    }
+
+    /**
+     * Ghi dấu mốc SWAP vào DAU_THOI_GIAN của set hiện tại và đồng bộ tổng điểm từ
+     * token.
+     * SWAP không làm thay đổi tổng điểm; chỉ đảo cách diễn giải P1/P2 cho các token
+     * về sau.
+     */
+    private void appendSwapMarkerAndResyncChiTietVan() {
+        try {
+            if (conn == null) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (SWAP): Chưa kết nối DB");
+                return;
+            }
+            if (currentMatchId == null || currentMatchId.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (SWAP): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
+                return;
+            }
+            var s = match.snapshot();
+            int setNo = Math.max(1, s.gameNumber);
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            String token = "SWAP@" + System.currentTimeMillis();
+            if (vs.exists(currentMatchId, setNo)) {
+                var cur = vs.get(currentMatchId, setNo);
+                String prev = cur.getDauThoiGian();
+                String newTime;
+                if (prev == null || prev.isBlank()) {
+                    newTime = token;
+                } else {
+                    newTime = prev.endsWith(";") ? (prev + " " + token) : (prev + "; " + token);
+                }
+                int[] totals = computeTokenTotalsConsideringSwap(newTime);
+                vs.update(currentMatchId, setNo, totals[0], totals[1], newTime);
+                logger.logTs("CHI_TIET_VAN ghi SWAP và đồng bộ totals (set=%d): %d-%d", setNo, totals[0], totals[1]);
+            } else {
+                // Chưa có bản ghi set: tạo mới với chỉ dấu SWAP, tổng điểm = 0-0
+                vs.addSet(currentMatchId, setNo, 0, 0, token);
+                logger.logTs("CHI_TIET_VAN tạo set mới với SWAP (set=%d): 0-0", setNo);
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi ghi SWAP cho CHI_TIET_VAN: %s", ex.getMessage());
+        }
+    }
+
+    /**
+     * Tính tổng điểm từ chuỗi token: đếm số lần xuất hiện của P1@ và P2@.
+     * SWAP@ chỉ là dấu mốc (không ảnh hưởng tổng điểm), vì P1/P2 tương ứng với nhãn
+     * A/B hiện tại.
+     */
+    private static int[] computeTokenTotalsConsideringSwap(String tokens) {
+        int a = 0, b = 0;
+        if (tokens == null || tokens.isBlank())
+            return new int[] { 0, 0 };
+        String[] parts = tokens.split(";");
+        for (String raw : parts) {
+            String t = raw.trim();
+            if (t.isEmpty() || t.startsWith("SWAP@"))
+                continue;
+            if (t.startsWith("P1@"))
+                a++;
+            else if (t.startsWith("P2@"))
+                b++;
+        }
+        return new int[] { a, b };
     }
 }

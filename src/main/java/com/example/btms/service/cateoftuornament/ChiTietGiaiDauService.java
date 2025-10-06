@@ -26,7 +26,7 @@ public class ChiTietGiaiDauService {
     public void create(ChiTietGiaiDau chiTiet) {
         validate(chiTiet);
         if (exists(chiTiet.getIdGiaiDau(), chiTiet.getIdNoiDung())) {
-            throw new IllegalStateException("Bản ghi đã tồn tại: (ID_GIAI_DAU="
+            throw new IllegalStateException("Bản ghi đã tồn tại: (ID_GIAI="
                     + chiTiet.getIdGiaiDau() + ", ID_NOI_DUNG=" + chiTiet.getIdNoiDung() + ")");
         }
         repo.addChiTietGiaiDau(chiTiet);
@@ -80,7 +80,7 @@ public class ChiTietGiaiDauService {
     }
 
     private NoSuchElementException notFound(int idGiaiDau, int idNoiDung) {
-        return new NoSuchElementException("Không tìm thấy CHI_TIET_GIAI_DAU với ID_GIAI_DAU="
+        return new NoSuchElementException("Không tìm thấy CHI_TIET_GIAI_DAU với ID_GIAI="
                 + idGiaiDau + ", ID_NOI_DUNG=" + idNoiDung);
     }
 }
