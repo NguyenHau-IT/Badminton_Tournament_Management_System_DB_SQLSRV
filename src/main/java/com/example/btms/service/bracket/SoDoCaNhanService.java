@@ -17,11 +17,12 @@ public class SoDoCaNhanService {
 
     // CREATE
     public void create(int idGiai, int idNoiDung, int idVdv,
-            int toaDoX, int toaDoY, int viTri, int soDo, LocalDateTime thoiGian) {
+            int toaDoX, int toaDoY, int viTri, int soDo,
+            LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
         validate(viTri, soDo, thoiGian);
         if (exists(idGiai, idNoiDung, viTri))
             throw new IllegalStateException("Vị trí đã có VĐV trong sơ đồ");
-        repo.add(new SoDoCaNhan(idGiai, idNoiDung, idVdv, toaDoX, toaDoY, viTri, soDo, thoiGian));
+        repo.add(new SoDoCaNhan(idGiai, idNoiDung, idVdv, toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
     }
 
     // READ
@@ -38,16 +39,28 @@ public class SoDoCaNhanService {
 
     // UPDATE
     public void update(int idGiai, int idNoiDung, int viTri,
-            int idVdv, int toaDoX, int toaDoY, int soDo, LocalDateTime thoiGian) {
+            int idVdv, int toaDoX, int toaDoY, int soDo,
+            LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
         validate(viTri, soDo, thoiGian);
-        getOne(idGiai, idNoiDung, viTri);
-        repo.update(new SoDoCaNhan(idGiai, idNoiDung, idVdv, toaDoX, toaDoY, viTri, soDo, thoiGian));
+        getOne(idGiai, idNoiDung, viTri); // ensure exists
+        repo.update(new SoDoCaNhan(idGiai, idNoiDung, idVdv, toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
     }
 
     // DELETE
     public void delete(int idGiai, int idNoiDung, int viTri) {
         getOne(idGiai, idNoiDung, viTri);
         repo.delete(idGiai, idNoiDung, viTri);
+    }
+
+    // PATCH tiện ích
+    public void setDiem(int idGiai, int idNoiDung, int viTri, Integer diem) {
+        if (repo.updateDiem(idGiai, idNoiDung, viTri, diem) == 0)
+            throw new NoSuchElementException("Không tìm thấy vị trí để cập nhật điểm");
+    }
+
+    public void setTranDau(int idGiai, int idNoiDung, int viTri, Integer idTranDau) {
+        if (repo.updateTranDau(idGiai, idNoiDung, viTri, idTranDau) == 0)
+            throw new NoSuchElementException("Không tìm thấy vị trí để cập nhật ID_TRẬN");
     }
 
     // Helpers
@@ -60,7 +73,5 @@ public class SoDoCaNhanService {
             throw new IllegalArgumentException("VI_TRI phải >= 0");
         if (soDo <= 0)
             throw new IllegalArgumentException("SO_DO phải > 0");
-        if (thoiGian == null)
-            throw new IllegalArgumentException("THOI_GIAN không được null");
     }
 }

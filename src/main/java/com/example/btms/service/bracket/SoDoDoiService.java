@@ -17,10 +17,11 @@ public class SoDoDoiService {
     }
 
     public void create(int idGiai, int idNoiDung, Integer idClb, String tenTeam,
-            Integer toaDoX, Integer toaDoY, int viTri, Integer soDo, LocalDateTime thoiGian) {
+            Integer toaDoX, Integer toaDoY, int viTri, Integer soDo,
+            LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
         validate(tenTeam, viTri);
         repo.add(new SoDoDoi(idGiai, idNoiDung, idClb, tenTeam.trim(),
-                toaDoX, toaDoY, viTri, soDo, thoiGian));
+                toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
     }
 
     public SoDoDoi getOne(int idGiai, int idNoiDung, int viTri) {
@@ -36,16 +37,28 @@ public class SoDoDoiService {
 
     public void update(int idGiai, int idNoiDung, int viTri,
             Integer idClb, String tenTeam, Integer toaDoX, Integer toaDoY,
-            Integer soDo, LocalDateTime thoiGian) {
+            Integer soDo, LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
         validate(tenTeam, viTri);
         getOne(idGiai, idNoiDung, viTri); // ensure exists
         repo.update(new SoDoDoi(idGiai, idNoiDung, idClb, tenTeam.trim(),
-                toaDoX, toaDoY, viTri, soDo, thoiGian));
+                toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
     }
 
     public void delete(int idGiai, int idNoiDung, int viTri) {
         getOne(idGiai, idNoiDung, viTri);
         repo.delete(idGiai, idNoiDung, viTri);
+    }
+
+    /** Tiện ích nhanh: đổi điểm */
+    public void setDiem(int idGiai, int idNoiDung, int viTri, Integer diem) {
+        if (repo.updateDiem(idGiai, idNoiDung, viTri, diem) == 0)
+            throw new NoSuchElementException("Không tìm thấy vị trí để cập nhật điểm");
+    }
+
+    /** Tiện ích nhanh: gán/hủy liên kết trận đấu */
+    public void setTranDau(int idGiai, int idNoiDung, int viTri, Integer idTranDau) {
+        if (repo.updateTranDau(idGiai, idNoiDung, viTri, idTranDau) == 0)
+            throw new NoSuchElementException("Không tìm thấy vị trí để cập nhật ID_TRẬN");
     }
 
     /* helper */
