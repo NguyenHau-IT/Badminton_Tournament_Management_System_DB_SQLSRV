@@ -60,6 +60,8 @@ public class BienBanPanel extends JPanel {
     private final JLabel lblGiai = new JLabel();
     private final JComboBox<Object> cboNoiDung = new JComboBox<>();
     private final JButton btnRefresh = new JButton("Làm mới");
+    private final javax.swing.JTextField txtSearchId = new javax.swing.JTextField(24);
+    private final JButton btnSearchId = new JButton("Tìm ID");
 
     private final DefaultTableModel matchModel = new DefaultTableModel(
             new Object[] { "Bắt đầu", "Nội dung", "Đối thủ A", "Đối thủ B", "Sân", "ID" }, 0) {
@@ -108,6 +110,15 @@ public class BienBanPanel extends JPanel {
         p.add(cboNoiDung);
         btnRefresh.addActionListener(e -> reloadMatches());
         p.add(btnRefresh);
+
+        // Search by match ID (UUID)
+        p.add(new JLabel(" | ID trận:"));
+        txtSearchId.setPreferredSize(new Dimension(260, 26));
+        p.add(txtSearchId);
+        btnSearchId.addActionListener(e -> searchByMatchId());
+        // press Enter to search
+        txtSearchId.addActionListener(e -> searchByMatchId());
+        p.add(btnSearchId);
         return p;
     }
 
@@ -361,11 +372,46 @@ public class BienBanPanel extends JPanel {
                     sb.append('\n');
                 }
             }
+            if (!matches.containsKey(idTranDau)) {
+                sb.append("(Lưu ý: ID này không nằm trong danh sách sơ đồ hiện tại)\n");
+            }
         } catch (RuntimeException ex) {
             sb.append("Lỗi tải biên bản: ").append(ex.getMessage());
         }
         detailArea.setText(sb.toString());
         detailArea.setCaretPosition(0);
+    }
+
+    // Search handler: try select in table; if not found, load details directly
+    private void searchByMatchId() {
+        String id = txtSearchId.getText();
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        String key = id.trim();
+        // find in table (exact or contains)
+        int foundRow = -1;
+        for (int i = 0; i < matchModel.getRowCount(); i++) {
+            Object v = matchModel.getValueAt(i, 5);
+            if (v == null)
+                continue;
+            String cell = v.toString();
+            if (cell.equalsIgnoreCase(key) || cell.contains(key)) {
+                foundRow = i;
+                break;
+            }
+        }
+        if (foundRow >= 0) {
+            try {
+                matchTable.setRowSelectionInterval(foundRow, foundRow);
+                matchTable.scrollRectToVisible(matchTable.getCellRect(foundRow, 0, true));
+            } catch (Exception ignore) {
+            }
+            loadMatchDetail(String.valueOf(matchModel.getValueAt(foundRow, 5)));
+        } else {
+            // Not in current list: attempt to load details directly
+            loadMatchDetail(key);
+        }
     }
 
     private static String nullToEmpty(String s) {
