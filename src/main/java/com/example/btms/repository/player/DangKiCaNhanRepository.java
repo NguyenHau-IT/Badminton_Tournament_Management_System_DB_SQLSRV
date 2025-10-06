@@ -1,11 +1,16 @@
 package com.example.btms.repository.player;
 
-import com.example.btms.model.player.DangKiCaNhan;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.example.btms.model.player.DangKiCaNhan;
 
 public class DangKiCaNhanRepository {
     private final Connection conn;
@@ -16,13 +21,19 @@ public class DangKiCaNhanRepository {
 
     /** CREATE */
     public void add(DangKiCaNhan r) {
-        String sql = "INSERT INTO DANG_KI_CA_NHAN (ID_GIAI, ID_NOI_DUNG, ID_VDV, THOI_GIAN_TAO) VALUES (?, ?, ?, ?)";
+        final String sql = """
+                INSERT INTO DANG_KI_CA_NHAN
+                    (ID_GIAI, ID_NOI_DUNG, ID_VDV, THOI_GIAN_TAO, KIEM_TRA)
+                VALUES (?, ?, ?, ?, ?)
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, r.getIdGiai());
             ps.setInt(2, r.getIdNoiDung());
             ps.setInt(3, r.getIdVdv());
-            ps.setTimestamp(4, r.getThoiGianTao() != null ? Timestamp.valueOf(r.getThoiGianTao())
-                    : Timestamp.valueOf(LocalDateTime.now()));
+            ps.setTimestamp(4, Timestamp.valueOf(
+                    r.getThoiGianTao() != null ? r.getThoiGianTao() : LocalDateTime.now()));
+            // nếu cột là BIT/TINYINT(1): dùng setBoolean; nếu muốn giữ null thì setObject
+            ps.setObject(5, r.getKiemTra() != null ? (r.getKiemTra() ? 1 : 0) : 0, Types.INTEGER);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi thêm DANG_KI_CA_NHAN", e);
@@ -31,7 +42,7 @@ public class DangKiCaNhanRepository {
 
     /** READ */
     public DangKiCaNhan findOne(int idGiai, int idNoiDung, int idVdv) {
-        String sql = "SELECT * FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_VDV=?";
+        final String sql = "SELECT * FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_VDV=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
@@ -44,13 +55,18 @@ public class DangKiCaNhanRepository {
         }
     }
 
-    /** LIST by giải + nội dung */
-    public List<DangKiCaNhan> list(int idGiai, int idNoiDung) {
-        String sql = "SELECT * FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY THOI_GIAN_TAO";
-        List<DangKiCaNhan> out = new ArrayList<>();
+    /** LIST by giải + nội dung (tuỳ chọn lọc KIEM_TRA) */
+    public List<DangKiCaNhan> list(int idGiai, int idNoiDung, Boolean kiemTra) {
+        final String base = "SELECT * FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=?";
+        final String order = " ORDER BY THOI_GIAN_TAO";
+        final String sql = kiemTra == null ? (base + order) : (base + " AND KIEM_TRA=?" + order);
+
+        final List<DangKiCaNhan> out = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
+            if (kiemTra != null)
+                ps.setInt(3, kiemTra ? 1 : 0);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next())
                     out.add(map(rs));
@@ -61,9 +77,23 @@ public class DangKiCaNhanRepository {
         return out;
     }
 
+    /** UPDATE KIEM_TRA */
+    public int updateKiemTra(int idGiai, int idNoiDung, int idVdv, boolean kiemTra) {
+        final String sql = "UPDATE DANG_KI_CA_NHAN SET KIEM_TRA=? WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_VDV=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, kiemTra ? 1 : 0);
+            ps.setInt(2, idGiai);
+            ps.setInt(3, idNoiDung);
+            ps.setInt(4, idVdv);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi cập nhật KIEM_TRA", e);
+        }
+    }
+
     /** DELETE */
     public void delete(int idGiai, int idNoiDung, int idVdv) {
-        String sql = "DELETE FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_VDV=?";
+        final String sql = "DELETE FROM DANG_KI_CA_NHAN WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND ID_VDV=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
@@ -98,10 +128,16 @@ public class DangKiCaNhanRepository {
     }
 
     private DangKiCaNhan map(ResultSet rs) throws SQLException {
+        final Timestamp ts = rs.getTimestamp("THOI_GIAN_TAO");
+        // KIEM_TRA có thể là BIT/TINYINT(1) => đọc về int/boolean
+        Object ktObj = rs.getObject("KIEM_TRA");
+        Boolean kt = (ktObj == null) ? null : (rs.getInt("KIEM_TRA") != 0);
+
         return new DangKiCaNhan(
                 rs.getInt("ID_GIAI"),
                 rs.getInt("ID_NOI_DUNG"),
                 rs.getInt("ID_VDV"),
-                rs.getTimestamp("THOI_GIAN_TAO") != null ? rs.getTimestamp("THOI_GIAN_TAO").toLocalDateTime() : null);
+                ts != null ? ts.toLocalDateTime() : null,
+                kt != null ? kt : Boolean.FALSE);
     }
 }
