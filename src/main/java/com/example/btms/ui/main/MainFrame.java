@@ -1756,7 +1756,7 @@ public class MainFrame extends JFrame {
                     new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
             var bocSvc = new com.example.btms.service.draw.BocThamCaNhanService(
                     new com.example.btms.repository.draw.BocThamCaNhanRepository(conn));
-            var regs = dkSvc.listByGiaiAndNoiDung(idGiai, idNoiDung);
+            var regs = dkSvc.listByGiaiAndNoiDung(idGiai, idNoiDung, null);
             java.util.Collections.shuffle(regs);
             var existed = bocSvc.list(idGiai, idNoiDung);
             for (var r : existed)

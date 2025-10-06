@@ -246,7 +246,7 @@ public final class RegistrationPdfExporter {
 
         Map<Integer, List<DangKiCaNhan>> singlesByNd = new LinkedHashMap<>();
         for (NoiDung nd : singles) {
-            List<DangKiCaNhan> regs = dkcnSvc.listByGiaiAndNoiDung(idGiai, nd.getId());
+            List<DangKiCaNhan> regs = dkcnSvc.listByGiaiAndNoiDung(idGiai, nd.getId(), null);
             singlesByNd.put(nd.getId(), regs);
         }
 

@@ -277,7 +277,7 @@ public class DangKyCaNhanDialog extends JDialog {
                 int newGiai = idGiai;
                 int newNd = nd.getId();
                 int newV = v.getId();
-                dkService.register(newGiai, newNd, newV, LocalDateTime.now());
+                dkService.register(newGiai, newNd, newV, LocalDateTime.now(), false);
             }
             dispose();
         } catch (RuntimeException ex) {
