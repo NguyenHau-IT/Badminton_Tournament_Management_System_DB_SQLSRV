@@ -1,11 +1,11 @@
 # 📊 BÁO CÁO CÔNG NGHỆ VÀ TÍNH NĂNG · v2
 
-Hệ thống Quản lý Đa sân Cầu lông (Badminton Tech)
+Hệ thống Quản lý Đa sân Cầu lông (Badminton Tech / BTMS)
 
 ---
 
 ## 📋 Thông tin tổng quan
-- Tên dự án: Badminton Tech (BT)
+- Tên dự án: Badminton Tech (BT) · Badminton Tournament Management System (BTMS)
 - Phiên bản hiện tại: 2.0.0
 - Nhà phát triển: Nguyen Viet Hau
 - Kiểu ứng dụng: Desktop (Java Swing) + Web (Spring Boot + Thymeleaf)
@@ -31,8 +31,8 @@ Java Swing Desktop (MainFrame, các Panel quản trị)
         ▼
 Spring Boot (Web + REST API + SSE)  ←→  SQL Server (JDBC/Hikari/JPA)
         │
-        ├── Thymeleaf view (/pin, /scoreboard/{pin}) + Static (CSS/JS)
-        └── REST API (/api/court/**) + SSE stream
+  ├── Thymeleaf view (/pin, /scoreboard/{pin}) + Static (CSS/JS)
+  └── REST API (/api/court/**, /api/scoreboard/**) + SSE stream
 ```
 Đặc điểm:
 - Ứng dụng desktop và dịch vụ web đồng quy trình (fat-jar Spring Boot, mở Swing UI trong JVM không headless).
@@ -49,20 +49,21 @@ Spring Boot (Web + REST API + SSE)  ←→  SQL Server (JDBC/Hikari/JPA)
 - Desktop UI: Java Swing + FlatLaf 3.4 (flatlaf, flatlaf-extras)
 
 ### Web & API
-- Spring Web MVC, Thymeleaf (templates: `pin-entry.html`, `scoreboard.html`)
-- Static assets: Bootstrap 5.3.3 (CDN), Bootstrap Icons, jQuery 3.7.1, custom JS/CSS (`/static/js/*.js`, `/static/css/*.css`)
+- Spring Web MVC, Thymeleaf (templates: `templates/pin/pin-entry.html`, `templates/scoreboard/scoreboard.html`)
+- Static assets: Bootstrap 5.3.3 (CDN), Bootstrap Icons, jQuery 3.7.1, custom JS/CSS (`/js/pin/pin.js`, `/js/scoreboard/scoreboard.js`, `/css/pin/pin.css`, `/css/scoreboard/scoreboard.css`)
 - SSE (Server-Sent Events) qua `SseEmitter`
 
 ### CSDL & dữ liệu
 - Microsoft SQL Server (JDBC driver: `com.microsoft.sqlserver:mssql-jdbc`)
 - Cấu hình HikariCP (pool): maximumPoolSize=10, minimumIdle=5, timeout/lifetime tối ưu sẵn
-- JPA/Hibernate: `ddl-auto=update`, dialect SQL Server
+- JPA/Hibernate: `ddl-auto=update`, dialect SQL Server, `spring.jpa.show-sql=false`
 
 ### Thư viện bổ trợ
 - OkHttp/okhttp-sse (client-side HTTP nếu cần)
 - Jackson Databind (JSON)
 - ZXing (QR Code)
 - jcalendar (chọn ngày cho UI)
+- OpenPDF 1.3.39 (xuất PDF)
 
 ### Build & phát hành
 - Maven + Spring Boot Maven Plugin (fat-jar)
@@ -81,13 +82,18 @@ File: `src/main/resources/application.properties`
   - `server.port=2345`
   - `spring.main.headless=false` (cho phép mở UI Swing)
 - SQL Server (mẫu đi kèm)
-  - `spring.datasource.url=jdbc:sqlserver://GODZILLA\\SQLDEV:1433;databaseName=badminton;encrypt=true;trustServerCertificate=true;`
+  - `spring.datasource.url=jdbc:sqlserver://GODZILLA\\SQLDEV:1433;databaseName=badminton_tournament;encrypt=true;trustServerCertificate=true;`
   - `spring.datasource.username=hau2`
   - `spring.datasource.password=hau123`
+  - `spring.datasource.driver-class-name=com.microsoft.sqlserver.jdbc.SQLServerDriver`
   - Hikari pool: `maximum-pool-size=10`, `minimum-idle=5`, …
 - JPA/Hibernate
   - `spring.jpa.hibernate.ddl-auto=update`
   - `spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.SQLServerDialect`
+  - `spring.jpa.show-sql=false`
+
+- Thông tin ứng dụng
+  - `spring.application.name=BadmintonEventTechnology`
 
 Desktop auto-connect (MainFrame.autoConnectDatabase):
 - Đọc cấu hình runtime (nếu có) hoặc fallback sang `GODZILLA\\SQLDEV:1433`, database `badminton`, user `hau2`.
@@ -126,22 +132,23 @@ Các tiện ích UI:
 ---
 
 ## 🌐 Web interface & PIN flow
-- Trang nhập PIN: `GET /pin` (Thymeleaf -> `pin-entry.html`)
+- Trang nhập PIN: `GET /pin` (Thymeleaf -> `templates/pin/pin-entry.html`)
   - Hướng dẫn nhập PIN, QR, copy link nhanh.
-- Trang bảng điểm: `GET /scoreboard/{pin}` (Thymeleaf -> `scoreboard.html`)
+- Trang bảng điểm: `GET /scoreboard/{pin}` (Thymeleaf -> `templates/scoreboard/scoreboard.html`)
   - Giao diện responsive, tối ưu mobile.
   - Badge hiển thị ván hiện tại, BO, đội đang giao cầu và vị trí giao cầu R/L.
   - Nút: Làm mới, Đặt lại, Đổi sân, Đổi giao cầu, Ván tiếp theo, Fullscreen, quay về trang PIN.
 
-JS client (`/static/js/scoreboard.js`):
+JS client (`/js/scoreboard/scoreboard.js`):
 - Kết nối SSE: `/api/court/{pin}/stream` (sự kiện `init` + `update`), fallback sang tự động refresh 3s (`/sync`).
 - Xử lý logic R/L theo luật giao cầu (server chẵn = R, lẻ = L), sắp tên ở layout đơn/đôi, gợi ý tự động chuyển ván/đổi sân khi kết thúc ván.
 - Phím tắt: N (next), S (swap), G (change server), F (fullscreen), +/- cho điểm.
 
 ---
 
-## 🔌 REST API & SSE (theo PIN)
-Base path: `/api/court` (CORS: `*`)
+## 🔌 REST API & SSE
+
+Mode 1 — Theo PIN (đa sân)  · Base path: `/api/court` (CORS: `*`)
 - GET `/{pin}` → tổng quan (kiểu đơn giản: teamAScore, teamBScore)
 - GET `/{pin}/status` → kiểm tra PIN hợp lệ, trả kèm courtId/header nếu có
 - GET `/{pin}/sync` → snapshot chi tiết trận đấu
@@ -151,6 +158,12 @@ Base path: `/api/court` (CORS: `*`)
 - POST `/{pin}/reset` | `/{pin}/next` | `/{pin}/swap` | `/{pin}/change-server` | `/{pin}/undo`
 - POST `/{pin}/{action}` → endpoint tổng quát tương thích JS cũ
 - GET `/health` → kiểm tra controller
+
+Mode 2 — Không dùng PIN (single scoreboard) · Base path: `/api/scoreboard`
+- GET `/` → tổng quan (kiểu đơn giản: teamAScore, teamBScore)
+- GET `/sync` → snapshot chi tiết trận đấu
+- GET `/stream` (text/event-stream) → SSE
+- POST `/increaseA|decreaseA|increaseB|decreaseB|reset|next|swap|change-server|undo`
 
 Cấu trúc snapshot (rút trích từ client/server):
 ```
@@ -167,7 +180,10 @@ Cấu trúc snapshot (rút trích từ client/server):
 ```
 
 Ghi chú:
-- SSE phát qua `SseEmitter` với thread pool broadcast riêng (8 threads), client-side throttle tối thiểu ~80ms.
+- SSE phát qua `SseEmitter`:
+  - Ở chế độ PIN (`/api/court`): broadcast dùng thread pool riêng (8 threads) để tránh block (xem `ScoreboardPinController`).
+  - Ở chế độ không PIN (`/api/scoreboard`): broadcast trực tiếp qua danh sách kết nối (xem `ScoreboardController`).
+  - Client áp dụng throttle tối thiểu ~80ms.
 - Khi sự kiện quan trọng thay đổi (score/games/gameNumber/server) sẽ tự động broadcast `update`.
 
 ---
@@ -176,7 +192,7 @@ Ghi chú:
 - Tournament (GiaiDau, chọn giải, đăng ký nội dung theo giải)
 - Danh mục: Nội dung, Câu lạc bộ (service/repository theo kết nối SQLSRV)
 - AuthService & LoginTab (phân quyền ADMIN/CLIENT ảnh hưởng tab và chế độ giám sát)
-- ScreenshotReceiver/ScoreboardHub/ScoreboardRemote (điểm phát, quản lý state scoreboard)
+- ScreenshotReceiver/ScoreboardHub/ScoreboardRemote (UDP nhận screenshot port 2346; quản lý state scoreboard)
 - LogTab & util.log.Log (ghi log các sự kiện: tăng/giảm điểm, đổi sân, ván tiếp theo…)
 
 ---
@@ -240,9 +256,9 @@ Build nhanh (tham khảo):
 ## 📎 Phụ lục: Tham chiếu mã nguồn chính
 - Cấu hình & build: `pom.xml`, `jvm-optimization.conf`, `resize-images*.bat`
 - Cấu hình server & DB: `src/main/resources/application.properties`
-- Giao diện web: `templates/pin-entry.html`, `templates/scoreboard.html`, `static/js/scoreboard.js`, `static/css/modern.css`
-- Khung desktop: `ui/main/MainFrame.java` + các Panel: control, monitor, screenshot, tournament, category, club…
-- API & SSE: `controller/ScoreboardPinController.java`, `controller/ScoreboardViewController.java`
+- Giao diện web: `src/main/resources/templates/pin/pin-entry.html`, `src/main/resources/templates/scoreboard/scoreboard.html`, `src/main/resources/static/js/scoreboard/scoreboard.js`, `src/main/resources/static/css/scoreboard/scoreboard.css`, `src/main/resources/static/css/pin/pin.css`
+- Khung desktop: `src/main/java/com/example/btms/ui/main/MainFrame.java` + các Panel: control, monitor, screenshot, tournament, category, club…
+- API & SSE: `src/main/java/com/example/btms/controller/scoreBoard/ScoreboardPinController.java`, `src/main/java/com/example/btms/controller/scoreBoard/ScoreboardController.java`, `src/main/java/com/example/btms/controller/scoreBoard/ScoreboardViewController.java`
 - Scoreboard service: `service/scoreboard/*` (broadcast UDP, màn hình hiển thị dọc/ngang)
 
 ---
