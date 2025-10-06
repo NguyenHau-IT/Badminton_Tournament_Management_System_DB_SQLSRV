@@ -15,33 +15,56 @@ import com.example.btms.model.bracket.SoDoDoi;
 public class SoDoDoiRepository {
     private final Connection conn;
 
-    public SoDoDoiRepository(Connection conn) { this.conn = conn; }
+    public SoDoDoiRepository(Connection conn) {
+        this.conn = conn;
+    }
 
     /** CREATE */
     public int add(SoDoDoi row) {
         final String sql = """
-            INSERT INTO SO_DO_DOI
-                (ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM, TOA_DO_X, TOA_DO_Y,
-                 VI_TRI, SO_DO, THOI_GIAN, DIEM, ID_TRAN_DAU)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """;
+                INSERT INTO SO_DO_DOI
+                    (ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM, TOA_DO_X, TOA_DO_Y,
+                     VI_TRI, SO_DO, THOI_GIAN, DIEM, ID_TRAN_DAU)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, row.getIdGiai());
             ps.setInt(2, row.getIdNoiDung());
-            if (row.getIdClb() == null) ps.setNull(3, Types.INTEGER); else ps.setInt(3, row.getIdClb());
+            if (row.getIdClb() == null)
+                ps.setNull(3, Types.INTEGER);
+            else
+                ps.setInt(3, row.getIdClb());
             ps.setString(4, row.getTenTeam());
-            if (row.getToaDoX() == null) ps.setNull(5, Types.INTEGER); else ps.setInt(5, row.getToaDoX());
-            if (row.getToaDoY() == null) ps.setNull(6, Types.INTEGER); else ps.setInt(6, row.getToaDoY());
+            if (row.getToaDoX() == null)
+                ps.setNull(5, Types.INTEGER);
+            else
+                ps.setInt(5, row.getToaDoX());
+            if (row.getToaDoY() == null)
+                ps.setNull(6, Types.INTEGER);
+            else
+                ps.setInt(6, row.getToaDoY());
             ps.setInt(7, row.getViTri());
-            if (row.getSoDo() == null) ps.setNull(8, Types.INTEGER); else ps.setInt(8, row.getSoDo());
-            if (row.getThoiGian() == null) ps.setNull(9, Types.TIMESTAMP);
-            else ps.setTimestamp(9, Timestamp.valueOf(row.getThoiGian()));
-            if (row.getDiem() == null) ps.setNull(10, Types.INTEGER); else ps.setInt(10, row.getDiem());
-            if (row.getIdTranDau() == null) ps.setNull(11, Types.INTEGER); else ps.setInt(11, row.getIdTranDau());
+            if (row.getSoDo() == null)
+                ps.setNull(8, Types.INTEGER);
+            else
+                ps.setInt(8, row.getSoDo());
+            if (row.getThoiGian() == null)
+                ps.setNull(9, Types.TIMESTAMP);
+            else
+                ps.setTimestamp(9, Timestamp.valueOf(row.getThoiGian()));
+            if (row.getDiem() == null)
+                ps.setNull(10, Types.INTEGER);
+            else
+                ps.setInt(10, row.getDiem());
+            if (row.getIdTranDau() == null)
+                ps.setNull(11, Types.VARCHAR);
+            else
+                ps.setString(11, row.getIdTranDau());
 
             int affected = ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) return keys.getInt(1);
+                if (keys.next())
+                    return keys.getInt(1);
             }
             return affected;
         } catch (SQLException e) {
@@ -72,7 +95,8 @@ public class SoDoDoiRepository {
             ps.setInt(1, idGiai);
             ps.setInt(2, idNoiDung);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) list.add(map(rs));
+                while (rs.next())
+                    list.add(map(rs));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi liệt kê SO_DO_DOI", e);
@@ -83,21 +107,41 @@ public class SoDoDoiRepository {
     /** UPDATE full row (ten, tọa độ, sơ đồ, thời gian, điểm, id trận) */
     public void update(SoDoDoi row) {
         final String sql = """
-            UPDATE SO_DO_DOI
-               SET ID_CLB=?, TEN_TEAM=?, TOA_DO_X=?, TOA_DO_Y=?, SO_DO=?,
-                   THOI_GIAN=?, DIEM=?, ID_TRAN_DAU=?
-             WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?
-            """;
+                UPDATE SO_DO_DOI
+                   SET ID_CLB=?, TEN_TEAM=?, TOA_DO_X=?, TOA_DO_Y=?, SO_DO=?,
+                       THOI_GIAN=?, DIEM=?, ID_TRAN_DAU=?
+                 WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (row.getIdClb() == null) ps.setNull(1, Types.INTEGER); else ps.setInt(1, row.getIdClb());
+            if (row.getIdClb() == null)
+                ps.setNull(1, Types.INTEGER);
+            else
+                ps.setInt(1, row.getIdClb());
             ps.setString(2, row.getTenTeam());
-            if (row.getToaDoX() == null) ps.setNull(3, Types.INTEGER); else ps.setInt(3, row.getToaDoX());
-            if (row.getToaDoY() == null) ps.setNull(4, Types.INTEGER); else ps.setInt(4, row.getToaDoY());
-            if (row.getSoDo() == null) ps.setNull(5, Types.INTEGER); else ps.setInt(5, row.getSoDo());
-            if (row.getThoiGian() == null) ps.setNull(6, Types.TIMESTAMP);
-            else ps.setTimestamp(6, Timestamp.valueOf(row.getThoiGian()));
-            if (row.getDiem() == null) ps.setNull(7, Types.INTEGER); else ps.setInt(7, row.getDiem());
-            if (row.getIdTranDau() == null) ps.setNull(8, Types.INTEGER); else ps.setInt(8, row.getIdTranDau());
+            if (row.getToaDoX() == null)
+                ps.setNull(3, Types.INTEGER);
+            else
+                ps.setInt(3, row.getToaDoX());
+            if (row.getToaDoY() == null)
+                ps.setNull(4, Types.INTEGER);
+            else
+                ps.setInt(4, row.getToaDoY());
+            if (row.getSoDo() == null)
+                ps.setNull(5, Types.INTEGER);
+            else
+                ps.setInt(5, row.getSoDo());
+            if (row.getThoiGian() == null)
+                ps.setNull(6, Types.TIMESTAMP);
+            else
+                ps.setTimestamp(6, Timestamp.valueOf(row.getThoiGian()));
+            if (row.getDiem() == null)
+                ps.setNull(7, Types.INTEGER);
+            else
+                ps.setInt(7, row.getDiem());
+            if (row.getIdTranDau() == null)
+                ps.setNull(8, Types.VARCHAR);
+            else
+                ps.setString(8, row.getIdTranDau());
 
             ps.setInt(9, row.getIdGiai());
             ps.setInt(10, row.getIdNoiDung());
@@ -112,7 +156,10 @@ public class SoDoDoiRepository {
     public int updateDiem(int idGiai, int idNoiDung, int viTri, Integer diem) {
         final String sql = "UPDATE SO_DO_DOI SET DIEM=? WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (diem == null) ps.setNull(1, Types.INTEGER); else ps.setInt(1, diem);
+            if (diem == null)
+                ps.setNull(1, Types.INTEGER);
+            else
+                ps.setInt(1, diem);
             ps.setInt(2, idGiai);
             ps.setInt(3, idNoiDung);
             ps.setInt(4, viTri);
@@ -123,10 +170,13 @@ public class SoDoDoiRepository {
     }
 
     /** PATCH: gán/huỷ liên kết trận đấu */
-    public int updateTranDau(int idGiai, int idNoiDung, int viTri, Integer idTranDau) {
+    public int updateTranDau(int idGiai, int idNoiDung, int viTri, String idTranDau) {
         final String sql = "UPDATE SO_DO_DOI SET ID_TRAN_DAU=? WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            if (idTranDau == null) ps.setNull(1, Types.INTEGER); else ps.setInt(1, idTranDau);
+            if (idTranDau == null)
+                ps.setNull(1, Types.VARCHAR);
+            else
+                ps.setString(1, idTranDau);
             ps.setInt(2, idGiai);
             ps.setInt(3, idNoiDung);
             ps.setInt(4, viTri);
@@ -151,17 +201,17 @@ public class SoDoDoiRepository {
 
     private SoDoDoi map(ResultSet rs) throws SQLException {
         return new SoDoDoi(
-            rs.getInt("ID_GIAI"),
-            rs.getInt("ID_NOI_DUNG"),
-            rs.getObject("ID_CLB") != null ? rs.getInt("ID_CLB") : null,
-            rs.getString("TEN_TEAM"),
-            rs.getObject("TOA_DO_X") != null ? rs.getInt("TOA_DO_X") : null,
-            rs.getObject("TOA_DO_Y") != null ? rs.getInt("TOA_DO_Y") : null,
-            rs.getInt("VI_TRI"),
-            rs.getObject("SO_DO") != null ? rs.getInt("SO_DO") : null,
-            rs.getTimestamp("THOI_GIAN") != null ? rs.getTimestamp("THOI_GIAN").toLocalDateTime() : null,
-            rs.getObject("DIEM") != null ? rs.getInt("DIEM") : null,                 // NEW
-            rs.getObject("ID_TRAN_DAU") != null ? rs.getInt("ID_TRAN_DAU") : null    // NEW
+                rs.getInt("ID_GIAI"),
+                rs.getInt("ID_NOI_DUNG"),
+                rs.getObject("ID_CLB") != null ? rs.getInt("ID_CLB") : null,
+                rs.getString("TEN_TEAM"),
+                rs.getObject("TOA_DO_X") != null ? rs.getInt("TOA_DO_X") : null,
+                rs.getObject("TOA_DO_Y") != null ? rs.getInt("TOA_DO_Y") : null,
+                rs.getInt("VI_TRI"),
+                rs.getObject("SO_DO") != null ? rs.getInt("SO_DO") : null,
+                rs.getTimestamp("THOI_GIAN") != null ? rs.getTimestamp("THOI_GIAN").toLocalDateTime() : null,
+                rs.getObject("DIEM") != null ? rs.getInt("DIEM") : null, // NEW
+                rs.getString("ID_TRAN_DAU") != null ? rs.getString("ID_TRAN_DAU") : null // NEW
         );
     }
 }

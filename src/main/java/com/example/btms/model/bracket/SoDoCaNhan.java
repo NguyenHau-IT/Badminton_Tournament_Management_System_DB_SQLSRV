@@ -13,7 +13,7 @@ public class SoDoCaNhan {
     private Integer soDo;
     private LocalDateTime thoiGian;
     private Integer diem; // NEW
-    private Integer idTranDau; // NEW
+    private String idTranDau; // NEW: store UUID (char(36))
 
     public SoDoCaNhan() {
     }
@@ -21,7 +21,7 @@ public class SoDoCaNhan {
     public SoDoCaNhan(Integer idGiai, Integer idNoiDung, Integer idVdv,
             Integer toaDoX, Integer toaDoY, Integer viTri,
             Integer soDo, LocalDateTime thoiGian,
-            Integer diem, Integer idTranDau) {
+            Integer diem, String idTranDau) {
         this.idGiai = Objects.requireNonNull(idGiai, "ID_GIAI null");
         this.idNoiDung = Objects.requireNonNull(idNoiDung, "ID_NOI_DUNG null");
         this.idVdv = Objects.requireNonNull(idVdv, "ID_VDV null");
@@ -107,11 +107,11 @@ public class SoDoCaNhan {
         this.diem = diem;
     }
 
-    public Integer getIdTranDau() {
+    public String getIdTranDau() {
         return idTranDau;
     }
 
-    public void setIdTranDau(Integer idTranDau) {
+    public void setIdTranDau(String idTranDau) {
         this.idTranDau = idTranDau;
     }
 

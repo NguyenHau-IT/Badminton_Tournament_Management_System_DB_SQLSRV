@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import com.example.btms.model.match.ChiTietTranDau;
 import com.example.btms.repository.match.ChiTietTranDauRepository;
+import com.example.btms.util.uuid.UuidV7;
 
 public class ChiTietTranDauService {
     private final ChiTietTranDauRepository repo;
@@ -22,6 +23,16 @@ public class ChiTietTranDauService {
         if (id == null || id.isBlank())
             id = UUID.randomUUID().toString();
         validateTimes(batDau, ketThuc);
+        repo.add(new ChiTietTranDau(id, theThuc, idVdvThang, batDau, ketThuc, san));
+        return id;
+    }
+
+    /** Tạo trận với UUID v7 (time-ordered) làm ID. */
+    public String createV7(LocalDateTime batDau, int theThuc, int san) {
+        String id = UuidV7.generate();
+        // ID_VDV_THANG chưa biết khi bắt đầu (0 nghĩa là chưa có)
+        int idVdvThang = 0;
+        LocalDateTime ketThuc = batDau; // placeholder, sẽ update khi kết thúc
         repo.add(new ChiTietTranDau(id, theThuc, idVdvThang, batDau, ketThuc, san));
         return id;
     }

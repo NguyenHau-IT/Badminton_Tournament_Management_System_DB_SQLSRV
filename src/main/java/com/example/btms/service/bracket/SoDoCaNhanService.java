@@ -18,8 +18,8 @@ public class SoDoCaNhanService {
     // CREATE
     public void create(int idGiai, int idNoiDung, int idVdv,
             int toaDoX, int toaDoY, int viTri, int soDo,
-            LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
-        validate(viTri, soDo, thoiGian);
+            LocalDateTime thoiGian, Integer diem, String idTranDau) {
+        validate(viTri, soDo);
         if (exists(idGiai, idNoiDung, viTri))
             throw new IllegalStateException("Vị trí đã có VĐV trong sơ đồ");
         repo.add(new SoDoCaNhan(idGiai, idNoiDung, idVdv, toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
@@ -40,10 +40,11 @@ public class SoDoCaNhanService {
     // UPDATE
     public void update(int idGiai, int idNoiDung, int viTri,
             int idVdv, int toaDoX, int toaDoY, int soDo,
-            LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
-        validate(viTri, soDo, thoiGian);
+            LocalDateTime thoiGian, Integer diem, String idTranDau) {
+        validate(viTri, soDo);
         getOne(idGiai, idNoiDung, viTri); // ensure exists
-        repo.update(new SoDoCaNhan(idGiai, idNoiDung, idVdv, toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
+        repo.update(
+                new SoDoCaNhan(idGiai, idNoiDung, idVdv, toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
     }
 
     // DELETE
@@ -58,9 +59,24 @@ public class SoDoCaNhanService {
             throw new NoSuchElementException("Không tìm thấy vị trí để cập nhật điểm");
     }
 
-    public void setTranDau(int idGiai, int idNoiDung, int viTri, Integer idTranDau) {
+    public void setTranDau(int idGiai, int idNoiDung, int viTri, String idTranDau) {
         if (repo.updateTranDau(idGiai, idNoiDung, viTri, idTranDau) == 0)
             throw new NoSuchElementException("Không tìm thấy vị trí để cập nhật ID_TRẬN");
+    }
+
+    /**
+     * Liên kết ID trận cho tất cả slot của VĐV trong một sơ đồ (theo ID_VDV).
+     * Trả về số bản ghi được cập nhật.
+     */
+    public int linkTranDauByVdv(int idGiai, int idNoiDung, int idVdv, String matchId) {
+        int updated = 0;
+        List<SoDoCaNhan> rows = list(idGiai, idNoiDung);
+        for (SoDoCaNhan r : rows) {
+            if (r.getIdVdv() != null && r.getIdVdv() == idVdv && r.getIdTranDau() == null) {
+                updated += repo.updateTranDau(idGiai, idNoiDung, r.getViTri(), matchId);
+            }
+        }
+        return updated;
     }
 
     // Helpers
@@ -68,7 +84,7 @@ public class SoDoCaNhanService {
         return repo.findOne(idGiai, idNoiDung, viTri) != null;
     }
 
-    private void validate(int viTri, int soDo, LocalDateTime thoiGian) {
+    private void validate(int viTri, int soDo) {
         if (viTri < 0)
             throw new IllegalArgumentException("VI_TRI phải >= 0");
         if (soDo <= 0)

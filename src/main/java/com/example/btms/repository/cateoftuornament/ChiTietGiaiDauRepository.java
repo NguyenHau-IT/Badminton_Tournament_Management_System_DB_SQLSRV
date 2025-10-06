@@ -19,7 +19,7 @@ public class ChiTietGiaiDauRepository {
 
     // CREATE - Thêm chi tiết giải đấu
     public void addChiTietGiaiDau(ChiTietGiaiDau chiTiet) {
-        String sql = "INSERT INTO CHI_TIET_GIAI_DAU (ID_GIAI_DAU, ID_NOI_DUNG, TUOI_DUOI, TUOI_TREN) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO CHI_TIET_GIAI_DAU (ID_GIAI, ID_NOI_DUNG, TUOI_DUOI, TUOI_TREN) VALUES (?, ?, ?, ?)";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, chiTiet.getIdGiaiDau());
             pstmt.setInt(2, chiTiet.getIdNoiDung());
@@ -39,7 +39,7 @@ public class ChiTietGiaiDauRepository {
                 ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 ChiTietGiaiDau chiTiet = new ChiTietGiaiDau(
-                        rs.getInt("ID_GIAI_DAU"),
+                        rs.getInt("ID_GIAI"),
                         rs.getInt("ID_NOI_DUNG"),
                         rs.getInt("TUOI_DUOI"),
                         rs.getInt("TUOI_TREN"));
@@ -53,14 +53,14 @@ public class ChiTietGiaiDauRepository {
 
     // READ - Lấy theo ID (cặp ID_GIAI_DAU + ID_NOI_DUNG)
     public ChiTietGiaiDau getChiTietGiaiDauById(int idGiaiDau, int idNoiDung) {
-        String sql = "SELECT * FROM CHI_TIET_GIAI_DAU WHERE ID_GIAI_DAU = ? AND ID_NOI_DUNG = ?";
+        String sql = "SELECT * FROM CHI_TIET_GIAI_DAU WHERE ID_GIAI = ? AND ID_NOI_DUNG = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, idGiaiDau);
             pstmt.setInt(2, idNoiDung);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     return new ChiTietGiaiDau(
-                            rs.getInt("ID_GIAI_DAU"),
+                            rs.getInt("ID_GIAI"),
                             rs.getInt("ID_NOI_DUNG"),
                             rs.getInt("TUOI_DUOI"),
                             rs.getInt("TUOI_TREN"));
@@ -74,7 +74,7 @@ public class ChiTietGiaiDauRepository {
 
     // UPDATE - Cập nhật chi tiết giải đấu
     public void updateChiTietGiaiDau(ChiTietGiaiDau chiTiet) {
-        String sql = "UPDATE CHI_TIET_GIAI_DAU SET TUOI_DUOI = ?, TUOI_TREN = ? WHERE ID_GIAI_DAU = ? AND ID_NOI_DUNG = ?";
+        String sql = "UPDATE CHI_TIET_GIAI_DAU SET TUOI_DUOI = ?, TUOI_TREN = ? WHERE ID_GIAI = ? AND ID_NOI_DUNG = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, chiTiet.getTuoiDuoi());
             pstmt.setInt(2, chiTiet.getTuoiTren());
@@ -88,7 +88,7 @@ public class ChiTietGiaiDauRepository {
 
     // DELETE - Xóa chi tiết giải đấu
     public void deleteChiTietGiaiDau(int idGiaiDau, int idNoiDung) {
-        String sql = "DELETE FROM CHI_TIET_GIAI_DAU WHERE ID_GIAI_DAU = ? AND ID_NOI_DUNG = ?";
+        String sql = "DELETE FROM CHI_TIET_GIAI_DAU WHERE ID_GIAI = ? AND ID_NOI_DUNG = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, idGiaiDau);
             pstmt.setInt(2, idNoiDung);

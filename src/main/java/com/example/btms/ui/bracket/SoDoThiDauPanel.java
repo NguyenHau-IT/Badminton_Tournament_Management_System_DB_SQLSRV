@@ -173,11 +173,14 @@ public class SoDoThiDauPanel extends JPanel {
         add(canvasScroll, BorderLayout.CENTER);
         add(buildRightPanel(), BorderLayout.EAST);
         setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
-        // Load ngay (đồng bộ) để tránh race khi caller gọi selectNoiDungById rồi
-        // auto-save
-        loadNoiDungOptions();
+        // Chỉ tải dữ liệu khi đã có giải được chọn trong Prefs
         updateGiaiLabel();
-        loadBestAvailable();
+        if (prefs.getInt("selectedGiaiDauId", -1) > 0) {
+            // Load ngay (đồng bộ) để tránh race khi caller gọi selectNoiDungById rồi
+            // auto-save
+            loadNoiDungOptions();
+            loadBestAvailable();
+        }
         installMatchModeInteraction();
         // Khôi phục chế độ đã chọn trước đó
         try {
@@ -235,7 +238,9 @@ public class SoDoThiDauPanel extends JPanel {
     public void reloadData() {
         try {
             updateGiaiLabel();
-            loadBestAvailable();
+            if (prefs.getInt("selectedGiaiDauId", -1) > 0) {
+                loadBestAvailable();
+            }
         } catch (Exception ignore) {
         }
     }
@@ -1667,7 +1672,8 @@ public class SoDoThiDauPanel extends JPanel {
                                 soDo = bocThamService.getSoDo(idGiai, idNoiDung, idClb);
                         } catch (RuntimeException ignored) {
                         }
-                        soDoDoiService.create(idGiai, idNoiDung, idClb, s.text.trim(), s.x, s.y, s.order, soDo, now);
+                        soDoDoiService.create(idGiai, idNoiDung, idClb, s.text.trim(), s.x, s.y, s.order, soDo, now,
+                                null, null);
                     }
                 }
             } else {
@@ -1694,7 +1700,7 @@ public class SoDoThiDauPanel extends JPanel {
                                 soDo = bt.getSoDo();
                         } catch (RuntimeException ignore) {
                         }
-                        soDoCaNhanService.create(idGiai, idNoiDung, idVdv, s.x, s.y, s.order, soDo, now);
+                        soDoCaNhanService.create(idGiai, idNoiDung, idVdv, s.x, s.y, s.order, soDo, now, null, null);
                     }
                 }
             }
@@ -2520,13 +2526,14 @@ public class SoDoThiDauPanel extends JPanel {
         // Độ dịch sang phải cơ sở cho mỗi mức sâu hơn (cột > 1). Tổng offset =
         // (col-1)*BASE
         private static final int BASE_INNER_RIGHT_OFFSET = 60; // px mỗi cột (giãn thêm theo chiều ngang)
-        // Giảm khoảng trống phía trên (trước đây dùng 62)
-        private static final int START_Y = 10; // px
+        // Giảm khoảng trống phía trên (trước đây dùng 62) và dời sơ đồ xuống nhẹ
+        private static final int START_Y = 20; // px
         // Canvas width will be expanded dynamically based on the longest name
 
         private List<String> participants = new ArrayList<>(); // tên tại cột seedColumn
         private int seedColumn = 1; // cột sẽ hiển thị danh sách ban đầu (1..columns)
         private final java.util.Map<Integer, String> textOverrides = new java.util.HashMap<>();
+        private final java.util.Map<Integer, String> scoreOverrides = new java.util.HashMap<>();
         private boolean editMode = false;
 
         private static class Slot {
@@ -2595,8 +2602,23 @@ public class SoDoThiDauPanel extends JPanel {
                     JPopupMenu menu = new JPopupMenu();
                     JMenuItem mAdvance = new JMenuItem("Vẽ bản ghi");
                     JMenuItem mBack = new JMenuItem("Xoá bản ghi");
+                    JMenuItem mEditScore = new JMenuItem("Sửa điểm...");
+                    JMenuItem mClearScore = new JMenuItem("Xoá điểm");
                     mAdvance.setEnabled(s.col < columns && s.text != null && !s.text.isBlank());
                     mBack.setEnabled(s.col > 1 && s.text != null && !s.text.isBlank());
+                    mEditScore.addActionListener(ev -> {
+                        String current = getScoreOverride(s.col, s.thuTu);
+                        String inp = JOptionPane.showInputDialog(BracketCanvas.this,
+                                "Nhập điểm (ví dụ: 21-18 | 21-19)", current != null ? current : "");
+                        if (inp != null) {
+                            setScoreOverride(s.col, s.thuTu, inp);
+                            repaint();
+                        }
+                    });
+                    mClearScore.addActionListener(ev -> {
+                        setScoreOverride(s.col, s.thuTu, null);
+                        repaint();
+                    });
                     mAdvance.addActionListener(ev -> {
                         Slot parent = parentOf(s);
                         if (parent != null) {
@@ -2636,7 +2658,9 @@ public class SoDoThiDauPanel extends JPanel {
                                             parent.y,
                                             parent.order,
                                             soDo,
-                                            java.time.LocalDateTime.now());
+                                            java.time.LocalDateTime.now(),
+                                            null,
+                                            null);
                                 } else {
                                     java.util.Map<String, Integer> map = SoDoThiDauPanel.this.vdvService
                                             .loadSinglesNames(idNoiDung, idGiai);
@@ -2658,7 +2682,9 @@ public class SoDoThiDauPanel extends JPanel {
                                                 parent.y,
                                                 parent.order,
                                                 soDo,
-                                                java.time.LocalDateTime.now());
+                                                java.time.LocalDateTime.now(),
+                                                null,
+                                                null);
                                     }
                                 }
                             }
@@ -2791,6 +2817,9 @@ public class SoDoThiDauPanel extends JPanel {
                     });
                     menu.add(mAdvance);
                     menu.add(mBack);
+                    menu.addSeparator();
+                    menu.add(mEditScore);
+                    menu.add(mClearScore);
                     menu.show(BracketCanvas.this, e.getX(), e.getY());
                 }
             };
@@ -2844,6 +2873,23 @@ public class SoDoThiDauPanel extends JPanel {
             } else {
                 textOverrides.put(key, text);
             }
+        }
+
+        void clearScoreOverrides() {
+            scoreOverrides.clear();
+        }
+
+        void setScoreOverride(int col, int thuTu, String score) {
+            int key = (col << 16) | (thuTu & 0xFFFF);
+            if (score == null || score.isBlank()) {
+                scoreOverrides.remove(key);
+            } else {
+                scoreOverrides.put(key, score.trim());
+            }
+        }
+
+        String getScoreOverride(int col, int thuTu) {
+            return scoreOverrides.get((col << 16) | (thuTu & 0xFFFF));
         }
 
         // getSlots() is already defined above; avoid duplication
@@ -2964,17 +3010,33 @@ public class SoDoThiDauPanel extends JPanel {
             for (Slot s : slots) {
                 int w = cellWidthForCol(s.col);
                 int h = cellHeightForCol(s.col);
-                // Fill with light background
-                g2.setColor(new Color(250, 250, 250));
-                g2.fillRoundRect(s.x, s.y, w, h, 8, 8);
-                // Draw border on three sides (left, top, bottom) — remove right border
+                // Visual height smaller than logical height; center it so positions/connectors
+                // stay aligned
+                int percent;
+                try {
+                    percent = Math.max(30,
+                            Math.min(100, SoDoThiDauPanel.this.prefs.getInt("bracket.slot.visualHeightPercent", 60)));
+                } catch (RuntimeException ignore) {
+                    percent = 60;
+                }
+                int visH = Math.max(12, (h * percent) / 100);
+                int yVis = s.y + (h - visH) / 2;
+                // Fill with a subtle left-to-right gradient using #666666
+                java.awt.Paint oldPaint = g2.getPaint();
+                java.awt.Color gradLeft = new java.awt.Color(0x55, 0x55, 0x55, 48); // semi-transparent at left
+                java.awt.Color gradRight = new java.awt.Color(0x55, 0x55, 0x55, 0); // fade to transparent at right
+                java.awt.GradientPaint gp = new java.awt.GradientPaint(s.x, yVis, gradLeft, s.x + w, yVis, gradRight);
+                g2.setPaint(gp);
+                g2.fillRoundRect(s.x, yVis, w, visH, 8, 8);
+                g2.setPaint(oldPaint);
+                // Vẽ 3 viền (trên, dưới, trái) quanh ô hiển thị; bỏ viền phải
                 g2.setColor(new Color(120, 120, 120));
                 // top
-                g2.drawLine(s.x, s.y, s.x + w, s.y);
+                g2.drawLine(s.x, yVis, s.x + w, yVis);
                 // bottom
-                g2.drawLine(s.x, s.y + h, s.x + w, s.y + h);
+                g2.drawLine(s.x, yVis + visH, s.x + w, yVis + visH);
                 // left
-                g2.drawLine(s.x, s.y, s.x, s.y + h);
+                g2.drawLine(s.x, yVis, s.x, yVis + visH);
                 // text drawing moved to render pass after connectors so text stays on top
             }
 
@@ -3025,9 +3087,60 @@ public class SoDoThiDauPanel extends JPanel {
                     Font nameFont = getFont().deriveFont(Font.PLAIN, (float) fontSize);
                     g2.setFont(nameFont);
                     String txt = s.text;
-                    int ascent = g2.getFontMetrics().getAscent();
-                    int textY = s.y + Math.max(18, 6 + ascent);
+                    int h = cellHeightForCol(s.col);
+                    int percent;
+                    try {
+                        percent = Math.max(30, Math.min(100,
+                                SoDoThiDauPanel.this.prefs.getInt("bracket.slot.visualHeightPercent", 60)));
+                    } catch (RuntimeException ignore) {
+                        percent = 60;
+                    }
+                    int visH = Math.max(12, (h * percent) / 100);
+                    int yVis = s.y + (h - visH) / 2;
+                    java.awt.FontMetrics fm = g2.getFontMetrics();
+                    int ascent = fm.getAscent();
+                    int descent = fm.getDescent();
+                    // Center text vertically within visual rect, with a tiny top padding
+                    int centeredBaseline = yVis + (visH - (ascent + descent)) / 2 + ascent;
+                    int minBaseline = yVis + ascent + 2; // ensure a small top padding
+                    int textY = Math.max(minBaseline, centeredBaseline);
                     g2.drawString(txt, s.x + 10, textY);
+
+                    // Draw score under the slot if present
+                    String score = getScoreOverride(s.col, s.thuTu);
+                    if (score != null && !score.isBlank()) {
+                        Font scoreFont = getFont().deriveFont(Font.PLAIN, 9f);
+                        g2.setFont(scoreFont);
+                        java.awt.FontMetrics sfm = g2.getFontMetrics();
+                        int sAscent = sfm.getAscent();
+                        int sDescent = sfm.getDescent();
+                        int textX = s.x + 10;
+                        int yScore = yVis + visH + 2 + sAscent; // tiny gap under slot
+                        int maxBaseline = s.y + h - 2;
+                        if (yScore > maxBaseline)
+                            yScore = maxBaseline;
+                        int textW = sfm.stringWidth(score);
+                        int padL = 4, padR = 6, padTop = 1, padBot = 1;
+                        int rectX = textX - padL;
+                        int rectY = yScore - sAscent - padTop;
+                        int rectW = textW + padL + padR;
+                        int rectH = sAscent + sDescent + padTop + padBot;
+                        int maxBottom = s.y + h - 1;
+                        if (rectY + rectH > maxBottom) {
+                            rectH = Math.max(1, maxBottom - rectY);
+                        }
+                        // Background for score: #666666
+                        g2.setColor(new Color(0x66, 0x66, 0x66));
+                        g2.fillRect(rectX, rectY, rectW, rectH);
+                        // Bottom border of the label
+                        g2.setColor(new Color(120, 120, 120));
+                        g2.drawLine(rectX, rectY + rectH - 1, rectX + rectW, rectY + rectH - 1);
+                        // Score text in white for contrast
+                        g2.setColor(Color.WHITE);
+                        g2.drawString(score, textX, yScore);
+                        // Restore default text color for name rendering (next iterations)
+                        g2.setColor(Color.BLACK);
+                    }
                 }
             }
 

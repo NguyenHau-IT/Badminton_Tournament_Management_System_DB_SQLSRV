@@ -14,14 +14,14 @@ public class SoDoDoi {
     private Integer soDo; // vòng/nhánh
     private LocalDateTime thoiGian;
     private Integer diem; // NEW
-    private Integer idTranDau; // NEW
+    private String idTranDau; // NEW: store UUID (char(36))
 
     public SoDoDoi() {
     }
 
     public SoDoDoi(Integer idGiai, Integer idNoiDung, Integer idClb, String tenTeam,
             Integer toaDoX, Integer toaDoY, Integer viTri, Integer soDo,
-            LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
+            LocalDateTime thoiGian, Integer diem, String idTranDau) {
         this.idGiai = idGiai;
         this.idNoiDung = idNoiDung;
         this.idClb = idClb;
@@ -116,11 +116,11 @@ public class SoDoDoi {
         this.diem = diem;
     }
 
-    public Integer getIdTranDau() {
+    public String getIdTranDau() {
         return idTranDau;
     }
 
-    public void setIdTranDau(Integer idTranDau) {
+    public void setIdTranDau(String idTranDau) {
         this.idTranDau = idTranDau;
     }
 

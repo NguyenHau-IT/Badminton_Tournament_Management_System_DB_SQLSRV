@@ -58,8 +58,14 @@ import com.example.btms.controller.ScoreboardPinController;
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.model.player.VanDongVien;
 import com.example.btms.model.team.DangKiDoi;
+import com.example.btms.repository.bracket.SoDoCaNhanRepository;
+import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
+import com.example.btms.repository.match.ChiTietTranDauRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
+import com.example.btms.service.bracket.SoDoCaNhanService;
+import com.example.btms.service.bracket.SoDoDoiService;
+import com.example.btms.service.match.ChiTietTranDauService;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
 import com.example.btms.service.scoreboard.ScoreboardService;
 import com.example.btms.service.team.DoiService;
@@ -98,6 +104,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private final JComboBox<String> cboScreen = new JComboBox<>();
     private JButton btnStart, btnFinish, btnReset, btnOpenDisplay, btnOpenDisplayH, btnCloseDisplay, btnReloadLists;
     private JButton pauseResume; // Nút tạm dừng/tiếp tục trận
+    // Lưu ID trận (UUID v7) khi bắt đầu để liên kết dữ liệu ván (CHI_TIET_VAN)
+    private String currentMatchId = null;
 
     /* ===== Score buttons ===== */
     private JButton aPlus, bPlus, aMinus, bMinus, undo, nextGame, swapEnds, toggleServe;
@@ -1344,6 +1352,22 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     + doiService.getClubNameByTeamId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
+            // Tạo bản ghi CHI_TIET_TRAN_DAU (UUID v7)
+            try {
+                if (conn != null) {
+                    ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+                    int theThuc = (bo == 1 ? 1 : 3); // map BO -> theThuc
+                    int san = Math.max(1, getCourtPort());
+                    currentMatchId = msvc.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                    logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
+
+                    // Liên kết ID trận vào sơ đồ ĐÔI (SO_DO_DOI)
+                    linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ true, currentMatchId,
+                            null, null, ta, tb);
+                }
+            } catch (Exception ex) {
+                logger.logTs("Lỗi tạo CHI_TIET_TRAN_DAU: %s", ex.getMessage());
+            }
             com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
             hasStarted = true;
             afterStartUi();
@@ -1368,6 +1392,24 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             System.out.println("Club A: " + getClubNameByVdvId(idA) + ", Club B: " + getClubNameByVdvId(idB));
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
+            // Tạo bản ghi CHI_TIET_TRAN_DAU (UUID v7)
+            try {
+                if (conn != null) {
+                    ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+                    int theThuc = (bo == 1 ? 1 : 3);
+                    int san = Math.max(1, getCourtPort());
+                    currentMatchId = msvc.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                    logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
+
+                    // Liên kết ID trận vào sơ đồ ĐƠN (SO_DO_CA_NHAN)
+                    Integer idAVal = singlesNameToId.getOrDefault(nameA, -1);
+                    Integer idBVal = singlesNameToId.getOrDefault(nameB, -1);
+                    linkMatchIdToBracketForCurrentSelection(header, /* isDoubles */ false, currentMatchId,
+                            idAVal, idBVal, null, null);
+                }
+            } catch (Exception ex) {
+                logger.logTs("Lỗi tạo CHI_TIET_TRAN_DAU: %s", ex.getMessage());
+            }
             com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
 
             hasStarted = true;
@@ -1378,6 +1420,52 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             // Gắn match lên HTTP server theo port của sân
             logger.startSingles(header, nameA, idA, nameB, idB, bo);
             updateRemoteLinkUi();
+        }
+    }
+
+    /**
+     * Ghi UUID trận (currentMatchId) vào cột ID_TRAN_DAU trong sơ đồ tương ứng với
+     * lựa chọn hiện tại.
+     * - ĐƠN: cập nhật theo ID_VDV (cả A và B) trong SO_DO_CA_NHAN
+     * - ĐÔI: cập nhật theo TEN_TEAM (cả A và B) trong SO_DO_DOI
+     */
+    private void linkMatchIdToBracketForCurrentSelection(String header, boolean isDoubles, String matchId,
+            Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB) {
+        if (conn == null || matchId == null || matchId.isBlank())
+            return;
+        try {
+            int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
+            if (idGiai <= 0) {
+                logger.logTs("Bỏ qua link ID_TRAN_DAU: ID_GIAI không hợp lệ (%d)", idGiai);
+                return;
+            }
+            Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
+            if (idNoiDung == null || idNoiDung <= 0) {
+                logger.logTs("Bỏ qua link ID_TRAN_DAU: ID_NOI_DUNG không hợp lệ (%s)", String.valueOf(idNoiDung));
+                return;
+            }
+
+            if (!isDoubles) {
+                SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+                int updated = 0;
+                if (idVdvA != null && idVdvA > 0)
+                    updated += ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvA, matchId);
+                if (idVdvB != null && idVdvB > 0)
+                    updated += ssvc.linkTranDauByVdv(idGiai, idNoiDung, idVdvB, matchId);
+                logger.logTs("SO_DO_CA_NHAN: đã liên kết ID_TRAN_DAU=%s cho %d vị trí (giai=%d, nd=%d)", matchId,
+                        updated, idGiai, idNoiDung);
+            } else {
+                SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+                int updated = 0;
+                if (teamA != null && teamA.getTenTeam() != null)
+                    updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, teamA.getTenTeam(), matchId);
+                if (teamB != null && teamB.getTenTeam() != null)
+                    updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, teamB.getTenTeam(), matchId);
+                logger.logTs("SO_DO_DOI: đã liên kết ID_TRAN_DAU=%s cho %d vị trí (giai=%d, nd=%d)", matchId, updated,
+                        idGiai, idNoiDung);
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi liên kết ID_TRAN_DAU vào sơ đồ: %s", ex.getMessage());
         }
     }
 
@@ -1460,6 +1548,23 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
         closeDisplays();
         // Không dừng broadcast để card Monitor vẫn còn. Chỉ dừng khi xoá sân.
+
+        // Nếu có matchId, cập nhật thời gian kết thúc vào CHI_TIET_TRAN_DAU
+        try {
+            if (conn != null && currentMatchId != null && !currentMatchId.isBlank()) {
+                ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+                var now = java.time.LocalDateTime.now();
+                // Lấy record hiện tại để lấy các trường khác
+                var cur = msvc.get(currentMatchId);
+                // idVdvThang có thể chưa biết (0), san giữ nguyên
+                msvc.update(currentMatchId, cur.getTheThuc(), cur.getIdVdvThang(), cur.getBatDau(), now,
+                        cur.getSan());
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi cập nhật kết thúc trận: %s", ex.getMessage());
+        } finally {
+            currentMatchId = null;
+        }
 
         // Cập nhật trạng thái sân: đặt trận về trạng thái sẵn sàng (không thi đấu)
         try {

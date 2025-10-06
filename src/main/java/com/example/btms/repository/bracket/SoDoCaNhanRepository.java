@@ -40,9 +40,9 @@ public class SoDoCaNhanRepository {
             else
                 ps.setInt(9, r.getDiem());
             if (r.getIdTranDau() == null)
-                ps.setNull(10, Types.INTEGER);
+                ps.setNull(10, Types.VARCHAR);
             else
-                ps.setInt(10, r.getIdTranDau());
+                ps.setString(10, r.getIdTranDau());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi thêm SO_DO_CA_NHAN", e);
@@ -99,9 +99,9 @@ public class SoDoCaNhanRepository {
             else
                 ps.setInt(6, r.getDiem());
             if (r.getIdTranDau() == null)
-                ps.setNull(7, Types.INTEGER);
+                ps.setNull(7, Types.VARCHAR);
             else
-                ps.setInt(7, r.getIdTranDau());
+                ps.setString(7, r.getIdTranDau());
 
             ps.setInt(8, r.getIdGiai());
             ps.setInt(9, r.getIdNoiDung());
@@ -130,13 +130,13 @@ public class SoDoCaNhanRepository {
     }
 
     /** PATCH: gán/hủy liên kết trận đấu */
-    public int updateTranDau(int idGiai, int idNoiDung, int viTri, Integer idTranDau) {
+    public int updateTranDau(int idGiai, int idNoiDung, int viTri, String idTranDau) {
         final String sql = "UPDATE SO_DO_CA_NHAN SET ID_TRAN_DAU=? WHERE ID_GIAI=? AND ID_NOI_DUNG=? AND VI_TRI=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             if (idTranDau == null)
-                ps.setNull(1, Types.INTEGER);
+                ps.setNull(1, Types.VARCHAR);
             else
-                ps.setInt(1, idTranDau);
+                ps.setString(1, idTranDau);
             ps.setInt(2, idGiai);
             ps.setInt(3, idNoiDung);
             ps.setInt(4, viTri);
@@ -170,7 +170,7 @@ public class SoDoCaNhanRepository {
                 rs.getInt("SO_DO"),
                 rs.getTimestamp("THOI_GIAN").toLocalDateTime(),
                 rs.getObject("DIEM") != null ? rs.getInt("DIEM") : null, // NEW
-                rs.getObject("ID_TRAN_DAU") != null ? rs.getInt("ID_TRAN_DAU") : null // NEW
+                rs.getString("ID_TRAN_DAU") != null ? rs.getString("ID_TRAN_DAU") : null // NEW
         );
     }
 }

@@ -18,7 +18,7 @@ public class SoDoDoiService {
 
     public void create(int idGiai, int idNoiDung, Integer idClb, String tenTeam,
             Integer toaDoX, Integer toaDoY, int viTri, Integer soDo,
-            LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
+            LocalDateTime thoiGian, Integer diem, String idTranDau) {
         validate(tenTeam, viTri);
         repo.add(new SoDoDoi(idGiai, idNoiDung, idClb, tenTeam.trim(),
                 toaDoX, toaDoY, viTri, soDo, thoiGian, diem, idTranDau));
@@ -37,7 +37,7 @@ public class SoDoDoiService {
 
     public void update(int idGiai, int idNoiDung, int viTri,
             Integer idClb, String tenTeam, Integer toaDoX, Integer toaDoY,
-            Integer soDo, LocalDateTime thoiGian, Integer diem, Integer idTranDau) {
+            Integer soDo, LocalDateTime thoiGian, Integer diem, String idTranDau) {
         validate(tenTeam, viTri);
         getOne(idGiai, idNoiDung, viTri); // ensure exists
         repo.update(new SoDoDoi(idGiai, idNoiDung, idClb, tenTeam.trim(),
@@ -56,9 +56,26 @@ public class SoDoDoiService {
     }
 
     /** Tiện ích nhanh: gán/hủy liên kết trận đấu */
-    public void setTranDau(int idGiai, int idNoiDung, int viTri, Integer idTranDau) {
+    public void setTranDau(int idGiai, int idNoiDung, int viTri, String idTranDau) {
         if (repo.updateTranDau(idGiai, idNoiDung, viTri, idTranDau) == 0)
             throw new NoSuchElementException("Không tìm thấy vị trí để cập nhật ID_TRẬN");
+    }
+
+    /**
+     * Liên kết ID trận cho slot theo tên đội (TEN_TEAM) — cập nhật tất cả vị trí
+     * khớp.
+     * Trả về số bản ghi được cập nhật.
+     */
+    public int linkTranDauByTeamName(int idGiai, int idNoiDung, String tenTeam, String matchId) {
+        int updated = 0;
+        List<SoDoDoi> rows = list(idGiai, idNoiDung);
+        for (SoDoDoi r : rows) {
+            if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenTeam)
+                    && r.getIdTranDau() == null) {
+                updated += repo.updateTranDau(idGiai, idNoiDung, r.getViTri(), matchId);
+            }
+        }
+        return updated;
     }
 
     /* helper */
