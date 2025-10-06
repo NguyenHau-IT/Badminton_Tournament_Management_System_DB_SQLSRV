@@ -144,6 +144,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private boolean hasStarted = false;
     private boolean finishScheduled = false;
     private javax.swing.Timer finishTimer = null;
+    // Khi reset trận và bắt đầu lại ván 1, lần +1 đầu tiên của ván phải "ghi mới"
+    // (xóa bản ghi set cũ, không append)
+    private volatile boolean restartSetPending = false;
 
     /* ===== Split panes & prefs ===== */
     private final JSplitPane mainSplit; // Left | CenterRight
@@ -728,6 +731,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] Đổi sân", sdf.format(new Date()));
             logScore.run();
+            // Ghi dấu mốc SWAP vào CHI_TIET_VAN và đồng bộ tổng điểm theo token
+            appendSwapMarkerAndResyncChiTietVan();
         });
         toggleServe.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -1936,6 +1941,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             mini.setHeader(header);
             match.startMatch(initialServer.getSelectedIndex());
             hasStarted = true;
+            // Đánh dấu ván mới bắt đầu lại → lần +1 đầu tiên sẽ ghi mới (xóa set cũ nếu có)
+            restartSetPending = true;
             afterStartUi();
             openDisplayAuto();
             scoreboardSvc.startBroadcast(
@@ -1964,6 +1971,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             match.startMatch(initialServer.getSelectedIndex());
 
             hasStarted = true;
+            // Đánh dấu ván mới bắt đầu lại → lần +1 đầu tiên sẽ ghi mới (xóa set cũ nếu có)
+            restartSetPending = true;
             afterStartUi();
             openDisplayAuto();
             scoreboardSvc.startBroadcast(
@@ -2156,10 +2165,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 screenshotDir.mkdirs();
             }
 
-            // Tạo tên file với timestamp
+            // Tạo tên file theo ID_TRẬN + thời gian
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
             String timestamp = sdf.format(new Date());
-            String fileName = String.format("scoreboard_%s.png", timestamp);
+            String idForName = (currentMatchId != null && !currentMatchId.isBlank()) ? currentMatchId : "no_match_id";
+            String fileName = String.format("%s_%s.png", idForName, timestamp);
             File outputFile = new File(screenshotDir, fileName);
 
             // Chụp ảnh bảng điểm mini
@@ -2915,16 +2925,28 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      */
     private void updateChiTietVanOnPoint(int side) {
         try {
-            if (conn == null)
+            if (conn == null) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (+1): Chưa kết nối DB");
                 return;
-            if (currentMatchId == null || currentMatchId.isBlank())
+            }
+            if (currentMatchId == null || currentMatchId.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (+1): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
                 return;
+            }
             var s = match.snapshot();
             int setNo = Math.max(1, s.gameNumber);
-            int d1 = Math.max(0, s.score[0]);
-            int d2 = Math.max(0, s.score[1]);
 
             ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            // Nếu vừa reset ván, xóa bản ghi set cũ để lần +1 này ghi mới hoàn toàn
+            if (restartSetPending) {
+                try {
+                    if (vs.exists(currentMatchId, setNo)) {
+                        vs.delete(currentMatchId, setNo);
+                        logger.logTs("Đã xóa bản ghi set %d cũ do bắt đầu lại", setNo);
+                    }
+                } catch (Exception ignore) {
+                }
+            }
             String token = (side == 0 ? "P1@" : "P2@") + System.currentTimeMillis();
             if (vs.exists(currentMatchId, setNo)) {
                 var cur = vs.get(currentMatchId, setNo);
@@ -2935,10 +2957,16 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 } else {
                     newTime = prev.endsWith(";") ? (prev + " " + token) : (prev + "; " + token);
                 }
-                vs.update(currentMatchId, setNo, d1, d2, newTime);
+                int[] totals = computeTokenTotalsConsideringSwap(newTime);
+                vs.update(currentMatchId, setNo, totals[0], totals[1], newTime);
+                logger.logTs("CHI_TIET_VAN cập nhật (+1, set=%d): %d-%d", setNo, totals[0], totals[1]);
             } else {
-                vs.addSet(currentMatchId, setNo, d1, d2, token);
+                int[] totals = computeTokenTotalsConsideringSwap(token);
+                vs.addSet(currentMatchId, setNo, totals[0], totals[1], token);
+                logger.logTs("CHI_TIET_VAN thêm mới (+1, set=%d): %d-%d", setNo, totals[0], totals[1]);
             }
+            // Sau lần +1 đầu tiên của ván sau reset, tắt cờ
+            restartSetPending = false;
         } catch (Exception ex) {
             logger.logTs("Lỗi cập nhật CHI_TIET_VAN (+1): %s", ex.getMessage());
         }
@@ -2951,25 +2979,97 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      */
     private void updateChiTietVanTotalsOnly() {
         try {
-            if (conn == null)
+            if (conn == null) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): Chưa kết nối DB");
                 return;
-            if (currentMatchId == null || currentMatchId.isBlank())
+            }
+            if (currentMatchId == null || currentMatchId.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
                 return;
+            }
             var s = match.snapshot();
             int setNo = Math.max(1, s.gameNumber);
-            int d1 = Math.max(0, s.score[0]);
-            int d2 = Math.max(0, s.score[1]);
 
             ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
-            if (!vs.exists(currentMatchId, setNo))
+            if (!vs.exists(currentMatchId, setNo)) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): chưa có bản ghi set %d để đồng bộ", setNo);
                 return;
+            }
             var cur = vs.get(currentMatchId, setNo);
             String timeStr = cur.getDauThoiGian();
-            if (timeStr == null || timeStr.isBlank())
+            if (timeStr == null || timeStr.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (totals): DAU_THOI_GIAN trống (set %d)", setNo);
                 return; // service yêu cầu không rỗng; bỏ qua nếu trống
-            vs.update(currentMatchId, setNo, d1, d2, timeStr);
+            }
+            int[] totals = computeTokenTotalsConsideringSwap(timeStr);
+            vs.update(currentMatchId, setNo, totals[0], totals[1], timeStr);
+            logger.logTs("CHI_TIET_VAN đồng bộ totals (set=%d): %d-%d", setNo, totals[0], totals[1]);
         } catch (Exception ex) {
             logger.logTs("Lỗi cập nhật CHI_TIET_VAN (totals only): %s", ex.getMessage());
         }
+    }
+
+    /**
+     * Ghi dấu mốc SWAP vào DAU_THOI_GIAN của set hiện tại và đồng bộ tổng điểm từ
+     * token.
+     * SWAP không làm thay đổi tổng điểm; chỉ đảo cách diễn giải P1/P2 cho các token
+     * về sau.
+     */
+    private void appendSwapMarkerAndResyncChiTietVan() {
+        try {
+            if (conn == null) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (SWAP): Chưa kết nối DB");
+                return;
+            }
+            if (currentMatchId == null || currentMatchId.isBlank()) {
+                logger.logTs("Bỏ qua CHI_TIET_VAN (SWAP): Chưa có ID_TRẬN — hãy bấm 'Bắt đầu'");
+                return;
+            }
+            var s = match.snapshot();
+            int setNo = Math.max(1, s.gameNumber);
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            String token = "SWAP@" + System.currentTimeMillis();
+            if (vs.exists(currentMatchId, setNo)) {
+                var cur = vs.get(currentMatchId, setNo);
+                String prev = cur.getDauThoiGian();
+                String newTime;
+                if (prev == null || prev.isBlank()) {
+                    newTime = token;
+                } else {
+                    newTime = prev.endsWith(";") ? (prev + " " + token) : (prev + "; " + token);
+                }
+                int[] totals = computeTokenTotalsConsideringSwap(newTime);
+                vs.update(currentMatchId, setNo, totals[0], totals[1], newTime);
+                logger.logTs("CHI_TIET_VAN ghi SWAP và đồng bộ totals (set=%d): %d-%d", setNo, totals[0], totals[1]);
+            } else {
+                // Chưa có bản ghi set: tạo mới với chỉ dấu SWAP, tổng điểm = 0-0
+                vs.addSet(currentMatchId, setNo, 0, 0, token);
+                logger.logTs("CHI_TIET_VAN tạo set mới với SWAP (set=%d): 0-0", setNo);
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi ghi SWAP cho CHI_TIET_VAN: %s", ex.getMessage());
+        }
+    }
+
+    /**
+     * Tính tổng điểm từ chuỗi token: đếm số lần xuất hiện của P1@ và P2@.
+     * SWAP@ chỉ là dấu mốc (không ảnh hưởng tổng điểm), vì P1/P2 tương ứng với nhãn
+     * A/B hiện tại.
+     */
+    private static int[] computeTokenTotalsConsideringSwap(String tokens) {
+        int a = 0, b = 0;
+        if (tokens == null || tokens.isBlank())
+            return new int[] { 0, 0 };
+        String[] parts = tokens.split(";");
+        for (String raw : parts) {
+            String t = raw.trim();
+            if (t.isEmpty() || t.startsWith("SWAP@"))
+                continue;
+            if (t.startsWith("P1@"))
+                a++;
+            else if (t.startsWith("P2@"))
+                b++;
+        }
+        return new int[] { a, b };
     }
 }

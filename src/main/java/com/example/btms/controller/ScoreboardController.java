@@ -198,6 +198,8 @@ public class ScoreboardController {
         appLog.swapEnds(match);
       } catch (Exception ignore) {
       }
+      // Ghi SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+      tryInvokePanelChiTietVanSwapMarker();
       broadcastSnapshot();
       return ResponseEntity.ok(match.snapshot());
     }
@@ -280,6 +282,31 @@ public class ScoreboardController {
       }
     } catch (Exception ex) {
       log.warn("CHI_TIET_VAN totalsOnly (web no-pin) failed: {}", ex.getMessage());
+    }
+  }
+
+  /**
+   * Gọi control panel (nếu có) để append SWAP@ vào CHI_TIET_VAN và đồng bộ tổng
+   * điểm.
+   */
+  private void tryInvokePanelChiTietVanSwapMarker() {
+    try {
+      var all = courtManager.getAllCourtStatus();
+      for (var cs : all.values()) {
+        var session = courtManager.getCourt(cs.courtId);
+        if (session != null && session.controlPanel != null) {
+          Object panel = session.controlPanel;
+          try {
+            var m = panel.getClass().getDeclaredMethod("appendSwapMarkerAndResyncChiTietVan");
+            m.setAccessible(true);
+            m.invoke(panel);
+          } catch (NoSuchMethodException ignore) {
+          }
+          break;
+        }
+      }
+    } catch (Exception ex) {
+      log.warn("CHI_TIET_VAN swap marker (web no-pin) failed: {}", ex.getMessage());
     }
   }
 }

@@ -107,6 +107,8 @@ public class MainFrame extends JFrame {
     private com.example.btms.ui.bracket.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
     // Trang báo cáo PDF tổng hợp
     private BaoCaoPdfPanel baoCaoPdfPanel;
+    // Trang biên bản (kết quả dạng log set/điểm)
+    private com.example.btms.ui.result.BienBanPanel bienBanPanel;
     // Cửa sổ nổi cho "Sơ đồ thi đấu"
     private JFrame soDoThiDauFrame;
     // Dạng tab: mỗi nội dung là 1 tab riêng
@@ -531,6 +533,12 @@ public class MainFrame extends JFrame {
                             ensureViewPresent("Tổng sắp huy chương", tongSapHuyChuongPanel);
                         } catch (Throwable ignore) {
                         }
+                        // Trang biên bản
+                        try {
+                            bienBanPanel = new com.example.btms.ui.result.BienBanPanel(conn);
+                            ensureViewPresent("Trang biên bản", bienBanPanel);
+                        } catch (Throwable ignore) {
+                        }
                         // Tournament selection now uses modal dialog, no panel needed here
 
                         updateAuthService(conn);
@@ -835,6 +843,8 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Thi đấu", multiCourtPanel);
             ensureViewPresent("Giám sát", monitorTab);
             ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
+            if (bienBanPanel != null)
+                ensureViewPresent("Trang biên bản", bienBanPanel);
             ensureViewPresent("Logs", logTab);
             ensureViewPresent("Cài đặt", settingsPanel);
             if (baoCaoPdfPanel != null)
@@ -2001,6 +2011,7 @@ public class MainFrame extends JFrame {
             // 4) Kết quả
             DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
             result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
+            result.add(new DefaultMutableTreeNode("Trang biên bản"));
             result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
             result.add(new DefaultMutableTreeNode("Báo cáo (PDF)"));
             root.add(result);

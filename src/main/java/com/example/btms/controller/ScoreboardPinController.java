@@ -433,6 +433,8 @@ public class ScoreboardPinController {
                 appLog.swapEnds(match);
             } catch (Exception ignore) {
             }
+            // Ghi dấu SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+            tryUpdateChiTietVanSwapMarkerForPin(pin);
             broadcastSnapshotToPin(pin);
             return ResponseEntity.ok(match.snapshot());
         }
@@ -577,6 +579,8 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                             log.warn("Error logging swapEnds for PIN {}: {}", pin, ignore.getMessage());
                         }
+                        // Ghi dấu SWAP vào CHI_TIET_VAN qua control panel (nếu có)
+                        tryUpdateChiTietVanSwapMarkerForPin(pin);
                         break;
                     case "change-server":
                         log.info("=== CHANGE SERVER REQUEST for PIN: {} ===", pin);
@@ -612,6 +616,35 @@ public class ScoreboardPinController {
                 log.error("Error in action {} for PIN {}: {}", action, pin, e.getMessage(), e);
                 return ResponseEntity.status(500).body(Map.of("teamAScore", 0, "teamBScore", 0));
             }
+        }
+    }
+
+    /** Gọi helper trên control panel để append SWAP@ và đồng bộ tổng điểm. */
+    private void tryUpdateChiTietVanSwapMarkerForPin(String pinCode) {
+        try {
+            Map<String, CourtManagerService.CourtStatus> all = courtManager.getAllCourtStatus();
+            String courtId = null;
+            for (var cs : all.values()) {
+                if (pinCode != null && pinCode.equals(cs.pinCode)) {
+                    courtId = cs.courtId;
+                    break;
+                }
+            }
+            if (courtId == null)
+                return;
+            var session = courtManager.getCourt(courtId);
+            if (session == null || session.controlPanel == null)
+                return;
+            Object panel = session.controlPanel;
+            try {
+                var m = panel.getClass().getDeclaredMethod("appendSwapMarkerAndResyncChiTietVan");
+                m.setAccessible(true);
+                m.invoke(panel);
+            } catch (NoSuchMethodException ignore) {
+                // Control panel chưa có helper (phiên bản cũ)
+            }
+        } catch (Exception ex) {
+            log.warn("CHI_TIET_VAN swap marker (web) failed for PIN {}: {}", pinCode, ex.getMessage());
         }
     }
 }
