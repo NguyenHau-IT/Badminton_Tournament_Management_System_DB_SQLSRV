@@ -2649,18 +2649,55 @@ public class SoDoThiDauPanel extends JPanel {
                                                     idClb);
                                     } catch (RuntimeException ignored) {
                                     }
-                                    SoDoThiDauPanel.this.soDoDoiService.create(
-                                            idGiai,
-                                            idNoiDung,
-                                            idClb,
-                                            s.text.trim(),
-                                            parent.x,
-                                            parent.y,
-                                            parent.order,
-                                            soDo,
-                                            java.time.LocalDateTime.now(),
-                                            null,
-                                            null);
+                                    try {
+                                        // Upsert: update if parent slot already exists, else create
+                                        var existing = SoDoThiDauPanel.this.soDoDoiService.getOne(idGiai, idNoiDung,
+                                                parent.order);
+                                        if (existing != null) {
+                                            SoDoThiDauPanel.this.soDoDoiService.update(
+                                                    idGiai,
+                                                    idNoiDung,
+                                                    parent.order,
+                                                    idClb,
+                                                    s.text.trim(),
+                                                    parent.x,
+                                                    parent.y,
+                                                    soDo,
+                                                    java.time.LocalDateTime.now(),
+                                                    null,
+                                                    null);
+                                        } else {
+                                            SoDoThiDauPanel.this.soDoDoiService.create(
+                                                    idGiai,
+                                                    idNoiDung,
+                                                    idClb,
+                                                    s.text.trim(),
+                                                    parent.x,
+                                                    parent.y,
+                                                    parent.order,
+                                                    soDo,
+                                                    java.time.LocalDateTime.now(),
+                                                    null,
+                                                    null);
+                                        }
+                                    } catch (RuntimeException exUp) {
+                                        // Fallback: try create if update path failed due to not found
+                                        try {
+                                            SoDoThiDauPanel.this.soDoDoiService.create(
+                                                    idGiai,
+                                                    idNoiDung,
+                                                    idClb,
+                                                    s.text.trim(),
+                                                    parent.x,
+                                                    parent.y,
+                                                    parent.order,
+                                                    soDo,
+                                                    java.time.LocalDateTime.now(),
+                                                    null,
+                                                    null);
+                                        } catch (RuntimeException ignore2) {
+                                        }
+                                    }
                                 } else {
                                     java.util.Map<String, Integer> map = SoDoThiDauPanel.this.vdvService
                                             .loadSinglesNames(idNoiDung, idGiai);
@@ -2674,17 +2711,51 @@ public class SoDoThiDauPanel extends JPanel {
                                                 soDo = bt.getSoDo();
                                         } catch (RuntimeException ignored) {
                                         }
-                                        SoDoThiDauPanel.this.soDoCaNhanService.create(
-                                                idGiai,
-                                                idNoiDung,
-                                                idVdv,
-                                                parent.x,
-                                                parent.y,
-                                                parent.order,
-                                                soDo,
-                                                java.time.LocalDateTime.now(),
-                                                null,
-                                                null);
+                                        try {
+                                            // Upsert: update if parent slot exists, else create
+                                            var existing = SoDoThiDauPanel.this.soDoCaNhanService.getOne(idGiai,
+                                                    idNoiDung, parent.order);
+                                            if (existing != null) {
+                                                SoDoThiDauPanel.this.soDoCaNhanService.update(
+                                                        idGiai,
+                                                        idNoiDung,
+                                                        parent.order,
+                                                        idVdv,
+                                                        parent.x,
+                                                        parent.y,
+                                                        soDo,
+                                                        java.time.LocalDateTime.now(),
+                                                        null,
+                                                        null);
+                                            } else {
+                                                SoDoThiDauPanel.this.soDoCaNhanService.create(
+                                                        idGiai,
+                                                        idNoiDung,
+                                                        idVdv,
+                                                        parent.x,
+                                                        parent.y,
+                                                        parent.order,
+                                                        soDo,
+                                                        java.time.LocalDateTime.now(),
+                                                        null,
+                                                        null);
+                                            }
+                                        } catch (RuntimeException exUp) {
+                                            try {
+                                                SoDoThiDauPanel.this.soDoCaNhanService.create(
+                                                        idGiai,
+                                                        idNoiDung,
+                                                        idVdv,
+                                                        parent.x,
+                                                        parent.y,
+                                                        parent.order,
+                                                        soDo,
+                                                        java.time.LocalDateTime.now(),
+                                                        null,
+                                                        null);
+                                            } catch (RuntimeException ignore2) {
+                                            }
+                                        }
                                     }
                                 }
                             }
