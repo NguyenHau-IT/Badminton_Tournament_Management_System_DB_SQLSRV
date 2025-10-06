@@ -46,7 +46,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 ### 🔄 Đồng bộ thời gian thực
 - Server-Sent Events (SSE) cho cập nhật tức thì
 - Fallback polling nếu SSE không khả dụng
-- Broadcast UDP cho screenshot monitoring
+- UDP receiver cho screenshot monitoring
 
 ### 💾 Quản lý dữ liệu
 - Quản lý giải đấu, câu lạc bộ, vận động viên
@@ -71,10 +71,10 @@ graph TB
     G[QR Code Scanner] --> C
     H[PIN Entry] --> C
     
-    subgraph "Real-time Communication"
-        D --> I[Server-Sent Events]
-        D --> J[UDP Broadcast]
-    end
+  subgraph "Real-time Communication"
+    D --> I[Server-Sent Events]
+    D --> J[UDP Screenshot Receiver]
+  end
     
     subgraph "Database Layer"
         E --> K[Tournaments]
@@ -87,7 +87,7 @@ graph TB
 ### 🔧 Đặc điểm kiến trúc
 - **Hybrid Application**: Desktop + Web trong cùng một JVM process
 - **Non-headless Mode**: `spring.main.headless=false` để hỗ trợ Swing UI
-- **Event-driven**: SSE và UDP broadcast cho real-time updates
+- **Event-driven**: SSE (SseEmitter) và UDP receiver (port 2346) cho real-time updates
 - **Thread-safe**: Concurrent collections và thread pool management
 
 ---
@@ -127,6 +127,7 @@ graph TB
 | **OkHttp** | - | HTTP client |
 | **Jackson** | - | JSON processing |
 | **JCalendar** | 1.4 | Date picker component |
+| **OpenPDF** | 1.3.39 | PDF generation |
 
 ---
 
@@ -148,8 +149,8 @@ server.address=0.0.0.0
 server.port=2345
 spring.main.headless=false
 
-# SQL Server Database
-spring.datasource.url=jdbc:sqlserver://server:1433;databaseName=badminton;encrypt=true;trustServerCertificate=true
+# SQL Server Database (mặc định: badminton_tournament)
+spring.datasource.url=jdbc:sqlserver://server:1433;databaseName=badminton_tournament;encrypt=true;trustServerCertificate=true
 spring.datasource.username=your_username
 spring.datasource.password=your_password
 spring.datasource.driver-class-name=com.microsoft.sqlserver.jdbc.SQLServerDriver
@@ -163,7 +164,10 @@ spring.datasource.hikari.max-lifetime=1200000
 # JPA/Hibernate
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.SQLServerDialect
+spring.jpa.show-sql=false
 ```
+
+Lưu ý: Ứng dụng desktop có cơ chế auto-connect. Nếu thiếu cấu hình, fallback trong code sử dụng database `badminton` (khác với cấu hình mặc định `badminton_tournament`). Khuyến nghị cấu hình rõ `spring.datasource.url` như trên để thống nhất.
 
 ### 🚀 Chạy ứng dụng
 
@@ -263,7 +267,7 @@ GET /api/court/{pin}                # Basic court info
 GET /api/court/{pin}/status         # PIN validation & court details  
 GET /api/court/{pin}/sync           # Complete match snapshot
 GET /api/court/{pin}/stream         # SSE stream for real-time updates
-GET /api/court/health              # Health check
+GET /api/court/health               # Health check
 ```
 
 #### Score Control
@@ -330,36 +334,40 @@ POST /api/scoreboard/undo           # Undo last action
 ```
 ├── src/main/java/com/example/btms/
 │   ├── BadmintonTournamentManagementSystemApplication.java  # Main application
-│   ├── config/                    # Configuration classes
-│   │   └── ConnectionConfig.java  # Database connection config
-│   ├── controller/                # REST API controllers
-│   │   ├── ScoreboardPinController.java      # PIN-based API
-│   │   └── ScoreboardViewController.java     # Web views
-│   ├── infrastructure/            # External integrations
-│   ├── model/                     # Data models & entities
-│   ├── repository/                # Data access layer
-│   ├── service/                   # Business logic
-│   │   ├── auth/                  # Authentication services
-│   │   ├── category/              # Content category management
-│   │   ├── club/                  # Club management
-│   │   ├── player/                # Player management
-│   │   └── scoreboard/            # Scoreboard & match services
-│   ├── ui/                        # Swing UI components
-│   │   ├── main/MainFrame.java    # Main desktop window
-│   │   ├── control/               # Match control panels
-│   │   ├── monitor/               # Monitoring interfaces
-│   │   ├── tournament/            # Tournament management
-│   │   └── auth/LoginTab.java     # Authentication UI
-│   └── util/                      # Utilities & helpers
+│   ├── config/                              # Configuration classes
+│   │   └── ConnectionConfig.java            # Database connection config
+│   ├── controller/scoreBoard/               # REST API controllers
+│   │   ├── ScoreboardPinController.java     # PIN-based API (/api/court/**)
+│   │   ├── ScoreboardController.java        # No-PIN API (/api/scoreboard/**)
+│   │   └── ScoreboardViewController.java    # Web views (/pin, /scoreboard/{pin})
+│   ├── infrastructure/                      # External integrations
+│   ├── model/                               # Data models & entities
+│   ├── repository/                          # Data access layer
+│   ├── service/                             # Business logic
+│   │   ├── auth/                            # Authentication services
+│   │   ├── category/                        # Content category management
+│   │   ├── club/                            # Club management
+│   │   ├── player/                          # Player management
+│   │   └── scoreboard/                      # Scoreboard & match services
+│   │       └── ScreenshotReceiver.java      # UDP receiver (port 2346)
+│   ├── ui/                                  # Swing UI components
+│   │   ├── main/MainFrame.java              # Main desktop window
+│   │   ├── control/                         # Match control panels
+│   │   ├── monitor/                         # Monitoring interfaces
+│   │   ├── tournament/                      # Tournament management
+│   │   └── auth/LoginTab.java               # Authentication UI
+│   └── util/                                # Utilities & helpers
 ├── src/main/resources/
-│   ├── application.properties     # App configuration
-│   ├── templates/                 # Thymeleaf web templates
-│   │   ├── pin-entry.html        # PIN entry page
-│   │   └── scoreboard.html       # Scoreboard page
-│   ├── static/                    # Web static assets
-│   │   ├── css/modern.css        # Custom styles
-│   │   └── js/scoreboard.js      # Client-side JavaScript
-│   └── icons/                     # Application icons
+│   ├── application.properties               # App configuration
+│   ├── templates/                           # Thymeleaf web templates
+│   │   ├── pin/pin-entry.html               # PIN entry page
+│   │   └── scoreboard/scoreboard.html       # Scoreboard page
+│   ├── static/                              # Web static assets
+│   │   ├── css/scoreboard/scoreboard.css    # Scoreboard styles
+│   │   ├── css/pin/pin.css                  # PIN page styles
+│   │   ├── js/scoreboard/scoreboard.js      # Client-side JavaScript (scoreboard)
+│   │   └── js/pin/pin.js                    # Client-side JavaScript (PIN)
+│   └── icons/                               # Application icons
 ├── pom.xml                        # Maven configuration
 ├── jvm-optimization.conf          # JVM optimization settings
 └── README.md                      # This documentation
@@ -374,7 +382,8 @@ POST /api/scoreboard/undo           # Undo last action
 - **MonitorTab**: Giám sát tất cả sân real-time
 
 #### Web Interface
-- **ScoreboardPinController**: REST API với PIN authentication
+- **ScoreboardPinController**: REST API với PIN authentication (PIN mode)
+- **ScoreboardController**: REST API không cần PIN (No-PIN mode)
 - **ScoreboardViewController**: Thymeleaf views và static content
 - **SSE Integration**: Server-Sent Events for real-time updates
 
@@ -387,10 +396,10 @@ POST /api/scoreboard/undo           # Undo last action
 
 ## 🔒 Bảo mật & Hiệu năng
 
-### �️ Bảo mật
+### 🔐 Bảo mật
 - **PIN-based Authentication**: Mỗi sân có mã PIN 4 chữ số duy nhất
 - **Network Isolation**: Chạy trên LAN, không expose ra internet
-- **CORS Configuration**: Cấu hình `*` cho `/api/court/**` endpoints
+- **CORS Configuration**: Cấu hình CORS phù hợp cho các endpoints `/api/**` nếu cần
 - **Role-based Access**: ADMIN vs CLIENT permissions
 - **SQL Injection Protection**: Sử dụng JPA/Hibernate prepared statements
 
