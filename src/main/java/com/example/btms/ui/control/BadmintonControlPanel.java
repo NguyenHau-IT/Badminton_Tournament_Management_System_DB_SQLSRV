@@ -62,10 +62,12 @@ import com.example.btms.repository.bracket.SoDoCaNhanRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.match.ChiTietTranDauRepository;
+import com.example.btms.repository.match.ChiTietVanRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
 import com.example.btms.service.bracket.SoDoCaNhanService;
 import com.example.btms.service.bracket.SoDoDoiService;
 import com.example.btms.service.match.ChiTietTranDauService;
+import com.example.btms.service.match.ChiTietVanService;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
 import com.example.btms.service.scoreboard.ScoreboardService;
 import com.example.btms.service.team.DoiService;
@@ -671,6 +673,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] +1 A", sdf.format(new Date()));
             logScore.run();
+            // Cập nhật CHI_TIET_VAN: cộng điểm A -> ghi P1@ts và tổng điểm
+            updateChiTietVanOnPoint(0);
         });
         bPlus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -678,6 +682,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] +1 B", sdf.format(new Date()));
             logScore.run();
+            // Cập nhật CHI_TIET_VAN: cộng điểm B -> ghi P2@ts và tổng điểm
+            updateChiTietVanOnPoint(1);
         });
         aMinus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -685,6 +691,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] -1 A", sdf.format(new Date()));
             logScore.run();
+            // Giảm điểm: chỉ đồng bộ tổng điểm nếu set record đã tồn tại, không thêm sự
+            // kiện
+            updateChiTietVanTotalsOnly();
         });
         bMinus.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -692,6 +701,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] -1 B", sdf.format(new Date()));
             logScore.run();
+            // Giảm điểm: chỉ đồng bộ tổng điểm nếu set record đã tồn tại, không thêm sự
+            // kiện
+            updateChiTietVanTotalsOnly();
         });
         undo.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -699,6 +711,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
             logger.log("[%s] Hoàn tác", sdf.format(new Date()));
             logScore.run();
+            // Hoàn tác: đồng bộ tổng điểm nếu có bản ghi cho set hiện tại
+            updateChiTietVanTotalsOnly();
         });
         nextGame.addActionListener(e -> {
             synchronized (ScoreboardRemote.get().lock()) {
@@ -2889,5 +2903,73 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 y = 0;
         }
         return new int[] { x, y };
+    }
+
+    /* =================== CHI_TIET_VAN (per-set logs) =================== */
+
+    /**
+     * Gọi khi ấn +1 cho A/B. side = 0 (A) hoặc 1 (B).
+     * - Upsert CHI_TIET_VAN cho (currentMatchId, setNo = gameNumber)
+     * - Cập nhật tổng điểm theo snapshot.score
+     * - Append "P1@<millis>" hoặc "P2@<millis>" vào DAU_THOI_GIAN, ngăn bằng "; "
+     */
+    private void updateChiTietVanOnPoint(int side) {
+        try {
+            if (conn == null)
+                return;
+            if (currentMatchId == null || currentMatchId.isBlank())
+                return;
+            var s = match.snapshot();
+            int setNo = Math.max(1, s.gameNumber);
+            int d1 = Math.max(0, s.score[0]);
+            int d2 = Math.max(0, s.score[1]);
+
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            String token = (side == 0 ? "P1@" : "P2@") + System.currentTimeMillis();
+            if (vs.exists(currentMatchId, setNo)) {
+                var cur = vs.get(currentMatchId, setNo);
+                String prev = cur.getDauThoiGian();
+                String newTime;
+                if (prev == null || prev.isBlank()) {
+                    newTime = token;
+                } else {
+                    newTime = prev.endsWith(";") ? (prev + " " + token) : (prev + "; " + token);
+                }
+                vs.update(currentMatchId, setNo, d1, d2, newTime);
+            } else {
+                vs.addSet(currentMatchId, setNo, d1, d2, token);
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi cập nhật CHI_TIET_VAN (+1): %s", ex.getMessage());
+        }
+    }
+
+    /**
+     * Đồng bộ lại tổng điểm của ván hiện tại vào CHI_TIET_VAN nếu record đã tồn
+     * tại.
+     * Không tạo mới và không append sự kiện.
+     */
+    private void updateChiTietVanTotalsOnly() {
+        try {
+            if (conn == null)
+                return;
+            if (currentMatchId == null || currentMatchId.isBlank())
+                return;
+            var s = match.snapshot();
+            int setNo = Math.max(1, s.gameNumber);
+            int d1 = Math.max(0, s.score[0]);
+            int d2 = Math.max(0, s.score[1]);
+
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            if (!vs.exists(currentMatchId, setNo))
+                return;
+            var cur = vs.get(currentMatchId, setNo);
+            String timeStr = cur.getDauThoiGian();
+            if (timeStr == null || timeStr.isBlank())
+                return; // service yêu cầu không rỗng; bỏ qua nếu trống
+            vs.update(currentMatchId, setNo, d1, d2, timeStr);
+        } catch (Exception ex) {
+            logger.logTs("Lỗi cập nhật CHI_TIET_VAN (totals only): %s", ex.getMessage());
+        }
     }
 }
