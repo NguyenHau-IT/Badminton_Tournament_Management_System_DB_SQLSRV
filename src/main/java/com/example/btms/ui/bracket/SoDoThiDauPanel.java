@@ -279,16 +279,11 @@ public class SoDoThiDauPanel extends JPanel {
         // Luôn dùng label để hiển thị tên nội dung; không hiển thị combobox
         lblNoiDungValue.setVisible(true);
         line.add(lblNoiDungValue);
-        // line.add(btnReloadSaved);
-        // line.add(btnSeedFromDraw);
-        // line.add(btnDeleteAll);
         line.add(new JLabel(" | Chế độ:"));
         line.add(cmbMode);
         // Nút làm mới để tải lại dữ liệu hiện tại
         line.add(btnRefresh);
-        // line.add(btnSaveResults);
         line.add(btnExportBracketPdf);
-        // line.add(btnSave);
         p.add(line, BorderLayout.CENTER);
 
         btnSave.addActionListener(e -> saveBracket());
@@ -383,7 +378,7 @@ public class SoDoThiDauPanel extends JPanel {
                         "Thi đấu", javax.swing.JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            String[] courts = openedCourts.toArray(new String[0]);
+            String[] courts = openedCourts.toArray(String[]::new);
             String courtId = (String) javax.swing.JOptionPane.showInputDialog(
                     this,
                     "Chọn sân để mở bảng điều khiển",
@@ -597,148 +592,6 @@ public class SoDoThiDauPanel extends JPanel {
         }
     }
 
-    /**
-     * Tìm cửa sổ Thi đấu nếu đã có, nếu chưa có thì tạo mới và hiển thị ngay.
-     * Ưu tiên TÁI SỬ DỤNG cửa sổ hiện có để tránh mở nhiều cửa sổ và làm ảnh hưởng
-     * dữ liệu.
-     */
-    private MultiCourtControlPanel findOrCreateMultiCourtPanelWindow() {
-        return findOrCreateMultiCourtPanelWindow(false);
-    }
-
-    /**
-     * Tìm cửa sổ Thi đấu nếu đã có; nếu chưa có thì tạo mới. Khi suppressIdle=true,
-     * nếu sau đó tạo tab sân mới thì sẽ KHÔNG phát idle broadcast (để tránh tạo
-     * card giám sát).
-     */
-    private MultiCourtControlPanel findOrCreateMultiCourtPanelWindow(boolean suppressIdle) {
-        try {
-            // 1) Ưu tiên dùng cửa sổ đang mở nếu có
-            try {
-                MultiCourtControlPanel existed = findExistingMultiCourtPanel();
-                if (existed != null) {
-                    if (suppressIdle) {
-                        try {
-                            existed.suppressIdleBroadcastOnce();
-                        } catch (Throwable ignore) {
-                        }
-                    }
-                    try {
-                        java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(existed);
-                        if (win != null) {
-                            win.setVisible(true);
-                            win.toFront();
-                            win.requestFocus();
-                        }
-                    } catch (Exception ignore) {
-                    }
-                    return existed;
-                }
-            } catch (Exception ignore) {
-            }
-
-            // 2) Không có thì tạo mới
-            MultiCourtControlPanel panel = new MultiCourtControlPanel();
-            if (suppressIdle) {
-                try {
-                    panel.suppressIdleBroadcastOnce();
-                } catch (Throwable ignore) {
-                }
-            }
-            try {
-                panel.setConnection(this.conn);
-            } catch (Throwable ignore) {
-            }
-            try {
-                java.net.NetworkInterface nif = resolvePreferredNetworkInterface();
-                if (nif != null) {
-                    panel.setNetworkInterface(nif);
-                }
-            } catch (Throwable ignore) {
-            }
-            javax.swing.JFrame f = new javax.swing.JFrame();
-            String title = "Thi đấu";
-            try {
-                String tn = new Prefs().get("selectedGiaiDauName", null);
-                if (tn != null && !tn.isBlank())
-                    title = title + " - " + tn;
-            } catch (Exception ignore) {
-            }
-            f.setTitle(title);
-            f.setDefaultCloseOperation(javax.swing.JFrame.DISPOSE_ON_CLOSE);
-            f.setLayout(new BorderLayout());
-            f.add(panel, BorderLayout.CENTER);
-            com.example.btms.util.ui.IconUtil.applyTo(f);
-            f.setExtendedState(javax.swing.JFrame.MAXIMIZED_BOTH);
-            f.setLocationRelativeTo(this);
-            f.setVisible(true);
-            return panel;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    /**
-     * Chọn interface mạng đã lưu trong Prefs (nếu có) hoặc tự chọn 1 interface IPv4
-     * hợp lệ.
-     */
-    private static java.net.NetworkInterface resolvePreferredNetworkInterface() {
-        try {
-            // 1) Thử đọc từ Prefs theo các key phổ biến
-            String[] keys = new String[] { "net.ifName", "network.ifName", "net.iface.name", "ui.network.ifName" };
-            for (String k : keys) {
-                try {
-                    String name = new Prefs().get(k, null);
-                    if (name != null && !name.isBlank()) {
-                        java.net.NetworkInterface ni = java.net.NetworkInterface.getByName(name);
-                        if (isUsableIPv4(ni))
-                            return ni;
-                        // Thử match theo display name (Windows thường là "Wi-Fi"/"Ethernet")
-                        java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface
-                                .getNetworkInterfaces();
-                        while (en != null && en.hasMoreElements()) {
-                            java.net.NetworkInterface x = en.nextElement();
-                            if (x != null && x.getDisplayName() != null
-                                    && x.getDisplayName().toLowerCase().contains(name.toLowerCase())
-                                    && isUsableIPv4(x))
-                                return x;
-                        }
-                    }
-                } catch (Throwable ignore) {
-                }
-            }
-        } catch (Throwable ignore) {
-        }
-        // 2) Tự động chọn interface đầu tiên có IPv4 và usable
-        try {
-            java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces();
-            while (en != null && en.hasMoreElements()) {
-                java.net.NetworkInterface ni = en.nextElement();
-                if (isUsableIPv4(ni))
-                    return ni;
-            }
-        } catch (Throwable ignore) {
-        }
-        return null;
-    }
-
-    private static boolean isUsableIPv4(java.net.NetworkInterface ni) {
-        try {
-            if (ni == null || !ni.isUp() || ni.isLoopback() || ni.isVirtual())
-                return false;
-            java.util.Enumeration<java.net.InetAddress> addrs = ni.getInetAddresses();
-            while (addrs != null && addrs.hasMoreElements()) {
-                java.net.InetAddress a = addrs.nextElement();
-                if (a instanceof java.net.Inet4Address && !a.isLoopbackAddress()
-                        && !a.isLinkLocalAddress()) {
-                    return true;
-                }
-            }
-        } catch (Throwable ignore) {
-        }
-        return false;
-    }
-
     /** Duyệt toàn bộ cửa sổ để tìm một MultiCourtControlPanel đang hiện diện. */
     private static MultiCourtControlPanel findExistingMultiCourtPanel() {
         try {
@@ -783,52 +636,7 @@ public class SoDoThiDauPanel extends JPanel {
         }
     }
 
-    /**
-     * Đảm bảo MultiCourtPanel có tab điều khiển cho session này (tạo mới nếu
-     * thiếu).
-     */
-    private static void ensureCourtControlTabExists(MultiCourtControlPanel mcPanel, CourtSession session) {
-        try {
-            java.lang.reflect.Field fTabs = mcPanel.getClass().getDeclaredField("courtTabs");
-            fTabs.setAccessible(true);
-            Object obj = fTabs.get(mcPanel);
-            if (!(obj instanceof javax.swing.JTabbedPane tabs))
-                return;
-
-            // Tìm tab theo title = courtId
-            int idx = -1;
-            for (int i = 0; i < tabs.getTabCount(); i++) {
-                if (session.courtId.equals(tabs.getTitleAt(i))) {
-                    idx = i;
-                    break;
-                }
-            }
-
-            if (idx >= 0 && tabs.getComponentAt(idx) instanceof BadmintonControlPanel) {
-                // Đã có control panel đúng loại
-                return;
-            }
-
-            // Nếu chưa có hoặc tab không phải control panel, tạo/đổi bằng
-            // createCourtControlTab(session)
-            try {
-                java.lang.reflect.Method m = mcPanel.getClass().getDeclaredMethod("createCourtControlTab",
-                        CourtSession.class);
-                m.setAccessible(true);
-                m.invoke(mcPanel, session);
-            } catch (Exception ex) {
-                // fallback: thử startCourtMatch(courtId)
-                try {
-                    java.lang.reflect.Method mStart = mcPanel.getClass().getDeclaredMethod("startCourtMatch",
-                            String.class);
-                    mStart.setAccessible(true);
-                    mStart.invoke(mcPanel, session.courtId);
-                } catch (Exception ignore) {
-                }
-            }
-        } catch (Exception ignore) {
-        }
-    }
+    // ensureCourtControlTabExists: removed (unused)
 
     // Chọn phần tử theo text (so sánh equals) nếu có
     private static void selectByString(javax.swing.JComboBox<?> cb, String text) {
@@ -1851,6 +1659,8 @@ public class SoDoThiDauPanel extends JPanel {
                     }
                 }
             }
+            // Clear any previous score labels when reseeding from draw
+            canvas.clearScoreOverrides();
             canvas.setParticipantsForColumn(namesByT, seedCol);
             canvas.repaint();
             updateMedalsFromCanvas();
@@ -1934,6 +1744,8 @@ public class SoDoThiDauPanel extends JPanel {
                     }
                 }
             }
+            // Clear any previous score labels when reseeding from draw
+            canvas.clearScoreOverrides();
             canvas.setParticipantsForColumn(namesByT, seedCol);
             canvas.repaint();
             updateMedalsFromCanvas();
@@ -1970,10 +1782,18 @@ public class SoDoThiDauPanel extends JPanel {
                 blanks.add("");
             canvas.setParticipantsForColumn(blanks, 1);
             canvas.clearTextOverrides();
+            canvas.clearScoreOverrides();
             for (SoDoDoi r : list) {
                 BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
                 if (slot != null) {
                     canvas.setTextOverride(slot.col, slot.thuTu, r.getTenTeam());
+                    try {
+                        Integer diem = r.getDiem();
+                        if (diem != null) {
+                            canvas.setScoreOverride(slot.col, slot.thuTu, String.valueOf(diem));
+                        }
+                    } catch (Throwable ignore) {
+                    }
                 }
             }
             canvas.refreshAfterOverrides();
@@ -2003,6 +1823,7 @@ public class SoDoThiDauPanel extends JPanel {
                 blanks.add("");
             canvas.setParticipantsForColumn(blanks, 1);
             canvas.clearTextOverrides();
+            canvas.clearScoreOverrides();
             for (SoDoCaNhan r : list) {
                 BracketCanvas.Slot slot = canvas.findByOrder(r.getViTri());
                 if (slot != null) {
@@ -2016,6 +1837,13 @@ public class SoDoThiDauPanel extends JPanel {
                         display = "VDV#" + r.getIdVdv();
                     }
                     canvas.setTextOverride(slot.col, slot.thuTu, display);
+                    try {
+                        Integer diem = r.getDiem();
+                        if (diem != null) {
+                            canvas.setScoreOverride(slot.col, slot.thuTu, String.valueOf(diem));
+                        }
+                    } catch (Throwable ignore) {
+                    }
                 }
             }
             canvas.refreshAfterOverrides();
@@ -2163,7 +1991,8 @@ public class SoDoThiDauPanel extends JPanel {
             try {
                 var row = list.get(i);
                 var vdv = vdvService.findOne(row.getIdVdv());
-                clubs[i] = (vdv != null && vdv.getIdClb() != null) ? vdv.getIdClb() : 0;
+                Integer clubId = (vdv != null) ? vdv.getIdClb() : null;
+                clubs[i] = (clubId != null) ? clubId.intValue() : 0;
             } catch (RuntimeException ignore) {
                 clubs[i] = 0;
             }
@@ -3075,7 +2904,6 @@ public class SoDoThiDauPanel extends JPanel {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             // Vẽ nhãn cột
-            g2.setFont(getFont().deriveFont(Font.BOLD, 14f));
             g2.setFont(getFont());
             // Vẽ ô
             for (Slot s : slots) {
@@ -3185,30 +3013,32 @@ public class SoDoThiDauPanel extends JPanel {
                         java.awt.FontMetrics sfm = g2.getFontMetrics();
                         int sAscent = sfm.getAscent();
                         int sDescent = sfm.getDescent();
-                        int textX = s.x + 10;
-                        int yScore = yVis + visH + 2 + sAscent; // tiny gap under slot
+                        int w = cellWidthForCol(s.col);
+                        int marginRight = 6; // place near the right edge
+                        int extraGapY = 4; // a bit lower than before
+                        int yScore = yVis + visH + 2 + extraGapY + sAscent; // tiny gap + extra
                         int maxBaseline = s.y + h - 2;
                         if (yScore > maxBaseline)
                             yScore = maxBaseline;
                         int textW = sfm.stringWidth(score);
                         int padL = 4, padR = 6, padTop = 1, padBot = 1;
-                        int rectX = textX - padL;
-                        int rectY = yScore - sAscent - padTop;
                         int rectW = textW + padL + padR;
+                        int rectRight = s.x + w - marginRight;
+                        int rectX = rectRight - rectW;
+                        int rectY = yScore - sAscent - padTop;
                         int rectH = sAscent + sDescent + padTop + padBot;
                         int maxBottom = s.y + h - 1;
                         if (rectY + rectH > maxBottom) {
                             rectH = Math.max(1, maxBottom - rectY);
                         }
-                        // Background for score: #666666
-                        g2.setColor(new Color(0x66, 0x66, 0x66));
-                        g2.fillRect(rectX, rectY, rectW, rectH);
-                        // Bottom border of the label
-                        g2.setColor(new Color(120, 120, 120));
-                        g2.drawLine(rectX, rectY + rectH - 1, rectX + rectW, rectY + rectH - 1);
+                        // Background for score: #FFFFFFFF
+                        g2.setColor(new Color(0xFF, 0xFF, 0xFF));
+                        g2.fillRect(rectX, rectY + 10, rectW, rectH);
                         // Score text in white for contrast
-                        g2.setColor(Color.WHITE);
-                        g2.drawString(score, textX, yScore);
+                        g2.setColor(Color.darkGray);
+                        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 12f));
+                        int textX = rectX + padL; // right-aligned background; text starts at left of rect
+                        g2.drawString(score, textX, yScore + 10);
                         // Restore default text color for name rendering (next iterations)
                         g2.setColor(Color.BLACK);
                     }
