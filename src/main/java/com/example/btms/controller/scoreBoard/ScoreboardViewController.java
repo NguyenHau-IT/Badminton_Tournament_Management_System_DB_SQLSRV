@@ -1,4 +1,4 @@
-package com.example.btms.controller;
+package com.example.btms.controller.scoreBoard;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
