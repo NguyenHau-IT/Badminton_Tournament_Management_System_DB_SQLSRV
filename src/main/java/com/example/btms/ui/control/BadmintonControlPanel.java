@@ -1723,6 +1723,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         // Nếu có matchId, cập nhật thời gian kết thúc vào CHI_TIET_TRAN_DAU
         try {
             if (conn != null && currentMatchId != null && !currentMatchId.isBlank()) {
+                autoAdvanceWinnerToNextRound(currentMatchId);
                 ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
                 var now = java.time.LocalDateTime.now();
                 // Lấy record hiện tại để lấy các trường khác
