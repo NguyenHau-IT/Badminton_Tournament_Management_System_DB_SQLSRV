@@ -78,6 +78,9 @@ public class DangKyCaNhanPanel extends JPanel {
     private final JComboBox<String> cboFilterField = new JComboBox<>(new String[] { "Nội dung", "VĐV" });
     private final JComboBox<NoiDung> cboNoiDungFilter = new JComboBox<>();
 
+    // Ngăn reload lồng nhau do thay đổi model của combobox phát sinh ActionEvent
+    private boolean reloading = false;
+
     public DangKyCaNhanPanel(Connection conn) {
         this.conn = conn;
         this.prefs = new Prefs();
@@ -140,7 +143,8 @@ public class DangKyCaNhanPanel extends JPanel {
             }
         });
         cboFilterField.addActionListener(e -> updateFilter());
-        cboNoiDungFilter.addActionListener(e -> updateFilter());
+        // Đổi nội dung -> tải lại dữ liệu từ DB theo nội dung đã chọn
+        cboNoiDungFilter.addActionListener(e -> reload());
 
         reload();
     }
@@ -171,7 +175,7 @@ public class DangKyCaNhanPanel extends JPanel {
                             ? ("Đã xóa " + deleted + " đăng ký cá nhân của nội dung.")
                             : ("Đã xóa " + deleted + " đăng ký cá nhân của giải."),
                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -190,12 +194,16 @@ public class DangKyCaNhanPanel extends JPanel {
     // no-op helper removed
 
     private void reload() {
+        if (reloading)
+            return;
+        reloading = true;
         int idGiai = prefs.getInt("selectedGiaiDauId", -1);
         String tenGiai = prefs.get("selectedGiaiDauName", "");
         if (idGiai <= 0) {
             lblHeader.setText("Đăng ký cá nhân: (chưa chọn giải)");
             model.setRowCount(0);
             lblCount.setText("0 đăng ký");
+            reloading = false;
             return;
         }
         lblHeader.setText(
@@ -249,7 +257,7 @@ public class DangKyCaNhanPanel extends JPanel {
             vdvService.findAll().forEach(v -> vdvNameById.put(v.getId(), v.getHoTen()));
 
             for (NoiDung nd : toLoad) {
-                List<DangKiCaNhan> regs = dkService.listByGiaiAndNoiDung(idGiai, nd.getId(),null);
+                List<DangKiCaNhan> regs = dkService.listByGiaiAndNoiDung(idGiai, nd.getId(), null);
                 for (DangKiCaNhan r : regs) {
                     String tenVdv = vdvNameById.getOrDefault(r.getIdVdv(), "");
                     // Lưu trực tiếp bộ 3 khóa (idGiai, idNoiDung, idVdv)
@@ -267,6 +275,8 @@ public class DangKyCaNhanPanel extends JPanel {
         } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi không xác định: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
+        } finally {
+            reloading = false;
         }
     }
 
@@ -351,14 +361,13 @@ public class DangKyCaNhanPanel extends JPanel {
         try {
             dkService.delete(idGiai, idNoiDung, idVdv);
             reload();
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Xóa thất bại: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void hideIdColumns() {
         try {
-            javax.swing.table.TableColumnModel columnModel = table.getColumnModel();
             java.util.List<String> hide = java.util.List.of("ID_Giải", "ID_Nội dung", "ID_VĐV");
             for (String h : hide) {
                 int modelIndex = model.findColumn(h);
@@ -367,7 +376,7 @@ public class DangKyCaNhanPanel extends JPanel {
                 int viewIndex = table.convertColumnIndexToView(modelIndex);
                 if (viewIndex < 0)
                     continue;
-                javax.swing.table.TableColumn col = columnModel.getColumn(viewIndex);
+                javax.swing.table.TableColumn col = table.getColumnModel().getColumn(viewIndex);
                 col.setMinWidth(0);
                 col.setMaxWidth(0);
                 col.setPreferredWidth(0);

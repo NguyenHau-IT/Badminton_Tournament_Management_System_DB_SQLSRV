@@ -1,6 +1,7 @@
 package com.example.btms.ui.player;
 
 import java.awt.BorderLayout;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import javax.swing.JButton;
@@ -25,6 +26,7 @@ import com.example.btms.service.player.VanDongVienService;
 public class VanDongVienManagementPanel extends JPanel {
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
+    private static final DateTimeFormatter DOB_FMT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private JTable table;
     private DefaultTableModel model;
@@ -105,8 +107,17 @@ public class VanDongVienManagementPanel extends JPanel {
             List<VanDongVien> list = vdvService.findAll();
             model.setRowCount(0);
             for (VanDongVien v : list) {
-                String dob = (v.getNgaySinh() != null) ? v.getNgaySinh().toString() : "";
-                String gt = v.getGioiTinh() != null ? v.getGioiTinh() : "";
+                String dob = (v.getNgaySinh() != null) ? v.getNgaySinh().format(DOB_FMT) : "";
+                String gt = "";
+                if (v.getGioiTinh() != null) {
+                    String g = v.getGioiTinh().trim();
+                    if (g.equalsIgnoreCase("m"))
+                        gt = "Nam";
+                    else if (g.equalsIgnoreCase("f"))
+                        gt = "Nữ";
+                    else if (!g.isEmpty())
+                        gt = g; // fallback hiển thị nguyên gốc nếu khác m/f
+                }
                 String clb = "";
                 if (v.getIdClb() != null) {
                     try {
@@ -123,7 +134,7 @@ public class VanDongVienManagementPanel extends JPanel {
                 model.addRow(new Object[] { v.getId(), v.getHoTen(), dob, gt, clb });
             }
             updateFilter();
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải danh sách: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
