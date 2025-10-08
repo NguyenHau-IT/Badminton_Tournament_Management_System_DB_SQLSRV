@@ -2,12 +2,16 @@ package com.example.btms.ui.player;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.Window;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
@@ -15,6 +19,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 
 import com.example.btms.model.club.CauLacBo;
 import com.example.btms.model.player.VanDongVien;
@@ -46,18 +51,18 @@ public class VanDongVienDialog extends JDialog {
         this.editMode = vdv != null;
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(0, 0));
 
         // Fill CLB combo
         clbCombo.addItem("— Không —");
         try {
-            List<CauLacBo> clubs = clbService.findAll();
+            List<CauLacBo> clubs = this.clbService.findAll();
             for (CauLacBo c : clubs) {
                 if (c != null) {
                     clbCombo.addItem(c);
                 }
             }
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             // Không chặn UI; chỉ cảnh báo
             System.err.println("Không thể tải danh sách CLB: " + ex.getMessage());
         }
@@ -75,23 +80,82 @@ public class VanDongVienDialog extends JDialog {
             }
         });
 
-        JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
-        form.add(new JLabel("Họ tên:"));
-        form.add(hoTenField);
-        form.add(new JLabel("Ngày sinh:"));
-        form.add(ngaySinhChooser);
-        form.add(new JLabel("Giới tính:"));
-        form.add(gioiTinhCombo);
-        form.add(new JLabel("Câu lạc bộ:"));
-        form.add(clbCombo);
-        add(form, BorderLayout.CENTER);
+        // Form panel (gọn gàng, canh hàng) với GridBagLayout
+        JPanel formWrap = new JPanel(new BorderLayout());
+        formWrap.setBorder(BorderFactory.createEmptyBorder(10, 12, 6, 12));
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBorder(BorderFactory.createTitledBorder("Thông tin VĐV"));
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.insets = new Insets(6, 8, 6, 8);
+        gc.anchor = GridBagConstraints.WEST;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Họ tên
+        gc.gridx = 0;
+        gc.gridy = 0;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Họ tên:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 0;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        hoTenField.setToolTipText("Nhập họ tên đầy đủ của VĐV");
+        form.add(hoTenField, gc);
+
+        // Ngày sinh
+        gc.gridx = 0;
+        gc.gridy = 1;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Ngày sinh:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 1;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        ngaySinhChooser.setDateFormatString("dd/MM/yyyy");
+        ngaySinhChooser.setToolTipText("Định dạng: dd/MM/yyyy (có thể để trống)");
+        form.add(ngaySinhChooser, gc);
+
+        // Giới tính
+        gc.gridx = 0;
+        gc.gridy = 2;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Giới tính:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 2;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gioiTinhCombo.setToolTipText("Chọn giới tính của VĐV");
+        form.add(gioiTinhCombo, gc);
+
+        // Câu lạc bộ
+        gc.gridx = 0;
+        gc.gridy = 3;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Câu lạc bộ:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 3;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        clbCombo.setToolTipText("Chọn câu lạc bộ (có thể để ‘Không’)");
+        form.add(clbCombo, gc);
+
+        formWrap.add(form, BorderLayout.CENTER);
+        add(formWrap, BorderLayout.CENTER);
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
         JButton btnSave = new JButton("Lưu");
         JButton btnCancel = new JButton("Hủy");
         buttons.add(btnSave);
         buttons.add(btnCancel);
-        add(buttons, BorderLayout.SOUTH);
+        JPanel bottom = new JPanel(new BorderLayout());
+        bottom.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
+        bottom.add(buttons, BorderLayout.EAST);
+        add(bottom, BorderLayout.SOUTH);
 
         btnSave.addActionListener(e -> onSave());
         btnCancel.addActionListener(e -> dispose());
@@ -124,6 +188,12 @@ public class VanDongVienDialog extends JDialog {
                 clbCombo.setSelectedIndex(0);
             }
         }
+
+        // Phím tắt và default button
+        getRootPane().setDefaultButton(btnSave);
+        getRootPane().registerKeyboardAction(e -> dispose(),
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
 
         pack();
         setLocationRelativeTo(parent);
@@ -165,8 +235,41 @@ public class VanDongVienDialog extends JDialog {
                         JOptionPane.INFORMATION_MESSAGE);
             }
             dispose();
-        } catch (Exception ex) {
+        } catch (IllegalArgumentException | IllegalStateException | java.util.NoSuchElementException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Prefill CLB theo id (chỉ áp dụng khi thêm mới). Nếu id=null thì chọn "— Không
+     * —".
+     */
+    public void preselectClub(Integer clbId) {
+        if (editMode)
+            return; // không thay đổi khi đang sửa
+        if (clbId == null) {
+            clbCombo.setSelectedIndex(0);
+            return;
+        }
+        for (int i = 0; i < clbCombo.getItemCount(); i++) {
+            Object it = clbCombo.getItemAt(i);
+            if (it instanceof CauLacBo c && c.getId() != null && c.getId().equals(clbId)) {
+                clbCombo.setSelectedIndex(i);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Prefill giới tính theo mã ("m" hoặc "f") khi thêm mới.
+     */
+    public void preselectGender(String code) {
+        if (editMode || code == null)
+            return;
+        if (code.equalsIgnoreCase("m")) {
+            gioiTinhCombo.setSelectedIndex(0);
+        } else if (code.equalsIgnoreCase("f")) {
+            gioiTinhCombo.setSelectedIndex(1);
         }
     }
 }

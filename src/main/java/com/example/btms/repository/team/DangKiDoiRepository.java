@@ -19,7 +19,7 @@ public class DangKiDoiRepository {
     }
 
     public DangKiDoi add(DangKiDoi t) {
-        final String sql = "INSERT INTO DANG_KI_DOI (ID_GIAI, ID_NOI_DUNG, ID_CAU_LAC_BO, TEN_TEAM) " +
+        final String sql = "INSERT INTO DANG_KI_DOI (ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM) " +
                 "VALUES (?, ?, ?, ?)";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, t.getIdGiai());
@@ -41,7 +41,7 @@ public class DangKiDoiRepository {
     }
 
     public DangKiDoi findById(int idTeam) {
-        final String sql = "SELECT ID_TEAM, ID_GIAI, ID_NOI_DUNG, ID_CAU_LAC_BO, TEN_TEAM " +
+        final String sql = "SELECT ID_TEAM, ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM " +
                 "FROM DANG_KI_DOI WHERE ID_TEAM = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, idTeam);
@@ -51,7 +51,7 @@ public class DangKiDoiRepository {
                             rs.getInt("ID_TEAM"),
                             rs.getInt("ID_GIAI"),
                             rs.getInt("ID_NOI_DUNG"),
-                            rs.getObject("ID_CAU_LAC_BO") != null ? rs.getInt("ID_CAU_LAC_BO") : null,
+                            rs.getObject("ID_CLB") != null ? rs.getInt("ID_CLB") : null,
                             rs.getString("TEN_TEAM"));
                 }
                 return null;
@@ -62,7 +62,7 @@ public class DangKiDoiRepository {
     }
 
     public List<DangKiDoi> findAllBy(int idGiai, int idNoiDung) {
-        final String sql = "SELECT ID_TEAM, ID_GIAI, ID_NOI_DUNG, ID_CAU_LAC_BO, TEN_TEAM " +
+        final String sql = "SELECT ID_TEAM, ID_GIAI, ID_NOI_DUNG, ID_CLB, TEN_TEAM " +
                 "FROM DANG_KI_DOI WHERE ID_GIAI=? AND ID_NOI_DUNG=? ORDER BY TEN_TEAM";
         List<DangKiDoi> out = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -74,7 +74,7 @@ public class DangKiDoiRepository {
                             rs.getInt("ID_TEAM"),
                             rs.getInt("ID_GIAI"),
                             rs.getInt("ID_NOI_DUNG"),
-                            rs.getObject("ID_CAU_LAC_BO") != null ? rs.getInt("ID_CAU_LAC_BO") : null,
+                            rs.getObject("ID_CLB") != null ? rs.getInt("ID_CLB") : null,
                             rs.getString("TEN_TEAM")));
                 }
             }
@@ -85,7 +85,7 @@ public class DangKiDoiRepository {
     }
 
     public void update(DangKiDoi t) {
-        final String sql = "UPDATE DANG_KI_DOI SET ID_GIAI=?, ID_NOI_DUNG=?, ID_CAU_LAC_BO=?, TEN_TEAM=? " +
+        final String sql = "UPDATE DANG_KI_DOI SET ID_GIAI=?, ID_NOI_DUNG=?, ID_CLB=?, TEN_TEAM=? " +
                 "WHERE ID_TEAM=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, t.getIdGiai());

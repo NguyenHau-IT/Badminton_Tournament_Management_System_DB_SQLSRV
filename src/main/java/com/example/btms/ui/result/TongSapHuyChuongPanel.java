@@ -14,7 +14,6 @@ import java.util.Objects;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -66,8 +65,10 @@ public class TongSapHuyChuongPanel extends JPanel {
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
 
-    private final JLabel lblGiai = new JLabel();
-    private final JComboBox<Object> cboNoiDung = new JComboBox<>();
+    private final JButton btnSelectNoiDung = new JButton("Tất cả nội dung");
+    private java.util.List<NoiDungItem> noiDungOptions = new ArrayList<>();
+    // null => tất cả nội dung; else: tập các ID nội dung được chọn
+    private java.util.Set<Integer> selectedNoiDungIds = null;
     private final JButton btnRefresh = new JButton("Làm mới");
     private final JButton btnExportPdf = new JButton("Xuất PDF");
     private final JButton btnExportTally = new JButton("Xuất tổng sắp");
@@ -114,7 +115,6 @@ public class TongSapHuyChuongPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 
         SwingUtilities.invokeLater(() -> {
-            updateGiaiLabel();
             loadNoiDungOptions();
             reloadData();
         });
@@ -123,17 +123,16 @@ public class TongSapHuyChuongPanel extends JPanel {
     private JPanel buildTopBar() {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         p.add(new JLabel("Tổng sắp huy chương"));
-        p.add(lblGiai);
         p.add(new JLabel(" | Nội dung:"));
-        cboNoiDung.setPreferredSize(new Dimension(260, 26));
-        p.add(cboNoiDung);
+        btnSelectNoiDung.setPreferredSize(new Dimension(260, 26));
+        p.add(btnSelectNoiDung);
         p.add(btnRefresh);
         p.add(btnEditRanks);
         p.add(btnExportTally);
         p.add(btnExportMedalist);
         p.add(btnExportPdf);
         btnRefresh.addActionListener(e -> reloadData());
-        cboNoiDung.addActionListener(e -> reloadData());
+        btnSelectNoiDung.addActionListener(e -> openSelectNoiDungDialog());
         // Trước khi xuất, mở hộp thoại xem trước
         btnExportPdf.addActionListener(e -> showPreviewDialog());
         btnExportTally.addActionListener(e -> doExportPdfTally());
@@ -200,15 +199,7 @@ public class TongSapHuyChuongPanel extends JPanel {
         return sp;
     }
 
-    private void updateGiaiLabel() {
-        int idGiai = getSelectedGiaiId();
-        String ten = prefs.get("selectedGiaiDauName", null);
-        if (idGiai > 0) {
-            lblGiai.setText("Giải: " + (ten != null && !ten.isBlank() ? ten : ("ID=" + idGiai)));
-        } else {
-            lblGiai.setText("Giải: (chưa chọn)");
-        }
-    }
+    // (Removed tournament label from UI per request)
 
     private int getSelectedGiaiId() {
         // Hỗ trợ cả 2 key lịch sử
@@ -222,25 +213,22 @@ public class TongSapHuyChuongPanel extends JPanel {
         try {
             Integer idGiai = prefs.getInt("selectedGiaiDauId", -1);
             List<NoiDung> all = noiDungService.getNoiDungByTuornament(idGiai);
-            List<NoiDung> doublesOnly = new ArrayList<>();
-            List<NoiDung> singlesOnly = new ArrayList<>();
+            java.util.List<NoiDung> doublesOnly = new ArrayList<>();
+            java.util.List<NoiDung> singlesOnly = new ArrayList<>();
             for (NoiDung nd : all) {
-                if (Boolean.TRUE.equals(nd.getTeam())) {
+                if (Boolean.TRUE.equals(nd.getTeam()))
                     doublesOnly.add(nd);
-                } else {
+                else
                     singlesOnly.add(nd);
-                }
             }
-            cboNoiDung.removeAllItems();
-            cboNoiDung.addItem(new NoiDungItem(null, "Tất cả nội dung"));
-            // Liệt kê tất cả nội dung (đơn rồi đôi) để dễ tra cứu
-            for (NoiDung nd : singlesOnly) {
-                cboNoiDung.addItem(new NoiDungItem(nd.getId(), nd.getTenNoiDung()));
-            }
-            for (NoiDung nd : doublesOnly) {
-                cboNoiDung.addItem(new NoiDungItem(nd.getId(), nd.getTenNoiDung()));
-            }
-            cboNoiDung.setSelectedIndex(0);
+            java.util.List<NoiDungItem> opts = new ArrayList<>();
+            for (NoiDung nd : singlesOnly)
+                opts.add(new NoiDungItem(nd.getId(), nd.getTenNoiDung()));
+            for (NoiDung nd : doublesOnly)
+                opts.add(new NoiDungItem(nd.getId(), nd.getTenNoiDung()));
+            this.noiDungOptions = opts;
+            // Refresh button text according to current selection state
+            updateSelectNoiDungButtonText();
         } catch (java.sql.SQLException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -250,9 +238,31 @@ public class TongSapHuyChuongPanel extends JPanel {
         }
     }
 
-    private NoiDungItem getSelectedNoiDungItem() {
-        Object o = cboNoiDung.getSelectedItem();
-        return (o instanceof NoiDungItem ni) ? ni : new NoiDungItem(null, "");
+    private void updateSelectNoiDungButtonText() {
+        if (selectedNoiDungIds == null) {
+            btnSelectNoiDung.setText("Tất cả nội dung");
+            return;
+        }
+        int count = selectedNoiDungIds.size();
+        switch (count) {
+            case 0 -> btnSelectNoiDung.setText("(chưa chọn)");
+            case 1 -> {
+                Integer id = selectedNoiDungIds.iterator().next();
+                String label = findLabelById(id);
+                btnSelectNoiDung.setText(label != null ? label : "1 nội dung");
+            }
+            default -> btnSelectNoiDung.setText("Đã chọn " + count + " nội dung");
+        }
+    }
+
+    private String findLabelById(Integer id) {
+        if (id == null)
+            return null;
+        for (NoiDungItem it : noiDungOptions) {
+            if (id.equals(it.id))
+                return it.label;
+        }
+        return null;
     }
 
     private void reloadData() {
@@ -267,21 +277,24 @@ public class TongSapHuyChuongPanel extends JPanel {
             List<Integer> ndIds = new ArrayList<>();
             Map<Integer, String> ndNames = new HashMap<>();
             Map<Integer, Boolean> ndIsTeam = new HashMap<>();
-            NoiDungItem sel = getSelectedNoiDungItem();
-            if (sel.id == null) {
-                for (NoiDung nd : noiDungService.getAllNoiDung()) {
+            // Load categories for current tournament to map names/team flags
+            List<NoiDung> listNd = noiDungService.getNoiDungByTuornament(idGiai);
+            Map<Integer, NoiDung> ndById = new HashMap<>();
+            for (NoiDung nd : listNd)
+                ndById.put(nd.getId(), nd);
+            if (selectedNoiDungIds == null) {
+                for (NoiDung nd : listNd) {
                     ndIds.add(nd.getId());
                     ndNames.put(nd.getId(), nd.getTenNoiDung());
                     ndIsTeam.put(nd.getId(), Boolean.TRUE.equals(nd.getTeam()));
                 }
             } else {
-                ndIds.add(sel.id);
-                // need team flag for this id
-                for (NoiDung nd : noiDungService.getAllNoiDung()) {
-                    if (nd.getId().equals(sel.id)) {
-                        ndNames.put(sel.id, sel.label);
-                        ndIsTeam.put(sel.id, Boolean.TRUE.equals(nd.getTeam()));
-                        break;
+                for (Integer idNdSel : selectedNoiDungIds) {
+                    NoiDung nd = ndById.get(idNdSel);
+                    if (nd != null) {
+                        ndIds.add(idNdSel);
+                        ndNames.put(idNdSel, nd.getTenNoiDung());
+                        ndIsTeam.put(idNdSel, Boolean.TRUE.equals(nd.getTeam()));
                     }
                 }
             }
@@ -471,15 +484,8 @@ public class TongSapHuyChuongPanel extends JPanel {
                     84, 36);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                // Header/footer event: show tournament name on all pages
-                String tournament = new Prefs().get("selectedGiaiDauName", null);
-                if (tournament == null || tournament.isBlank()) {
-                    String giaiLbl = lblGiai.getText();
-                    if (giaiLbl != null)
-                        tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
-                    if (tournament == null || tournament.isBlank())
-                        tournament = "Giải đấu";
-                }
+                // Header/footer event: do not show tournament name
+                String tournament = null;
                 // Ensure a Unicode base font is initialized before page event uses it (for
                 // Vietnamese diacritics)
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
@@ -509,11 +515,9 @@ public class TongSapHuyChuongPanel extends JPanel {
                 doc.close();
             }
             JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path, "Xuất PDF", JOptionPane.INFORMATION_MESSAGE);
-        } catch (java.io.IOException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi ghi file PDF: " + ex.getMessage(), "Lỗi",
+        } catch (java.io.IOException | com.lowagie.text.DocumentException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi xuất PDF: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
-        } catch (com.lowagie.text.DocumentException ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi tạo PDF: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi hệ thống khi xuất PDF: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -536,14 +540,7 @@ public class TongSapHuyChuongPanel extends JPanel {
                     84, 36);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                String tournament = new Prefs().get("selectedGiaiDauName", null);
-                if (tournament == null || tournament.isBlank()) {
-                    String giaiLbl = lblGiai.getText();
-                    if (giaiLbl != null)
-                        tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
-                    if (tournament == null || tournament.isBlank())
-                        tournament = "Giải đấu";
-                }
+                String tournament = null;
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
                         tournament));
@@ -561,8 +558,11 @@ public class TongSapHuyChuongPanel extends JPanel {
             }
             JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path, "Xuất PDF - Tổng sắp",
                     JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi xuất PDF (Tổng sắp): " + ex.getMessage(), "Lỗi",
+        } catch (java.io.IOException | com.lowagie.text.DocumentException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi xuất PDF: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi hệ thống khi xuất PDF: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -583,14 +583,7 @@ public class TongSapHuyChuongPanel extends JPanel {
                     84, 36);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                String tournament = new Prefs().get("selectedGiaiDauName", null);
-                if (tournament == null || tournament.isBlank()) {
-                    String giaiLbl = lblGiai.getText();
-                    if (giaiLbl != null)
-                        tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
-                    if (tournament == null || tournament.isBlank())
-                        tournament = "Giải đấu";
-                }
+                String tournament = null;
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
                         tournament));
@@ -608,8 +601,13 @@ public class TongSapHuyChuongPanel extends JPanel {
             }
             JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path, "Xuất PDF - Danh sách VĐV",
                     JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi xuất PDF (Danh sách): " + ex.getMessage(), "Lỗi",
+        } catch (java.io.IOException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi ghi file PDF: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (com.lowagie.text.DocumentException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tạo PDF: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi hệ thống khi xuất PDF: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -617,9 +615,14 @@ public class TongSapHuyChuongPanel extends JPanel {
     private String suggestPdfFileName() {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
         String ndLabel = "tat-ca-don-doi";
-        Object sel = cboNoiDung.getSelectedItem();
-        if (sel instanceof NoiDungItem ni && ni.label != null && !ni.label.isBlank()) {
-            ndLabel = ni.id == null ? "tat-ca-don-doi" : normalizeFileName(ni.label);
+        if (selectedNoiDungIds == null) {
+            ndLabel = "tat-ca-don-doi";
+        } else if (selectedNoiDungIds.size() == 1) {
+            String label = findLabelById(selectedNoiDungIds.iterator().next());
+            if (label != null && !label.isBlank())
+                ndLabel = normalizeFileName(label);
+        } else if (!selectedNoiDungIds.isEmpty()) {
+            ndLabel = "nhieu-noi-dung";
         }
         return normalizeFileName(ten) + "_tong-sap-huy-chuong_" + ndLabel + ".pdf";
     }
@@ -627,9 +630,14 @@ public class TongSapHuyChuongPanel extends JPanel {
     private String suggestPdfFileNameTally() {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
         String ndLabel = "tat-ca-don-doi";
-        Object sel = cboNoiDung.getSelectedItem();
-        if (sel instanceof NoiDungItem ni && ni.label != null && !ni.label.isBlank()) {
-            ndLabel = ni.id == null ? "tat-ca-don-doi" : normalizeFileName(ni.label);
+        if (selectedNoiDungIds == null) {
+            ndLabel = "tat-ca-don-doi";
+        } else if (selectedNoiDungIds.size() == 1) {
+            String label = findLabelById(selectedNoiDungIds.iterator().next());
+            if (label != null && !label.isBlank())
+                ndLabel = normalizeFileName(label);
+        } else if (!selectedNoiDungIds.isEmpty()) {
+            ndLabel = "nhieu-noi-dung";
         }
         return normalizeFileName(ten) + "_tong-sap-huy-chuong_" + ndLabel + ".pdf";
     }
@@ -637,11 +645,79 @@ public class TongSapHuyChuongPanel extends JPanel {
     private String suggestPdfFileNameMedalist() {
         String ten = new Prefs().get("selectedGiaiDauName", "giai-dau");
         String ndLabel = "tat-ca-don-doi";
-        Object sel = cboNoiDung.getSelectedItem();
-        if (sel instanceof NoiDungItem ni && ni.label != null && !ni.label.isBlank()) {
-            ndLabel = ni.id == null ? "tat-ca-don-doi" : normalizeFileName(ni.label);
+        if (selectedNoiDungIds == null) {
+            ndLabel = "tat-ca-don-doi";
+        } else if (selectedNoiDungIds.size() == 1) {
+            String label = findLabelById(selectedNoiDungIds.iterator().next());
+            if (label != null && !label.isBlank())
+                ndLabel = normalizeFileName(label);
+        } else if (!selectedNoiDungIds.isEmpty()) {
+            ndLabel = "nhieu-noi-dung";
         }
         return normalizeFileName(ten) + "_danh-sach-vdv-dat-huy-chuong_" + ndLabel + ".pdf";
+    }
+
+    private void openSelectNoiDungDialog() {
+        int idGiai = getSelectedGiaiId();
+        if (idGiai <= 0) {
+            JOptionPane.showMessageDialog(this, "Chưa chọn giải đấu", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        // Ensure options loaded
+        loadNoiDungOptions();
+        javax.swing.JList<NoiDungItem> list = new javax.swing.JList<>(new javax.swing.DefaultListModel<>());
+        javax.swing.DefaultListModel<NoiDungItem> lm = (javax.swing.DefaultListModel<NoiDungItem>) list.getModel();
+        for (NoiDungItem ni : noiDungOptions)
+            lm.addElement(ni);
+        list.setVisibleRowCount(12);
+        list.setSelectionMode(javax.swing.ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        // Preselect current: null => select all; else select chosen IDs
+        if (selectedNoiDungIds == null) {
+            if (lm.getSize() > 0)
+                list.setSelectionInterval(0, lm.getSize() - 1);
+        } else {
+            java.util.List<Integer> indices = new java.util.ArrayList<>();
+            for (int i = 0; i < lm.size(); i++) {
+                NoiDungItem it = lm.get(i);
+                if (selectedNoiDungIds.contains(it.id)) {
+                    indices.add(i);
+                }
+            }
+            int[] idx = indices.stream().mapToInt(Integer::intValue).toArray();
+            list.setSelectedIndices(idx);
+        }
+        javax.swing.JScrollPane sp = new javax.swing.JScrollPane(list);
+        sp.setPreferredSize(new Dimension(320, 260));
+        // South actions: Chọn tất cả
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        JButton btnAll = new JButton("Chọn tất cả");
+        btnAll.addActionListener(ev -> {
+            if (lm.getSize() > 0)
+                list.setSelectionInterval(0, lm.getSize() - 1);
+        });
+        south.add(btnAll);
+        JPanel container = new JPanel(new BorderLayout(8, 8));
+        container.add(sp, BorderLayout.CENTER);
+        container.add(south, BorderLayout.SOUTH);
+        int res = JOptionPane.showConfirmDialog(this, container, "Chọn nội dung", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+        if (res == JOptionPane.OK_OPTION) {
+            java.util.List<NoiDungItem> selected = list.getSelectedValuesList();
+            if (selected == null || selected.isEmpty()) {
+                // Treat empty as all for safety
+                selectedNoiDungIds = null;
+            } else if (selected.size() == lm.getSize()) {
+                selectedNoiDungIds = null; // all
+            } else {
+                java.util.Set<Integer> ids = new java.util.LinkedHashSet<>();
+                for (NoiDungItem it : selected)
+                    if (it.id != null)
+                        ids.add(it.id);
+                selectedNoiDungIds = ids;
+            }
+            updateSelectNoiDungButtonText();
+            reloadData();
+        }
     }
 
     private void showPreviewDialog() {
@@ -661,20 +737,7 @@ public class TongSapHuyChuongPanel extends JPanel {
         centerHeader(previewTally);
         centerHeader(previewMedal);
 
-        // Header: chỉ hiển thị tên giải ở tất cả các trang (tab)
-        String giaiLbl = lblGiai.getText();
-        String tournament = new Prefs().get("selectedGiaiDauName", null);
-        if (tournament == null || tournament.isBlank()) {
-            if (giaiLbl != null)
-                tournament = giaiLbl.replaceFirst("^Giải: ", "").trim();
-            if (tournament == null || tournament.isBlank())
-                tournament = "Giải đấu";
-        }
-        JPanel header = new JPanel(new BorderLayout());
-        JLabel lbHeader = new JLabel(tournament, JLabel.CENTER);
-        lbHeader.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        lbHeader.setFont(lbHeader.getFont().deriveFont(java.awt.Font.BOLD, 18f));
-        header.add(lbHeader, BorderLayout.CENTER);
+        // No tournament header in preview
 
         // Tạo 2 "trang" dạng tab: Trang 1 (tổng sắp), Trang 2 (danh sách VĐV)
         javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
@@ -703,7 +766,7 @@ public class TongSapHuyChuongPanel extends JPanel {
         dlg.setLayout(new BorderLayout(8, 8));
 
         JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnSave = new JButton("Xuất PDF…");
+        JButton btnSave = new JButton("Xuất PDF");
         JButton btnClose = new JButton("Đóng");
         south.add(btnClose);
         south.add(btnSave);
@@ -714,7 +777,6 @@ public class TongSapHuyChuongPanel extends JPanel {
         });
         btnClose.addActionListener(ev -> dlg.dispose());
 
-        dlg.add(header, BorderLayout.NORTH);
         dlg.add(tabs, BorderLayout.CENTER);
         dlg.add(south, BorderLayout.SOUTH);
         dlg.setSize(1100, 750);

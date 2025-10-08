@@ -2,6 +2,9 @@ package com.example.btms.ui.player;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.Window;
 import java.sql.Connection;
 import java.time.LocalDate;
@@ -10,6 +13,7 @@ import java.time.Period;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -17,6 +21,7 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
@@ -78,25 +83,78 @@ public class DangKyCaNhanDialog extends JDialog {
     }
 
     private void buildUI() {
-        JPanel form = new JPanel(new java.awt.GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Nội dung (đơn):"));
-        form.add(cboNoiDung);
-        form.add(new JLabel("Câu lạc bộ:"));
-        form.add(cboClb);
-        form.add(new JLabel("Vận động viên:"));
-        form.add(cboVdv);
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.setBorder(BorderFactory.createEmptyBorder(10, 12, 6, 12));
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBorder(BorderFactory.createTitledBorder("Đăng ký cá nhân"));
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.insets = new Insets(6, 8, 6, 8);
+        gc.anchor = GridBagConstraints.WEST;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Nội dung
+        gc.gridx = 0;
+        gc.gridy = 0;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Nội dung (đơn):"), gc);
+        gc.gridx = 1;
+        gc.gridy = 0;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        cboNoiDung.setToolTipText("Chọn nội dung thi đấu đơn");
+        form.add(cboNoiDung, gc);
+
+        // Câu lạc bộ
+        gc.gridx = 0;
+        gc.gridy = 1;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Câu lạc bộ:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 1;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        cboClb.setToolTipText("Chọn câu lạc bộ (bắt buộc để hiện danh sách VĐV)");
+        form.add(cboClb, gc);
+
+        // Vận động viên
+        gc.gridx = 0;
+        gc.gridy = 2;
+        gc.weightx = 0;
+        gc.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Vận động viên:"), gc);
+        gc.gridx = 1;
+        gc.gridy = 2;
+        gc.weightx = 1;
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        cboVdv.setToolTipText("Chọn VĐV (chỉ xuất hiện khi đã chọn CLB)");
+        form.add(cboVdv, gc);
+
+        wrap.add(form, BorderLayout.CENTER);
 
         JButton btnOk = new JButton("Lưu");
         JButton btnCancel = new JButton("Hủy");
         btnOk.addActionListener(e -> onSave());
         btnCancel.addActionListener(e -> dispose());
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
         buttons.add(btnOk);
         buttons.add(btnCancel);
 
-        getContentPane().setLayout(new BorderLayout(10, 10));
-        getContentPane().add(form, BorderLayout.CENTER);
-        getContentPane().add(buttons, BorderLayout.SOUTH);
+        JPanel bottom = new JPanel(new BorderLayout());
+        bottom.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
+        bottom.add(buttons, BorderLayout.EAST);
+
+        getContentPane().setLayout(new BorderLayout(0, 0));
+        getContentPane().add(wrap, BorderLayout.CENTER);
+        getContentPane().add(bottom, BorderLayout.SOUTH);
+
+        // Default button & ESC để đóng nhanh
+        getRootPane().setDefaultButton(btnOk);
+        getRootPane().registerKeyboardAction(e -> dispose(),
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 
     private void loadData() throws java.sql.SQLException {
@@ -139,9 +197,7 @@ public class DangKyCaNhanDialog extends JDialog {
                 return c;
             }
         });
-        // Nạp danh sách VĐV ngay theo nội dung hiện chọn (nếu có), kể cả khi chưa chọn
-        // CLB
-        reloadPlayersForSelectedClub(null);
+        // Không nạp VĐV khi chưa chọn CLB; đợi sự kiện chọn CLB
     }
 
     private void loadClubs() {
@@ -178,23 +234,25 @@ public class DangKyCaNhanDialog extends JDialog {
     private void reloadPlayersForSelectedClub(Integer preselectId) {
         DefaultComboBoxModel<VanDongVien> vdvModel = new DefaultComboBoxModel<>();
         try {
+            // Yêu cầu phải chọn CLB thì mới nạp danh sách VĐV
+            Object sel = cboClb.getSelectedItem();
+            if (!(sel instanceof CauLacBo club)) {
+                clearPlayers();
+                return;
+            }
+
             NoiDung ndSel = (NoiDung) cboNoiDung.getSelectedItem();
             String reqGender = ndSel != null ? ndSel.getGioiTinh() : null; // "M" hoặc "F" hoặc null
             Integer tuoiDuoi = ndSel != null ? ndSel.getTuoiDuoi() : null;
             Integer tuoiTren = ndSel != null ? ndSel.getTuoiTren() : null; // 0 hoặc null = không giới hạn trên
-
-            Object sel = cboClb.getSelectedItem();
-            boolean filterByClub = sel instanceof CauLacBo;
-            Integer clubId = filterByClub ? ((CauLacBo) sel).getId() : null;
+            Integer clubId = club.getId();
 
             for (VanDongVien v : vdvService.findAll()) {
                 if (v == null)
                     continue;
-                // Lọc theo CLB nếu đã chọn CLB
-                if (filterByClub) {
-                    if (v.getIdClb() == null || !v.getIdClb().equals(clubId))
-                        continue;
-                }
+                // Bắt buộc cùng CLB
+                if (v.getIdClb() == null || !v.getIdClb().equals(clubId))
+                    continue;
                 // Giới tính theo nội dung
                 if (reqGender != null && !reqGender.isBlank()) {
                     String gv = v.getGioiTinh();
@@ -218,7 +276,7 @@ public class DangKyCaNhanDialog extends JDialog {
                 }
                 vdvModel.addElement(v);
             }
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải VĐV: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
         cboVdv.setModel(vdvModel);

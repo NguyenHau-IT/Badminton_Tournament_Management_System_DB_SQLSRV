@@ -666,13 +666,6 @@ public class MainFrame extends JFrame {
                     mManage.add(menuItem("Danh sách đăng kí"));
                     // Báo cáo PDF tổng hợp
                     mManage.add(menuItem("Báo cáo (PDF)"));
-                    mManage.add(menuItem("Bốc thăm thi đấu"));
-                    // Mặc định mở "Sơ đồ thi đấu" ở cửa sổ riêng khi chọn từ menu
-                    JMenuItem miSoDo = new JMenuItem("Sơ đồ thi đấu");
-                    miSoDo.addActionListener(e -> openSoDoThiDauWindow());
-                    if (!views.containsKey("Sơ đồ thi đấu"))
-                        miSoDo.setEnabled(false);
-                    mManage.add(miSoDo);
                 }
                 mb.add(mManage);
 
