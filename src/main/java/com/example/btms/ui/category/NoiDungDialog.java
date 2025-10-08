@@ -1,17 +1,32 @@
 package com.example.btms.ui.category;
 
+import java.awt.BorderLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Window;
+import java.sql.SQLException;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.service.category.NoiDungService;
-
-import javax.swing.*;
-import java.awt.*;
 
 public class NoiDungDialog extends JDialog {
     private final NoiDungService noiDungService;
     private final NoiDung originalNoiDung;
     private final boolean isEditMode;
 
-    private JTextField tenNoiDungField, tuoiDuoiField, tuoiTrenField, gioiTinhField;
+    private JTextField tenNoiDungField, tuoiDuoiField, tuoiTrenField;
+    private JComboBox<String> gioiTinhCombo;
     private JCheckBox teamCheckBox;
     private JButton btnSave, btnCancel;
 
@@ -38,7 +53,7 @@ public class NoiDungDialog extends JDialog {
         tenNoiDungField = new JTextField(30);
         tuoiDuoiField = new JTextField(5);
         tuoiTrenField = new JTextField(5);
-        gioiTinhField = new JTextField(2);
+        gioiTinhCombo = new JComboBox<>(new String[] { "", "m", "f" });
         teamCheckBox = new JCheckBox("Đồng đội");
         btnSave = new JButton(isEditMode ? "Cập nhật" : "Thêm mới");
         btnCancel = new JButton("Hủy");
@@ -80,14 +95,24 @@ public class NoiDungDialog extends JDialog {
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.fill = GridBagConstraints.NONE;
-        formPanel.add(new JLabel("Giới tính (M/F):"), gbc);
+        formPanel.add(new JLabel("Giới tính:"), gbc);
         gbc.gridx = 1;
         gbc.gridy = 3;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(gioiTinhField, gbc);
+        formPanel.add(gioiTinhCombo, gbc);
+
+        // Ghi chú nhỏ dưới combobox
+        gbc.gridx = 1;
+        gbc.gridy = 4;
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JLabel note = new JLabel("Ghi chú: m = Nam, f = Nữ, để trống = cả Nam và Nữ");
+        note.setFont(note.getFont().deriveFont(note.getFont().getSize2D() - 1f));
+        note.setForeground(java.awt.Color.DARK_GRAY);
+        formPanel.add(note, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.gridwidth = 2;
         formPanel.add(teamCheckBox, gbc);
 
@@ -109,7 +134,17 @@ public class NoiDungDialog extends JDialog {
         tenNoiDungField.setText(originalNoiDung.getTenNoiDung());
         tuoiDuoiField.setText(String.valueOf(originalNoiDung.getTuoiDuoi()));
         tuoiTrenField.setText(String.valueOf(originalNoiDung.getTuoiTren()));
-        gioiTinhField.setText(originalNoiDung.getGioiTinh());
+        String gt = originalNoiDung.getGioiTinh();
+        if (gt == null || gt.isBlank()) {
+            gioiTinhCombo.setSelectedItem("");
+        } else if (gt.equalsIgnoreCase("m")) {
+            gioiTinhCombo.setSelectedItem("m");
+        } else if (gt.equalsIgnoreCase("f")) {
+            gioiTinhCombo.setSelectedItem("f");
+        } else {
+            // nếu dữ liệu cũ khác m/f, để trống để tránh gây hiểu nhầm
+            gioiTinhCombo.setSelectedItem("");
+        }
         teamCheckBox.setSelected(Boolean.TRUE.equals(originalNoiDung.getTeam()));
     }
 
@@ -123,7 +158,9 @@ public class NoiDungDialog extends JDialog {
             }
             int tuoiDuoi = Integer.parseInt(tuoiDuoiField.getText().trim());
             int tuoiTren = Integer.parseInt(tuoiTrenField.getText().trim());
-            String gioiTinh = gioiTinhField.getText().trim();
+            String gioiTinh = ((String) gioiTinhCombo.getSelectedItem());
+            if (gioiTinh != null)
+                gioiTinh = gioiTinh.trim();
             boolean team = teamCheckBox.isSelected();
             if (isEditMode) {
                 originalNoiDung.setTenNoiDung(tenNoiDung);
@@ -153,8 +190,24 @@ public class NoiDungDialog extends JDialog {
                         JOptionPane.INFORMATION_MESSAGE);
                 dispose();
             }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Lỗi: " + e.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException nfe) {
+            JOptionPane.showMessageDialog(this, "Tuổi dưới/trên phải là số nguyên hợp lệ!", "Lỗi dữ liệu",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (SQLException se) {
+            String msg = se.getMessage();
+            if (msg == null && se.getCause() != null)
+                msg = se.getCause().getMessage();
+            JOptionPane.showMessageDialog(this,
+                    "Lỗi cơ sở dữ liệu: " + (msg != null ? msg : se.getClass().getSimpleName()),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        } catch (IllegalArgumentException iae) {
+            JOptionPane.showMessageDialog(this, iae.getMessage(), "Lỗi dữ liệu", JOptionPane.ERROR_MESSAGE);
+        } catch (RuntimeException re) {
+            String msg = re.getMessage();
+            if (msg == null && re.getCause() != null)
+                msg = re.getCause().getMessage();
+            JOptionPane.showMessageDialog(this, "Lỗi: " + (msg != null ? msg : re.getClass().getSimpleName()), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
         }
     }
 
