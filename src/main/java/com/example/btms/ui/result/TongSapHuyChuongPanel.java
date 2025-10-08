@@ -484,8 +484,8 @@ public class TongSapHuyChuongPanel extends JPanel {
                     84, 36);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                // Header/footer event: do not show tournament name
-                String tournament = null;
+                // Header/footer event: show tournament name
+                String tournament = getTournamentNameForHeader();
                 // Ensure a Unicode base font is initialized before page event uses it (for
                 // Vietnamese diacritics)
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
@@ -540,7 +540,7 @@ public class TongSapHuyChuongPanel extends JPanel {
                     84, 36);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                String tournament = null;
+                String tournament = getTournamentNameForHeader();
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
                         tournament));
@@ -583,7 +583,7 @@ public class TongSapHuyChuongPanel extends JPanel {
                     84, 36);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                String tournament = null;
+                String tournament = getTournamentNameForHeader();
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
                 writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
                         tournament));
@@ -1004,7 +1004,7 @@ public class TongSapHuyChuongPanel extends JPanel {
             if (!f.exists())
                 return null;
             com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = 40f; // allow taller header logo
+            float maxH = getHeaderLogoMaxHeightPt(); // allow taller header logo
             if (img.getScaledHeight() > maxH) {
                 float k = maxH / img.getScaledHeight();
                 img.scalePercent(k * 100f);
@@ -1029,7 +1029,7 @@ public class TongSapHuyChuongPanel extends JPanel {
             if (!f.exists())
                 return null;
             com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = 40f; // align visual height with left logo
+            float maxH = getHeaderLogoMaxHeightPt(); // align visual height with left logo
             if (img.getScaledHeight() > maxH) {
                 float k = maxH / img.getScaledHeight();
                 img.scalePercent(k * 100f);
@@ -1042,6 +1042,30 @@ public class TongSapHuyChuongPanel extends JPanel {
             System.err.println("Sponsor logo load IOException: " + e.getMessage());
             return null;
         }
+    }
+
+    // Read tournament name to display in header
+    private String getTournamentNameForHeader() {
+        String tournament = new Prefs().get("selectedGiaiDauName", null);
+        if (tournament != null && !tournament.isBlank())
+            return tournament.trim();
+        return "Giải đấu";
+    }
+
+    // Header logos max height (pt). Pref key: result.header.logo.maxH.pt. Default
+    // 46f.
+    private float getHeaderLogoMaxHeightPt() {
+        try {
+            String s = prefs.get("result.header.logo.maxH.pt", null);
+            if (s != null) {
+                double d = Double.parseDouble(s.trim());
+                float val = (float) d;
+                if (Float.isFinite(val) && val >= 24f && val <= 80f)
+                    return val;
+            }
+        } catch (Throwable ignore) {
+        }
+        return 46f;
     }
 
     // Page event for header/footer
