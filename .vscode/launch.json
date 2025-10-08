@@ -2,6 +2,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "ImageResizer",
+            "request": "launch",
+            "mainClass": "com.example.btms.util.image.ImageResizer",
+            "projectName": "btms"
+        },
+        {
+            "type": "java",
             "name": "BadmintonTournamentManagementSystemApplication",
             "request": "launch",
             "mainClass": "com.example.btms.BadmintonTournamentManagementSystemApplication",
