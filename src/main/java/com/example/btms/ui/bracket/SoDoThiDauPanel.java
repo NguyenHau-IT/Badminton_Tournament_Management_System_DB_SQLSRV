@@ -720,13 +720,14 @@ public class SoDoThiDauPanel extends JPanel {
                     : file.getAbsolutePath() + ".pdf";
 
             // Create PDF (A4 landscape) and embed image scaled to fit
-            // - smaller side margins for bigger bracket
-            // - keep top margin for header logos/title
+            // Make content larger on paper: tighter margins and near-full scaling
+            // left, right, top, bottom margins (pt)
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
-                // Header/footer event with tournament name and optional logos
+                // Header/footer event with tournament name (no sponsor logo in header; sponsor
+                // will be overlaid on image)
                 String tournament = new Prefs().get("selectedGiaiDauName", null);
                 if (tournament == null || tournament.isBlank()) {
                     String giaiLbl = lblGiai.getText();
@@ -737,7 +738,9 @@ public class SoDoThiDauPanel extends JPanel {
                 }
                 // Ensure a Unicode base font is initialized before page event uses it
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
-                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                // Do not draw sponsor logo in header; it'll be overlaid at bottom-right of the
+                // bracket image
+                writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
                         tournament));
 
                 doc.open();
@@ -748,28 +751,67 @@ public class SoDoThiDauPanel extends JPanel {
                 com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                 title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                title.setSpacingAfter(6f);
+                title.setSpacingAfter(1f);
                 doc.add(title);
-
                 // Auto-trim white borders so the bracket can scale larger and sit closer to the
                 // left
-                java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
-                com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 2);
                 float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
                 // Reserve a conservative block for the title so image stays on the same page
-                float titleReserve = 32f; // pts
+                float titleReserve = 14f; // only title reserve; logo will be overlaid on image
                 float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
                 // Compute scale to fit both width and height, then reduce slightly to ensure it
                 // stays on one page
                 float scaleW = maxW / trimmed.getWidth();
                 float scaleH = maxH / trimmed.getHeight();
-                float scale = Math.min(scaleW, scaleH) * 0.96f; // shrink by 4%
+                float scale = Math.min(scaleW, scaleH) * 0.990f;
                 if (scale <= 0f)
                     scale = 1f;
+                // Reduce vertical size by ~N px (default 10px) by slightly decreasing scale
+                try {
+                    int reducePx = Math.max(0, getReduceBracketHeightPx());
+                    if (reducePx > 0) {
+                        float delta = reducePx / (float) Math.max(1, trimmed.getHeight());
+                        scale = Math.max(0.01f, scale - delta);
+                    }
+                } catch (Throwable ignore) {
+                }
+                // Overlay tournament logo (if any) onto the trimmed image at top-right,
+                // then overlay sponsor logo at bottom-right
+                try {
+                    java.awt.image.BufferedImage awtLogo = tryLoadReportLogoAwt();
+                    if (awtLogo != null) {
+                        float overlayPt = getOverlayLogoPt(); // base size in pt
+                        float padPt = 0f; // tournament logo padding, default ~2pt
+                        float mult = getOverlayMultiplier(); // scale factor (default 10x)
+                        int targetPx = Math.max(1, Math.round((overlayPt * mult * getOverlayAdjustFactor()) / scale));
+                        int paddingPx = Math.max(0, Math.round(padPt / scale));
+                        overlayLogoTopRightWithPaddings(trimmed, awtLogo, targetPx, paddingPx, 0);
+                        // Overlay sponsor at bottom-right using the same sizing
+                        java.awt.image.BufferedImage sponsor = tryLoadSponsorLogoAwt();
+                        if (sponsor != null) {
+                            overlayLogoBottomRight(trimmed, sponsor, targetPx, paddingPx);
+                        }
+                    } else {
+                        // Even if report logo is absent, still try sponsor overlay
+                        java.awt.image.BufferedImage sponsor = tryLoadSponsorLogoAwt();
+                        if (sponsor != null) {
+                            float overlayPt = getOverlayLogoPt();
+                            float padPt = 0f;
+                            float mult = getOverlayMultiplier();
+                            int targetPx = Math.max(1,
+                                    Math.round((overlayPt * mult * getOverlayAdjustFactor()) / scale));
+                            int paddingPx = Math.max(0, Math.round(padPt / scale));
+                            overlayLogoBottomRight(trimmed, sponsor, targetPx, paddingPx);
+                        }
+                    }
+                } catch (Exception ignore) {
+                }
+                com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                 pdfImg.scalePercent(scale * 100f);
                 // Align to the left margin so it looks "sát trái"
                 pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
-                pdfImg.setSpacingBefore(0f);
+                pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                 pdfImg.setSpacingAfter(0f);
                 doc.add(pdfImg);
                 doc.close();
@@ -810,7 +852,7 @@ public class SoDoThiDauPanel extends JPanel {
                     : file.getAbsolutePath() + ".pdf";
 
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 String tournament = new Prefs().get("selectedGiaiDauName", null);
@@ -822,7 +864,9 @@ public class SoDoThiDauPanel extends JPanel {
                         tournament = "Giải đấu";
                 }
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
-                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                // Do not draw sponsor logo in header; sponsor will be overlaid on image
+                // bottom-right
+                writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
                         tournament));
                 doc.open();
                 String ndName = lblNoiDungValue.getText();
@@ -831,22 +875,45 @@ public class SoDoThiDauPanel extends JPanel {
                 com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                 title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                title.setSpacingAfter(6f);
+                title.setSpacingAfter(1f);
                 doc.add(title);
-
-                java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
-                com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 2);
                 float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
-                float titleReserve = 32f;
+                float titleReserve = 14f; // only title reserve; logo is overlaid on image
                 float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
                 float scaleW = maxW / trimmed.getWidth();
                 float scaleH = maxH / trimmed.getHeight();
-                float scale = Math.min(scaleW, scaleH) * 0.96f;
+                float scale = Math.min(scaleW, scaleH) * 0.990f;
                 if (scale <= 0f)
                     scale = 1f;
+                try {
+                    int reducePx = Math.max(0, getReduceBracketHeightPx());
+                    if (reducePx > 0) {
+                        float delta = reducePx / (float) Math.max(1, trimmed.getHeight());
+                        scale = Math.max(0.01f, scale - delta);
+                    }
+                } catch (Throwable ignore) {
+                }
+                try {
+                    java.awt.image.BufferedImage awtLogo = tryLoadReportLogoAwt();
+                    float overlayPt = getOverlayLogoPt();
+                    float padPt = 0f;
+                    float mult = getOverlayMultiplier();
+                    int targetPx = Math.max(1, Math.round((overlayPt * mult * getOverlayAdjustFactor()) / scale));
+                    int paddingPx = Math.max(0, Math.round(padPt / scale));
+                    if (awtLogo != null) {
+                        overlayLogoTopRightWithPaddings(trimmed, awtLogo, targetPx, paddingPx, 0);
+                    }
+                    java.awt.image.BufferedImage sponsor = tryLoadSponsorLogoAwt();
+                    if (sponsor != null) {
+                        overlayLogoBottomRight(trimmed, sponsor, targetPx, paddingPx);
+                    }
+                } catch (Exception ignore) {
+                }
+                com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                 pdfImg.scalePercent(scale * 100f);
                 pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
-                pdfImg.setSpacingBefore(0f);
+                pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                 pdfImg.setSpacingAfter(0f);
                 doc.add(pdfImg);
                 doc.close();
@@ -905,11 +972,12 @@ public class SoDoThiDauPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
-                writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                // No sponsor in header; it will be overlaid on the bracket image
+                writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
                         tournament));
                 doc.open();
                 NoiDung old = selectedNoiDung;
@@ -927,8 +995,9 @@ public class SoDoThiDauPanel extends JPanel {
                     com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                     title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                    title.setSpacingAfter(6f);
+                    title.setSpacingAfter(1f);
                     doc.add(title);
+                    // Tournament logo will be overlaid onto the bracket image (no inline block)
 
                     // Render
                     java.awt.Dimension pref = canvas.getPreferredSize();
@@ -946,19 +1015,43 @@ public class SoDoThiDauPanel extends JPanel {
                     canvas.printAll(g2);
                     g2.dispose();
 
-                    java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
-                    com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                    java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 2);
                     float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
-                    float titleReserve = 32f;
+                    float titleReserve = 14f; // only title reserve
                     float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
                     float scaleW = maxW / trimmed.getWidth();
                     float scaleH = maxH / trimmed.getHeight();
-                    float scale = Math.min(scaleW, scaleH) * 0.96f;
+                    float scale = Math.min(scaleW, scaleH) * 0.990f;
                     if (scale <= 0f)
                         scale = 1f;
+                    try {
+                        int reducePx = Math.max(0, getReduceBracketHeightPx());
+                        if (reducePx > 0) {
+                            float delta = reducePx / (float) Math.max(1, trimmed.getHeight());
+                            scale = Math.max(0.01f, scale - delta);
+                        }
+                    } catch (Throwable ignore) {
+                    }
+                    try {
+                        float overlayPt = getOverlayLogoPt();
+                        float padPt = 0f;
+                        float mult = getOverlayMultiplier();
+                        int targetPx = Math.max(1, Math.round((overlayPt * mult * getOverlayAdjustFactor()) / scale));
+                        int paddingPx = Math.max(0, Math.round(padPt / scale));
+                        java.awt.image.BufferedImage awtLogo = tryLoadReportLogoAwt();
+                        if (awtLogo != null) {
+                            overlayLogoTopRightWithPaddings(trimmed, awtLogo, targetPx, paddingPx, 0);
+                        }
+                        java.awt.image.BufferedImage sponsor = tryLoadSponsorLogoAwt();
+                        if (sponsor != null) {
+                            overlayLogoBottomRight(trimmed, sponsor, targetPx, paddingPx);
+                        }
+                    } catch (Exception ignore) {
+                    }
+                    com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                     pdfImg.scalePercent(scale * 100f);
                     pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
-                    pdfImg.setSpacingBefore(0f);
+                    pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                     pdfImg.setSpacingAfter(0f);
                     doc.add(pdfImg);
 
@@ -1031,11 +1124,12 @@ public class SoDoThiDauPanel extends JPanel {
                 java.io.File f = new java.io.File(dir, fileName);
                 // write single PDF for this nội dung
                 com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                        com.lowagie.text.PageSize.A4.rotate(), 12, 18, 84, 28);
+                        com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
                 try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
                     com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                     pdfFont(12f, com.lowagie.text.Font.NORMAL);
-                    writer.setPageEvent(new ReportPageEvent(tryLoadReportLogo(), tryLoadSponsorLogo(), ensureBaseFont(),
+                    // No sponsor in header; it will be overlaid on the bracket image
+                    writer.setPageEvent(new ReportPageEvent(null, null, ensureBaseFont(),
                             tournament));
                     doc.open();
                     String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
@@ -1043,8 +1137,10 @@ public class SoDoThiDauPanel extends JPanel {
                     com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                     title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-                    title.setSpacingAfter(6f);
+                    title.setSpacingAfter(1f);
                     doc.add(title);
+
+                    // Tournament logo will be overlaid onto the bracket image (no inline block)
 
                     java.awt.Dimension pref = canvas.getPreferredSize();
                     if (pref != null)
@@ -1061,19 +1157,43 @@ public class SoDoThiDauPanel extends JPanel {
                     canvas.printAll(g2);
                     g2.dispose();
 
-                    java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 8);
-                    com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
+                    java.awt.image.BufferedImage trimmed = trimWhiteBorders(img, 2);
                     float maxW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
-                    float titleReserve = 32f;
+                    float titleReserve = 14f; // only title reserve; overlay logo on image
                     float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
                     float scaleW = maxW / trimmed.getWidth();
                     float scaleH = maxH / trimmed.getHeight();
-                    float scale = Math.min(scaleW, scaleH) * 0.96f;
+                    float scale = Math.min(scaleW, scaleH) * 0.990f;
                     if (scale <= 0f)
                         scale = 1f;
+                    try {
+                        int reducePx = Math.max(0, getReduceBracketHeightPx());
+                        if (reducePx > 0) {
+                            float delta = reducePx / (float) Math.max(1, trimmed.getHeight());
+                            scale = Math.max(0.01f, scale - delta);
+                        }
+                    } catch (Throwable ignore) {
+                    }
+                    try {
+                        float overlayPt = getOverlayLogoPt();
+                        float padPt = getOverlayPaddingPt();
+                        float mult = getOverlayMultiplier();
+                        int targetPx = Math.max(1, Math.round((overlayPt * mult * getOverlayAdjustFactor()) / scale));
+                        int paddingPx = Math.max(0, Math.round(padPt / scale));
+                        java.awt.image.BufferedImage awtLogo = tryLoadReportLogoAwt();
+                        if (awtLogo != null) {
+                            overlayLogoTopRightWithPaddings(trimmed, awtLogo, targetPx, paddingPx, 0);
+                        }
+                        java.awt.image.BufferedImage sponsor = tryLoadSponsorLogoAwt();
+                        if (sponsor != null) {
+                            overlayLogoBottomRight(trimmed, sponsor, targetPx, paddingPx);
+                        }
+                    } catch (Exception ignore) {
+                    }
+                    com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                     pdfImg.scalePercent(scale * 100f);
                     pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
-                    pdfImg.setSpacingBefore(0f);
+                    pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                     pdfImg.setSpacingAfter(0f);
                     doc.add(pdfImg);
                     doc.close();
@@ -1163,6 +1283,215 @@ public class SoDoThiDauPanel extends JPanel {
         g2.drawImage(sub, 0, 0, null);
         g2.dispose();
         return out;
+    }
+
+    // Load report logo as AWT image for overlay onto the bracket bitmap
+    private java.awt.image.BufferedImage tryLoadReportLogoAwt() {
+        try {
+            String logoPath = new Prefs().get("report.logo.path", "");
+            if (logoPath == null || logoPath.isBlank())
+                return null;
+            java.io.File f = new java.io.File(logoPath);
+            if (!f.exists())
+                return null;
+            return javax.imageio.ImageIO.read(f);
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    // Load sponsor logo as AWT image for overlay onto the bracket bitmap
+    private java.awt.image.BufferedImage tryLoadSponsorLogoAwt() {
+        try {
+            String logoPath = new Prefs().get("report.sponsor.logo.path", "");
+            if (logoPath == null || logoPath.isBlank())
+                return null;
+            java.io.File f = new java.io.File(logoPath);
+            if (!f.exists())
+                return null;
+            return javax.imageio.ImageIO.read(f);
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    // Draw a scaled logo at top-right of the given image, keeping aspect ratio
+    private static void overlayLogoTopRight(java.awt.image.BufferedImage base,
+            java.awt.image.BufferedImage logo, int targetHeightPx, int paddingPx) {
+        if (base == null || logo == null || targetHeightPx <= 0)
+            return;
+        int srcW = logo.getWidth();
+        int srcH = logo.getHeight();
+        if (srcW <= 0 || srcH <= 0)
+            return;
+        double k = targetHeightPx / (double) srcH;
+        int newH = Math.max(1, targetHeightPx);
+        int newW = Math.max(1, (int) Math.round(srcW * k));
+        java.awt.Image scaled = logo.getScaledInstance(newW, newH, java.awt.Image.SCALE_SMOOTH);
+        int x = Math.max(0, base.getWidth() - newW - Math.max(0, paddingPx));
+        int y = Math.max(0, Math.max(0, paddingPx));
+        java.awt.Graphics2D g = base.createGraphics();
+        try {
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g.drawImage(scaled, x, y, null);
+        } finally {
+            g.dispose();
+        }
+    }
+
+    // Same as overlayLogoTopRight but allows separate right and top padding.
+    private static void overlayLogoTopRightWithPaddings(java.awt.image.BufferedImage base,
+            java.awt.image.BufferedImage logo, int targetHeightPx, int paddingRightPx, int paddingTopPx) {
+        if (base == null || logo == null || targetHeightPx <= 0)
+            return;
+        int srcW = logo.getWidth();
+        int srcH = logo.getHeight();
+        if (srcW <= 0 || srcH <= 0)
+            return;
+        double k = targetHeightPx / (double) srcH;
+        int newH = Math.max(1, targetHeightPx);
+        int newW = Math.max(1, (int) Math.round(srcW * k));
+        java.awt.Image scaled = logo.getScaledInstance(newW, newH, java.awt.Image.SCALE_SMOOTH);
+        int x = Math.max(0, base.getWidth() - newW - Math.max(0, paddingRightPx));
+        int y = Math.max(0, Math.max(0, paddingTopPx));
+        java.awt.Graphics2D g = base.createGraphics();
+        try {
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g.drawImage(scaled, x, y, null);
+        } finally {
+            g.dispose();
+        }
+    }
+
+    // Draw a scaled logo at bottom-right of the given image, keeping aspect ratio
+    private static void overlayLogoBottomRight(java.awt.image.BufferedImage base,
+            java.awt.image.BufferedImage logo, int targetHeightPx, int paddingPx) {
+        if (base == null || logo == null || targetHeightPx <= 0)
+            return;
+        int srcW = logo.getWidth();
+        int srcH = logo.getHeight();
+        if (srcW <= 0 || srcH <= 0)
+            return;
+        double k = targetHeightPx / (double) srcH;
+        int newH = Math.max(1, targetHeightPx);
+        int newW = Math.max(1, (int) Math.round(srcW * k));
+        java.awt.Image scaled = logo.getScaledInstance(newW, newH, java.awt.Image.SCALE_SMOOTH);
+        int x = Math.max(0, base.getWidth() - newW - Math.max(0, paddingPx));
+        int y = Math.max(0, base.getHeight() - newH - Math.max(0, paddingPx));
+        java.awt.Graphics2D g = base.createGraphics();
+        try {
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g.drawImage(scaled, x, y, null);
+        } finally {
+            g.dispose();
+        }
+    }
+
+    // Read desired overlay logo height in points (on paper). Default larger: 14pt.
+    // Pref key: report.logo.overlay.pt
+    private float getOverlayLogoPt() {
+        try {
+            String s = prefs.get("report.logo.overlay.pt", null);
+            if (s != null) {
+                double d = Double.parseDouble(s.trim());
+                float val = (float) d;
+                if (Float.isFinite(val) && val > 0f && val < 72f)
+                    return val; // clamp
+            }
+        } catch (Throwable ignore) {
+        }
+        return 10f;
+    }
+
+    // Read overlay padding in points. Default 4pt.
+    // Pref key: report.logo.overlay.padding.pt
+    private float getOverlayPaddingPt() {
+        try {
+            String s = prefs.get("report.logo.overlay.padding.pt", null);
+            if (s != null) {
+                double d = Double.parseDouble(s.trim());
+                float val = (float) d;
+                if (Float.isFinite(val) && val >= 0f && val < 48f)
+                    return val;
+            }
+        } catch (Throwable ignore) {
+        }
+        return 0f;
+    }
+
+    // Vertical offset for the bracket image in PDF (spacingBefore), in points.
+    // Negative value moves the image up. Default -10 (approx 10px up on paper).
+    // Pref key: bracket.image.offset.before.pt
+    private float getBracketImageOffsetBeforePt() {
+        try {
+            String s = prefs.get("bracket.image.offset.before.pt", null);
+            if (s != null) {
+                double d = Double.parseDouble(s.trim());
+                float val = (float) d;
+                if (Float.isFinite(val) && val >= -40f && val <= 40f)
+                    return val;
+            }
+        } catch (Throwable ignore) {
+        }
+        return -15f; // move up by 10pt by default
+    }
+
+    // Reduce bracket image height by N pixels (on the rendered bitmap) by
+    // decreasing scale.
+    // Pref key: bracket.image.reduce.height.px, default 10px.
+    private int getReduceBracketHeightPx() {
+        try {
+            int val = prefs.getInt("bracket.image.reduce.height.px", 10);
+            if (val < 0)
+                return 0;
+            if (val > 100)
+                return 100; // clamp
+            return val;
+        } catch (Throwable ignore) {
+            return 10;
+        }
+    }
+
+    // Multiplier to enlarge overlay logo aggressively. Default 10x per request.
+    // Pref key: report.logo.overlay.multiplier (float)
+    private float getOverlayMultiplier() {
+        try {
+            String s = prefs.get("report.logo.overlay.multiplier", null);
+            if (s != null) {
+                double d = Double.parseDouble(s.trim());
+                float val = (float) d;
+                if (Float.isFinite(val) && val > 0.1f && val <= 20f)
+                    return val;
+            }
+        } catch (Throwable ignore) {
+        }
+        return 10f; // default 10x
+    }
+
+    // Additional adjust factor applied to overlay size to fine-tune "a bit
+    // smaller".
+    // Pref key: report.logo.overlay.adjust.factor (float), default 0.9f
+    private float getOverlayAdjustFactor() {
+        try {
+            String s = prefs.get("report.logo.overlay.adjust.factor", null);
+            if (s != null) {
+                double d = Double.parseDouble(s.trim());
+                float val = (float) d;
+                if (Float.isFinite(val) && val > 0.2f && val <= 2.0f)
+                    return val;
+            }
+        } catch (Throwable ignore) {
+        }
+        return 0.9f;
     }
 
     private com.lowagie.text.Font pdfFont(float size, int style) {
@@ -1310,14 +1639,14 @@ public class SoDoThiDauPanel extends JPanel {
                 }
             }
 
-            // Header: tournament name centered on top
+            // Header: tournament name centered on top (reduced Y-offset to tighten gap)
             if (tournamentName != null && !tournamentName.isBlank()) {
                 cb.beginText();
                 try {
                     com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
                             ? baseFont
                             : com.lowagie.text.pdf.BaseFont.createFont();
-                    cb.setFontAndSize(bf, 14f);
+                    cb.setFontAndSize(bf, 16f);
                 } catch (com.lowagie.text.DocumentException e) {
                     System.err.println("header BaseFont DocumentException: " + e.getMessage());
                 } catch (java.io.IOException e) {
@@ -1325,7 +1654,7 @@ public class SoDoThiDauPanel extends JPanel {
                 }
                 // Place centered within the enlarged header area
                 cb.showTextAligned(com.lowagie.text.Element.ALIGN_CENTER, tournamentName, (left + right) / 2f,
-                        top + 28f, 0);
+                        top + 16f, 0);
                 cb.endText();
             }
 
@@ -2828,9 +3157,10 @@ public class SoDoThiDauPanel extends JPanel {
         private void rebuildSlots() {
             slots.clear();
             int orderCounter = 1; // continuous numbering
+            int baseStep = getVerticalBase();
             for (int col = 1; col <= columns; col++) {
                 int spotCount = spots[col - 1];
-                int verticalStep = (int) (40 * Math.pow(2, col - 1)); // bước của cột hiện tại
+                int verticalStep = (int) (baseStep * Math.pow(2, col - 1)); // bước của cột hiện tại (tăng chiều dọc)
                 for (int t = 0; t < spotCount; t++) {
                     int x = 35 + (col - 1) * 200 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
                                                                                                         // (giãn ngang)
@@ -2882,7 +3212,7 @@ public class SoDoThiDauPanel extends JPanel {
             }
             int maxX = Math.max(baseMaxX, maxRight + 40); // thêm 40px để có khoảng trống
             int lastColSpots = spots[0];
-            int maxY = START_Y + (lastColSpots) * (40) + 400; // dư chút để scroll
+            int maxY = START_Y + (lastColSpots) * (baseStep) + 400; // dư chút để scroll
             setPreferredSize(new Dimension(maxX, maxY));
             revalidate();
         }
@@ -3066,6 +3396,21 @@ public class SoDoThiDauPanel extends JPanel {
                 return v;
             } catch (RuntimeException ignore) {
                 return 12;
+            }
+        }
+
+        // Base unit for vertical spacing between competitors in the seed column. Higher
+        // values make the whole bracket taller.
+        private int getVerticalBase() {
+            try {
+                int v = SoDoThiDauPanel.this.prefs.getInt("bracket.verticalStepBase", 50); // default 50 (>40)
+                if (v < 28)
+                    v = 28; // keep readable and avoid overlap in deep columns
+                if (v > 80)
+                    v = 80; // cap to avoid excessive canvas size
+                return v;
+            } catch (RuntimeException ignore) {
+                return 50;
             }
         }
     }
