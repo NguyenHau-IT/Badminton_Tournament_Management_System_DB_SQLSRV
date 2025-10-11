@@ -748,7 +748,7 @@ public class SoDoThiDauPanel extends JPanel {
                 String ndName = lblNoiDungValue.getText();
                 String titleStr = (ndName != null && !ndName.isBlank()) ? ("SƠ ĐỒ THI ĐẤU - " + ndName)
                         : "SƠ ĐỒ THI ĐẤU";
-                com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                 title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                 title.setSpacingAfter(1f);
@@ -872,7 +872,7 @@ public class SoDoThiDauPanel extends JPanel {
                 String ndName = lblNoiDungValue.getText();
                 String titleStr = (ndName != null && !ndName.isBlank()) ? ("SƠ ĐỒ THI ĐẤU - " + ndName)
                         : "SƠ ĐỒ THI ĐẤU";
-                com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                 title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                 title.setSpacingAfter(1f);
@@ -992,7 +992,7 @@ public class SoDoThiDauPanel extends JPanel {
                     // Title
                     String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
                     String titleStr = !ndName.isBlank() ? ("SƠ ĐỒ THI ĐẤU - " + ndName) : "SƠ ĐỒ THI ĐẤU";
-                    com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                    com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                     title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                     title.setSpacingAfter(1f);
@@ -1134,7 +1134,7 @@ public class SoDoThiDauPanel extends JPanel {
                     doc.open();
                     String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
                     String titleStr = !ndName.isBlank() ? ("SƠ ĐỒ THI ĐẤU - " + ndName) : "SƠ ĐỒ THI ĐẤU";
-                    com.lowagie.text.Font titleFont = pdfFont(18f, com.lowagie.text.Font.BOLD);
+                    com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                     title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                     title.setSpacingAfter(1f);
@@ -1409,7 +1409,7 @@ public class SoDoThiDauPanel extends JPanel {
             }
         } catch (Throwable ignore) {
         }
-        return 10f;
+        return 9f;
     }
 
     // Read overlay padding in points. Default 4pt.
@@ -1442,7 +1442,7 @@ public class SoDoThiDauPanel extends JPanel {
             }
         } catch (Throwable ignore) {
         }
-        return -15f; // move up by 10pt by default
+        return -20f; // move up a bit more by default
     }
 
     // Reduce bracket image height by N pixels (on the rendered bitmap) by
@@ -1550,7 +1550,7 @@ public class SoDoThiDauPanel extends JPanel {
             if (!f.exists())
                 return null;
             com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = 40f; // allow taller header logo
+            float maxH = 34f; // slightly smaller header logo
             if (img.getScaledHeight() > maxH) {
                 float k = maxH / img.getScaledHeight();
                 img.scalePercent(k * 100f);
@@ -1575,7 +1575,7 @@ public class SoDoThiDauPanel extends JPanel {
             if (!f.exists())
                 return null;
             com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = 40f; // align visual height with left logo
+            float maxH = 34f; // align visual height with left logo (reduced)
             if (img.getScaledHeight() > maxH) {
                 float k = maxH / img.getScaledHeight();
                 img.scalePercent(k * 100f);
@@ -1619,7 +1619,7 @@ public class SoDoThiDauPanel extends JPanel {
             if (leftLogo != null) {
                 try {
                     float x = left;
-                    float y = top + 6f; // place image fully in header area
+                    float y = top + 4f; // place image fully in header area (reduced)
                     leftLogo.setAbsolutePosition(x, y);
                     cb.addImage(leftLogo);
                 } catch (com.lowagie.text.DocumentException e) {
@@ -1631,7 +1631,7 @@ public class SoDoThiDauPanel extends JPanel {
             if (rightLogo != null) {
                 try {
                     float x = right - rightLogo.getScaledWidth();
-                    float y = top + 6f; // align with left logo
+                    float y = top + 4f; // align with left logo (reduced)
                     rightLogo.setAbsolutePosition(x, y);
                     cb.addImage(rightLogo);
                 } catch (com.lowagie.text.DocumentException e) {
@@ -1646,7 +1646,7 @@ public class SoDoThiDauPanel extends JPanel {
                     com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
                             ? baseFont
                             : com.lowagie.text.pdf.BaseFont.createFont();
-                    cb.setFontAndSize(bf, 16f);
+                    cb.setFontAndSize(bf, 14f);
                 } catch (com.lowagie.text.DocumentException e) {
                     System.err.println("header BaseFont DocumentException: " + e.getMessage());
                 } catch (java.io.IOException e) {
@@ -1654,7 +1654,7 @@ public class SoDoThiDauPanel extends JPanel {
                 }
                 // Place centered within the enlarged header area
                 cb.showTextAligned(com.lowagie.text.Element.ALIGN_CENTER, tournamentName, (left + right) / 2f,
-                        top + 16f, 0);
+                        top + 8f, 0);
                 cb.endText();
             }
 
