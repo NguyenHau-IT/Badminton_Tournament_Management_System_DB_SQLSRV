@@ -972,7 +972,7 @@ public class SoDoThiDauPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
+                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 10, 16);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
@@ -1124,7 +1124,7 @@ public class SoDoThiDauPanel extends JPanel {
                 java.io.File f = new java.io.File(dir, fileName);
                 // write single PDF for this nội dung
                 com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                        com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
+                        com.lowagie.text.PageSize.A4.rotate(), 8, 10, 10, 16);
                 try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
                     com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                     pdfFont(12f, com.lowagie.text.Font.NORMAL);
