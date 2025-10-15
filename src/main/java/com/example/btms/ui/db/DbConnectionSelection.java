@@ -23,6 +23,7 @@ public class DbConnectionSelection {
     private String username;
     private char[] password;
     private boolean remember;
+    private String jdbcUrl; // URL dựng sẵn theo lựa chọn để trang chính dùng trực tiếp
 
     public Mode getMode() {
         return mode;
@@ -96,6 +97,14 @@ public class DbConnectionSelection {
         this.remember = remember;
     }
 
+    public String getJdbcUrl() {
+        return jdbcUrl;
+    }
+
+    public void setJdbcUrl(String jdbcUrl) {
+        this.jdbcUrl = jdbcUrl;
+    }
+
     @Override
     public String toString() {
         return "DbConnectionSelection{" +
@@ -107,6 +116,7 @@ public class DbConnectionSelection {
                 ", port='" + port + '\'' +
                 ", username='" + username + '\'' +
                 ", remember=" + remember +
+                ", jdbcUrl='" + jdbcUrl + '\'' +
                 '}';
     }
 

@@ -75,9 +75,7 @@ import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
-import com.example.btms.ui.db.DbConnectionDialog;
 import com.example.btms.ui.db.DbConnectionSelection;
-import com.example.btms.ui.db.DbConnectionSelection.DbType;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
@@ -524,10 +522,17 @@ public class MainFrame extends JFrame {
      * --------------------
      */
     private void startDatabaseSetupFlow() {
-        // Hiển thị dialog cấu hình DB
-        DbConnectionDialog dlg = new DbConnectionDialog(this);
+        // Hiển thị dialog cấu hình DB (chứa panel)
+        final DbConnectionSelection[] outSel = new DbConnectionSelection[1];
+        javax.swing.JDialog dlg = new javax.swing.JDialog(this, "Kết nối cơ sở dữ liệu", true);
+        com.example.btms.ui.db.DbConnectionPanel panel = new com.example.btms.ui.db.DbConnectionPanel();
+        panel.setOnOk(s -> outSel[0] = s);
+        panel.setOnCancel(() -> outSel[0] = null);
+        dlg.setContentPane(panel);
+        dlg.pack();
+        dlg.setLocationRelativeTo(this);
         dlg.setVisible(true);
-        DbConnectionSelection sel = dlg.getSelection();
+        DbConnectionSelection sel = outSel[0];
         if (sel == null) {
             // Người dùng hủy -> không kết nối, không đăng nhập
             statusConn.setText("Chưa kết nối");
@@ -541,48 +546,30 @@ public class MainFrame extends JFrame {
             return;
         }
 
-        // Chỉ xử lý SQLSRV ở đây (H2 có thể bổ sung sau nếu cần)
-        if (sel.getDbType() == DbType.SQLSRV) {
-            try {
-                String host = nz(sel.getServer());
-                String port = nz(sel.getPort());
-                String dbn = nz(sel.getDbName());
-                StringBuilder url = new StringBuilder("jdbc:sqlserver://").append(host);
-                if (!port.isBlank())
-                    url.append(':').append(port.trim());
-                if (!dbn.isBlank())
-                    url.append(";databaseName=").append(dbn.trim());
+        // Dùng trực tiếp URL đã dựng từ trang cấu hình, không cần dựng lại
+        try {
+            String url = nz(sel.getJdbcUrl());
+            ConnectionConfig runtimeCfg = new ConnectionConfig().mode(ConnectionConfig.Mode.NAME);
+            runtimeCfg.setUrl(url);
+            if (sel.getUsername() != null && !sel.getUsername().isBlank())
+                runtimeCfg.setUsername(sel.getUsername());
+            if (sel.getPassword() != null)
+                runtimeCfg.setPassword(new String(sel.getPassword()));
 
-                ConnectionConfig runtimeCfg = new ConnectionConfig().mode(ConnectionConfig.Mode.NAME);
-                runtimeCfg.setUrl(url.toString());
-                if (sel.getUsername() != null)
-                    runtimeCfg.setUsername(sel.getUsername());
-                if (sel.getPassword() != null)
-                    runtimeCfg.setPassword(new String(sel.getPassword()));
-
-                service.setConfig(runtimeCfg);
-                Connection conn = service.connect();
-                onDatabaseConnected(conn);
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Kết nối CSDL thất bại: " + ex.getMessage(), "Lỗi",
-                        JOptionPane.ERROR_MESSAGE);
-                statusConn.setText("Lỗi kết nối");
-                statusConn.setForeground(new Color(231, 76, 60));
-                if (!isVisible()) {
-                    // Nếu đang ở luồng khởi động và kết nối thất bại, thoát để tránh cửa sổ ẩn
-                    dispose();
-                    System.exit(1);
-                }
-                return;
-            }
-        } else {
-            // H2: có thể mở chế độ embedded/file; để trống để bổ sung theo yêu cầu
-            JOptionPane.showMessageDialog(this, "Hiện chưa hỗ trợ H2 trong luồng này.", "Thông báo",
-                    JOptionPane.INFORMATION_MESSAGE);
+            service.setConfig(runtimeCfg);
+            Connection conn = service.connect();
+            onDatabaseConnected(conn);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Kết nối CSDL thất bại: " + ex.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+            statusConn.setText("Lỗi kết nối");
+            statusConn.setForeground(new Color(231, 76, 60));
             if (!isVisible()) {
+                // Nếu đang ở luồng khởi động và kết nối thất bại, thoát để tránh cửa sổ ẩn
                 dispose();
-                System.exit(0);
+                System.exit(1);
             }
+            return;
         }
     }
 
