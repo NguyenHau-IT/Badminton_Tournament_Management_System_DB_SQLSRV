@@ -78,7 +78,7 @@ public class LoginTab extends JPanel {
         add(lblStatus, BorderLayout.SOUTH);
 
         // mặc định
-        tfUser.setText("ADMIN");
+        tfUser.setText("admin");
         pfPass.setText("set");
         cboMode.setSelectedIndex(1);
 

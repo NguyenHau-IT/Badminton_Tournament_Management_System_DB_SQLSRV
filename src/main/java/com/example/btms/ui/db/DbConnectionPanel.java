@@ -201,9 +201,7 @@ public class DbConnectionPanel extends JPanel {
                         url.append(":").append(port);
                     if (!dbName.isBlank())
                         url.append(";databaseName=").append(dbName);
-
-                    url.append(";encrypt=true;trustServerCertificate=true");
-                    url.append(";loginTimeout=5");
+                    url.append(";encrypt=true;trustServerCertificate=true;loginTimeout=5");
 
                     boolean useIntegrated = user.isBlank();
                     if (useIntegrated) {
@@ -218,18 +216,15 @@ public class DbConnectionPanel extends JPanel {
                         showErrorLater("Vui lòng nhập Tên DB (H2).");
                         return;
                     }
+
                     boolean isLocal = serverInput.isBlank() || serverInput.equalsIgnoreCase("localhost")
                             || "127.0.0.1".equals(serverInput);
-                    String url;
-                    if (isLocal) {
-                        url = "jdbc:h2:file:./database/" + dbName
-                                + ";MODE=MSSQLServer;DATABASE_TO_UPPER=FALSE";
-                    } else {
-                        url = "jdbc:h2:tcp://" + server + ":9092/./database/" + dbName;
-                    }
-                    String userH2 = "sa";
-                    String passH2 = "";
-                    DriverManager.getConnection(url, userH2, passH2).close();
+                    String baseOpts = ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
+                    String url = isLocal
+                            ? "jdbc:h2:file:./database/" + dbName + baseOpts
+                            : "jdbc:h2:tcp://" + server + ":9092/./database/" + dbName + baseOpts;
+
+                    DriverManager.getConnection(url, "sa", "").close();
                     showInfoLater("Kết nối H2 thành công.");
                 } else {
                     showErrorLater("Kiểu DB không hợp lệ.");
@@ -268,7 +263,8 @@ public class DbConnectionPanel extends JPanel {
         DbConnectionSelection sel = new DbConnectionSelection();
         sel.setMode(rbLocalLan.isSelected() ? Mode.LOCAL_OR_LAN
                 : rbInitNew.isSelected() ? Mode.INIT_NEW
-                        : rbOnline.isSelected() ? Mode.ONLINE : Mode.IMPORT_FILE);
+                        : rbOnline.isSelected() ? Mode.ONLINE
+                                : Mode.IMPORT_FILE);
         sel.setDbType((DbType) cbDbType.getSelectedItem());
         sel.setDbName(safe(txtDbName.getText()));
         sel.setExistingEntry((String) cbExisting.getSelectedItem());
@@ -283,17 +279,17 @@ public class DbConnectionPanel extends JPanel {
             sel.setPassword(txtPass.getPassword());
         }
         sel.setRemember(chkRemember.isSelected());
+
         if (sel.getDbType() == DbType.H2) {
             String serverInput = safe(txtServer.getText());
             boolean isLocal = serverInput.isBlank() || serverInput.equalsIgnoreCase("localhost")
                     || "127.0.0.1".equals(serverInput);
+            String baseOpts = ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
             if (isLocal) {
-                sel.setJdbcUrl("jdbc:h2:file:./database/" + sel.getDbName()
-                        + ";MODE=MSSQLServer;DATABASE_TO_UPPER=FALSE;INIT=SET SCHEMA dbo");
+                sel.setJdbcUrl("jdbc:h2:file:./database/" + sel.getDbName() + baseOpts);
             } else {
-                sel.setJdbcUrl(
-                        "jdbc:h2:tcp://" + sel.getServer() + ":" + sel.getPort() + "/./database/" + sel.getDbName()
-                                + ";MODE=MSSQLServer;DATABASE_TO_UPPER=FALSE;INIT=SET SCHEMA dbo");
+                sel.setJdbcUrl("jdbc:h2:tcp://" + sel.getServer() + ":" + sel.getPort()
+                        + "/./database/" + sel.getDbName() + baseOpts);
             }
         } else if (sel.getDbType() == DbType.SQLSRV) {
             StringBuilder u = new StringBuilder("jdbc:sqlserver://").append(sel.getServer());
@@ -331,12 +327,10 @@ public class DbConnectionPanel extends JPanel {
             File dir = new File("database");
             if (dir.isDirectory()) {
                 File[] list = dir.listFiles();
-                if (list != null) {
-                    for (File f : list) {
+                if (list != null)
+                    for (File f : list)
                         if (f.isFile())
                             items.add(f.getName());
-                    }
-                }
             }
         } catch (Exception ignore) {
         }
@@ -381,7 +375,7 @@ public class DbConnectionPanel extends JPanel {
                 if (!dir.exists())
                     dir.mkdirs();
                 String fileUrl = "jdbc:h2:file:./database/" + dbName
-                        + ";MODE=MSSQLServer;DATABASE_TO_UPPER=FALSE;INIT=SET SCHEMA dbo";
+                        + ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
                 DriverManager.getConnection(fileUrl, "sa", "").close();
                 try {
                     initH2DatabaseFromScript(dbName);
