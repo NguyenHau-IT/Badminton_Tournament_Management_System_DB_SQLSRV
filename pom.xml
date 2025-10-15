@@ -49,6 +49,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- H2 in-memory/database for local testing -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <dependency>
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf</artifactId>
@@ -216,7 +223,7 @@
                 </file>
             </activation>
             <properties>
-                <install.dir>C:\Program Files\BTMS</install.dir>
+                <install.dir>C:\BTMS</install.dir>
             </properties>
         </profile>
     </profiles>
