@@ -69,7 +69,8 @@ public class BadmintonTournamentManagementSystemApplication {
 			}
 			MainFrame mf = new MainFrame(cfg, dbCfg);
 			IconUtil.applyTo(mf);
-			mf.setVisible(true);
+			// Không hiển thị frame ngay; MainFrame sẽ hiển thị sau khi kết nối DB + đăng
+			// nhập + chọn giải
 		});
 	}
 }

@@ -75,6 +75,9 @@ import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
+import com.example.btms.ui.db.DbConnectionDialog;
+import com.example.btms.ui.db.DbConnectionSelection;
+import com.example.btms.ui.db.DbConnectionSelection.DbType;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
@@ -120,6 +123,7 @@ public class MainFrame extends JFrame {
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
     private final DatabaseService service = new DatabaseService(manager);
+    @SuppressWarnings("unused")
     private final ConnectionConfig dbCfg; // cấu hình kết nối DB (bind từ application.properties)
 
     private final BadmintonControlPanel controlPanel = new BadmintonControlPanel();
@@ -360,7 +364,10 @@ public class MainFrame extends JFrame {
         ramTimer = new javax.swing.Timer(1000, ae -> updateMemory());
         ramTimer.start();
 
-        autoConnectDatabase();
+        // Không tự động kết nối DB nữa.
+        // Thay vào đó: hiển thị hộp thoại thiết lập DB, sau đó mới đăng nhập và chọn
+        // giải.
+        SwingUtilities.invokeLater(this::startDatabaseSetupFlow);
 
         // Áp dụng font scale nếu người dùng đã lưu khác 100%
         int pct = new com.example.btms.config.Prefs().getInt("ui.fontScalePercent", 100);
@@ -512,152 +519,149 @@ public class MainFrame extends JFrame {
         loginTab.setAuthService(this.authService);
     }
 
-    /* -------------------- AUTO CONNECT DATABASE -------------------- */
-    private void autoConnectDatabase() {
-        new Thread(() -> {
+    /*
+     * -------------------- SETUP DATABASE FLOW (manual, after network)
+     * --------------------
+     */
+    private void startDatabaseSetupFlow() {
+        // Hiển thị dialog cấu hình DB
+        DbConnectionDialog dlg = new DbConnectionDialog(this);
+        dlg.setVisible(true);
+        DbConnectionSelection sel = dlg.getSelection();
+        if (sel == null) {
+            // Người dùng hủy -> không kết nối, không đăng nhập
+            statusConn.setText("Chưa kết nối");
+            statusConn.setForeground(new Color(231, 76, 60));
+            // Nếu frame chưa hiển thị (đang ở giai đoạn khởi động), thoát ứng dụng để tránh
+            // treo ẩn
+            if (!isVisible()) {
+                dispose();
+                System.exit(0);
+            }
+            return;
+        }
+
+        // Chỉ xử lý SQLSRV ở đây (H2 có thể bổ sung sau nếu cần)
+        if (sel.getDbType() == DbType.SQLSRV) {
             try {
-                // Đọc từ ConnectionConfig (bind application.properties), có fallback:
-                String host = (dbCfg != null && dbCfg.host() != null && !dbCfg.host().isBlank())
-                        ? dbCfg.host()
-                        : "GODZILLA\\SQLDEV";
-                String port = (dbCfg != null && dbCfg.port() != null && !dbCfg.port().isBlank())
-                        ? dbCfg.port()
-                        : "1433";
-                String database = (dbCfg != null && dbCfg.databaseInput() != null && !dbCfg.databaseInput().isBlank())
-                        ? dbCfg.databaseInput()
-                        : "badminton";
-                String user = (dbCfg != null && dbCfg.user() != null && !dbCfg.user().isBlank())
-                        ? dbCfg.user()
-                        : "hau2";
-                String password = (dbCfg != null && dbCfg.password() != null)
-                        ? dbCfg.password()
-                        : "hau123";
+                String host = nz(sel.getServer());
+                String port = nz(sel.getPort());
+                String dbn = nz(sel.getDbName());
+                StringBuilder url = new StringBuilder("jdbc:sqlserver://").append(host);
+                if (!port.isBlank())
+                    url.append(':').append(port.trim());
+                if (!dbn.isBlank())
+                    url.append(";databaseName=").append(dbn.trim());
 
-                boolean encrypt = (dbCfg != null) ? dbCfg.effectiveEncrypt() : true;
-                boolean trust = (dbCfg != null) ? dbCfg.effectiveTrustServerCertificate() : true;
-                int loginTimeout = (dbCfg != null) ? dbCfg.effectiveLoginTimeoutSeconds() : 30;
-                boolean integrated = (dbCfg != null) ? dbCfg.effectiveIntegratedSecurity() : false;
-
-                // Dựng runtime config & URL
                 ConnectionConfig runtimeCfg = new ConnectionConfig().mode(ConnectionConfig.Mode.NAME);
-
-                String url;
-                if (dbCfg != null && dbCfg.buildJdbcUrl() != null) {
-                    url = dbCfg.buildJdbcUrl();
-                } else {
-                    StringBuilder sb = new StringBuilder("jdbc:sqlserver://")
-                            .append(host).append(":").append(port)
-                            .append(";databaseName=").append(database)
-                            .append(";encrypt=").append(encrypt)
-                            .append(";trustServerCertificate=").append(trust)
-                            .append(";loginTimeout=").append(loginTimeout);
-                    if (integrated)
-                        sb.append(";integratedSecurity=true");
-                    url = sb.toString();
-                }
-
-                runtimeCfg.setUrl(url);
-                runtimeCfg.setUsername(user);
-                runtimeCfg.setPassword(password);
+                runtimeCfg.setUrl(url.toString());
+                if (sel.getUsername() != null)
+                    runtimeCfg.setUsername(sel.getUsername());
+                if (sel.getPassword() != null)
+                    runtimeCfg.setPassword(new String(sel.getPassword()));
 
                 service.setConfig(runtimeCfg);
                 Connection conn = service.connect();
-
-                SwingUtilities.invokeLater(() -> {
-                    try {
-                        controlPanel.setConnection(conn);
-                        multiCourtPanel.setConnection(conn);
-                        tournamentTabPanel.updateConnection();
-
-                        noiDungService = new NoiDungService(new NoiDungRepository(conn));
-                        noiDungPanel = new NoiDungManagementPanel(noiDungService);
-                        // CLB
-                        CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
-                        cauLacBoPanel = new CauLacBoManagementPanel(clbService);
-                        // Vận động viên
-                        VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
-                        vanDongVienPanel = new VanDongVienManagementPanel(vdvService, clbService);
-                        // Panel Nội dung của giải theo giải chọn trong Prefs
-                        ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(
-                                new ChiTietGiaiDauRepository(conn));
-                        dangKyNoiDungPanel = new DangKyNoiDungPanel(
-                                noiDungService,
-                                chiTietService,
-                                new com.example.btms.config.Prefs(),
-                                tournamentTabPanel.getGiaiDauService());
-                        // Đăng ký đội (đôi)
-                        dangKyDoiPanel = new com.example.btms.ui.team.DangKyDoiPanel(conn);
-                        // Đăng ký cá nhân (đơn)
-                        dangKyCaNhanPanel = new com.example.btms.ui.player.DangKyCaNhanPanel(conn);
-                        // Panel xem người Danh sách đăng kí
-                        contentParticipantsPanel = new com.example.btms.ui.category.ContentParticipantsPanel(conn);
-                        // Bốc thăm thi đấu (0-based order)
-                        bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
-                        soDoThiDauPanel = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
-                        // Báo cáo PDF – tổng hợp eksport
-                        try {
-                            baoCaoPdfPanel = new BaoCaoPdfPanel(conn);
-                        } catch (Exception ignore) {
-                        }
-                        // Tổng sắp huy chương (kết quả toàn đoàn)
-                        try {
-                            com.example.btms.ui.result.TongSapHuyChuongPanel tongSapHuyChuongPanel = new com.example.btms.ui.result.TongSapHuyChuongPanel(
-                                    conn, clbService);
-                            ensureViewPresent("Tổng sắp huy chương", tongSapHuyChuongPanel);
-                        } catch (Throwable ignore) {
-                        }
-                        // Trang biên bản
-                        try {
-                            bienBanPanel = new com.example.btms.ui.result.BienBanPanel(conn);
-                            ensureViewPresent("Trang biên bản", bienBanPanel);
-                        } catch (Throwable ignore) {
-                        }
-                        // Tournament selection now uses modal dialog, no panel needed here
-
-                        updateAuthService(conn);
-
-                        statusConn.setText("Đã kết nối");
-                        statusConn.setForeground(new Color(46, 204, 113));
-
-                        // Sau khi có connection: buộc đăng nhập và chọn giải qua dialog
-                        buildMenuBar();
-                        forceLoginAndTournamentSelection();
-
-                        System.out.println("✓ Tự động kết nối SQL Server thành công!");
-                    } catch (Exception e) {
-                        System.err.println("Lỗi cập nhật UI sau kết nối: " + e.getMessage());
-                        e.printStackTrace();
-                    }
-                });
-
-            } catch (Exception e) {
-                SwingUtilities.invokeLater(() -> {
-                    statusConn.setText("Lỗi kết nối");
-                    statusConn.setForeground(new Color(231, 76, 60));
-                    statusHost.setText("Không thể kết nối SQL Server");
-
-                    System.err.println("✗ Không thể tự động kết nối SQL Server: " + e.getMessage());
-                    e.printStackTrace();
-
-                    javax.swing.JOptionPane.showMessageDialog(
-                            this,
-                            "Không thể tự động kết nối đến SQL Server.\n\n" +
-                                    "Vui lòng kiểm tra:\n" +
-                                    "- SQL Server đang chạy\n" +
-                                    "- Database '" +
-                                    ((dbCfg != null && dbCfg.databaseInput() != null
-                                            && !dbCfg.databaseInput().isBlank())
-                                                    ? dbCfg.databaseInput()
-                                                    : "badminton")
-                                    +
-                                    "' đã tồn tại\n" +
-                                    "- Thông tin kết nối đúng\n\n" +
-                                    "Chi tiết lỗi: " + e.getMessage(),
-                            "Lỗi kết nối Database",
-                            javax.swing.JOptionPane.ERROR_MESSAGE);
-                });
+                onDatabaseConnected(conn);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Kết nối CSDL thất bại: " + ex.getMessage(), "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+                statusConn.setText("Lỗi kết nối");
+                statusConn.setForeground(new Color(231, 76, 60));
+                if (!isVisible()) {
+                    // Nếu đang ở luồng khởi động và kết nối thất bại, thoát để tránh cửa sổ ẩn
+                    dispose();
+                    System.exit(1);
+                }
+                return;
             }
-        }).start();
+        } else {
+            // H2: có thể mở chế độ embedded/file; để trống để bổ sung theo yêu cầu
+            JOptionPane.showMessageDialog(this, "Hiện chưa hỗ trợ H2 trong luồng này.", "Thông báo",
+                    JOptionPane.INFORMATION_MESSAGE);
+            if (!isVisible()) {
+                dispose();
+                System.exit(0);
+            }
+        }
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
+    }
+
+    private void onDatabaseConnected(Connection conn) {
+        try {
+            controlPanel.setConnection(conn);
+            multiCourtPanel.setConnection(conn);
+            tournamentTabPanel.updateConnection();
+
+            noiDungService = new NoiDungService(new NoiDungRepository(conn));
+            noiDungPanel = new NoiDungManagementPanel(noiDungService);
+            // CLB
+            CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
+            cauLacBoPanel = new CauLacBoManagementPanel(clbService);
+            // Vận động viên
+            VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
+            vanDongVienPanel = new VanDongVienManagementPanel(vdvService, clbService);
+            // Panel Nội dung của giải theo giải chọn trong Prefs
+            ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(
+                    new ChiTietGiaiDauRepository(conn));
+            dangKyNoiDungPanel = new DangKyNoiDungPanel(
+                    noiDungService,
+                    chiTietService,
+                    new com.example.btms.config.Prefs(),
+                    tournamentTabPanel.getGiaiDauService());
+            // Đăng ký đội (đôi)
+            dangKyDoiPanel = new com.example.btms.ui.team.DangKyDoiPanel(conn);
+            // Đăng ký cá nhân (đơn)
+            dangKyCaNhanPanel = new com.example.btms.ui.player.DangKyCaNhanPanel(conn);
+            // Panel xem người Danh sách đăng kí
+            contentParticipantsPanel = new com.example.btms.ui.category.ContentParticipantsPanel(conn);
+            // Bốc thăm thi đấu (0-based order)
+            bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
+            soDoThiDauPanel = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
+            // Báo cáo PDF – tổng hợp eksport
+            try {
+                baoCaoPdfPanel = new BaoCaoPdfPanel(conn);
+            } catch (Exception ignore) {
+            }
+            // Tổng sắp huy chương (kết quả toàn đoàn)
+            try {
+                com.example.btms.ui.result.TongSapHuyChuongPanel tongSapHuyChuongPanel = new com.example.btms.ui.result.TongSapHuyChuongPanel(
+                        conn, clbService);
+                ensureViewPresent("Tổng sắp huy chương", tongSapHuyChuongPanel);
+            } catch (Throwable ignore) {
+            }
+            // Trang biên bản
+            try {
+                bienBanPanel = new com.example.btms.ui.result.BienBanPanel(conn);
+                ensureViewPresent("Trang biên bản", bienBanPanel);
+            } catch (Throwable ignore) {
+            }
+
+            updateAuthService(conn);
+
+            statusConn.setText("Đã kết nối");
+            statusConn.setForeground(new Color(46, 204, 113));
+
+            // Sau khi có connection: buộc đăng nhập và chọn giải qua dialog
+            buildMenuBar();
+            forceLoginAndTournamentSelection();
+            // Nếu đăng nhập và chọn giải thành công, đảm bảo frame được hiển thị
+            if (!isVisible() && currentRole != null && selectedGiaiDau != null) {
+                try {
+                    if (getWidth() == 0 || getHeight() == 0)
+                        pack();
+                } catch (Throwable ignore) {
+                }
+                setLocationRelativeTo(null);
+                setVisible(true);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Lỗi cập nhật UI: " + e.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /*
@@ -849,7 +853,6 @@ public class MainFrame extends JFrame {
             }
             // Làm mới cây điều hướng (bao gồm lọc Sơ đồ theo bốc thăm đã có)
             rebuildNavigationTree();
-            JOptionPane.showMessageDialog(this, "Đã làm mới dữ liệu.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
         } catch (Throwable ex) {
             JOptionPane.showMessageDialog(this, "Lỗi làm mới dữ liệu: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -863,6 +866,10 @@ public class MainFrame extends JFrame {
     private void forceLoginAndTournamentSelection() {
         // 1) Đăng nhập bằng dialog nội bộ
         if (!showLoginDialog()) {
+            if (!isVisible()) {
+                dispose();
+                System.exit(0);
+            }
             return; // huỷ
         }
 
@@ -874,6 +881,10 @@ public class MainFrame extends JFrame {
             selectedGiaiDau = null;
             buildMenuBar();
             rebuildNavigationTree();
+            if (!isVisible()) {
+                dispose();
+                System.exit(0);
+            }
             return;
         }
         selectedGiaiDau = gd;
@@ -2446,6 +2457,7 @@ public class MainFrame extends JFrame {
     }
 
     /** Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại. */
+    @SuppressWarnings("unused")
     private void showSoDoTabForNoiDung(Integer idNoiDung) {
         if (soDoThiDauFrame == null)
             return;
