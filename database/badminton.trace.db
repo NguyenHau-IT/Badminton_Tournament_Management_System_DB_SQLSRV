@@ -1,57 +1,4 @@
-2025-10-16 01:57:09.175208+07:00 jdbc[3]: exception
-java.sql.SQLClientInfoException: Client info name 'ApplicationName' not supported.
-	at org.h2.jdbc.JdbcConnection.setClientInfo(JdbcConnection.java:1626)
-	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.populateClientAppName(GenericDataSource.java:198)
-	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.openConnection(GenericDataSource.java:161)
-	at org.jkiss.dbeaver.ext.h2.model.H2DataSource.openConnection(H2DataSource.java:74)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCExecutionContext.connect(JDBCExecutionContext.java:124)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCRemoteInstance.initializeMainContext(JDBCRemoteInstance.java:106)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCRemoteInstance.<init>(JDBCRemoteInstance.java:61)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCDataSource.initializeRemoteInstance(JDBCDataSource.java:125)
-	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.<init>(GenericDataSource.java:124)
-	at org.jkiss.dbeaver.ext.h2.model.H2DataSource.<init>(H2DataSource.java:43)
-	at org.jkiss.dbeaver.ext.h2.model.H2MetaModel.createDataSourceImpl(H2MetaModel.java:57)
-	at org.jkiss.dbeaver.ext.generic.GenericDataSourceProvider.openDataSource(GenericDataSourceProvider.java:57)
-	at org.jkiss.dbeaver.registry.DataSourceDescriptor.openDataSource(DataSourceDescriptor.java:1414)
-	at org.jkiss.dbeaver.registry.DataSourceDescriptor.connect0(DataSourceDescriptor.java:1272)
-	at org.jkiss.dbeaver.registry.DataSourceDescriptor.connect(DataSourceDescriptor.java:1063)
-	at org.jkiss.dbeaver.ui.editors.DatabaseLazyEditorInput.initializeRealInput(DatabaseLazyEditorInput.java:285)
-	at org.jkiss.dbeaver.ui.editors.ProgressEditorPart$InitNodeService.evaluate(ProgressEditorPart.java:175)
-	at org.jkiss.dbeaver.ui.editors.ProgressEditorPart$InitNodeService.evaluate(ProgressEditorPart.java:1)
-	at org.jkiss.dbeaver.ui.LoadingJob.run(LoadingJob.java:88)
-	at org.jkiss.dbeaver.model.runtime.AbstractJob.run(AbstractJob.java:119)
-	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:63)
-2025-10-16 01:57:10.528177+07:00 jdbc[3]: exception
-org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "KEY_SEQ" not found [42122-224]
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
-	at org.h2.message.DbException.get(DbException.java:223)
-	at org.h2.message.DbException.get(DbException.java:199)
-	at org.h2.jdbc.JdbcResultSet.getColumnIndex(JdbcResultSet.java:3492)
-	at org.h2.jdbc.JdbcResultSet.getInt(JdbcResultSet.java:337)
-	at org.jkiss.dbeaver.model.impl.jdbc.exec.JDBCResultSetImpl.getInt(JDBCResultSetImpl.java:509)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCUtils.safeGetInt(JDBCUtils.java:117)
-	at org.jkiss.dbeaver.ext.generic.model.GenericUtils.safeGetInt(GenericUtils.java:79)
-	at org.jkiss.dbeaver.ext.generic.model.meta.GenericMetaModel.createConstraintColumnsImpl(GenericMetaModel.java:1003)
-	at org.jkiss.dbeaver.ext.h2.model.H2MetaModel.createConstraintColumnsImpl(H2MetaModel.java:183)
-	at org.jkiss.dbeaver.ext.generic.model.ConstraintKeysCache.fetchObjectRow(ConstraintKeysCache.java:108)
-	at org.jkiss.dbeaver.ext.generic.model.ConstraintKeysCache.fetchObjectRow(ConstraintKeysCache.java:1)
-	at org.jkiss.dbeaver.model.impl.jdbc.cache.JDBCCompositeCache.loadObjects(JDBCCompositeCache.java:358)
-	at org.jkiss.dbeaver.model.impl.jdbc.cache.JDBCCompositeCache.getObjects(JDBCCompositeCache.java:135)
-	at org.jkiss.dbeaver.ext.generic.model.GenericTableBase.getConstraints(GenericTableBase.java:251)
-	at org.jkiss.dbeaver.ext.generic.model.GenericTableBase.getConstraints(GenericTableBase.java:1)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.getBestIdentifier(DBExecUtils.java:538)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.bindUniqueIdentifiers(DBExecUtils.java:912)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.bindAttributes(DBExecUtils.java:858)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetDataReceiver.fetchEnd(ResultSetDataReceiver.java:166)
-	at org.jkiss.dbeaver.model.impl.jdbc.struct.JDBCTable.readData(JDBCTable.java:228)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetJobDataRead.lambda$0(ResultSetJobDataRead.java:128)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.tryExecuteRecover(DBExecUtils.java:189)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetJobDataRead.run(ResultSetJobDataRead.java:126)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetViewer$ResultSetDataPumpJob.run(ResultSetViewer.java:5202)
-	at org.jkiss.dbeaver.model.runtime.AbstractJob.run(AbstractJob.java:119)
-	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:63)
-2025-10-16 01:57:22.081399+07:00 jdbc[3]: exception
+2025-10-16 02:13:21.369484+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -113,7 +60,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:22.089917+07:00 jdbc[3]: exception
+2025-10-16 02:13:21.376768+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -175,7 +122,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:22.094429+07:00 jdbc[3]: exception
+2025-10-16 02:13:21.381391+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -245,7 +192,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:22.096438+07:00 jdbc[3]: exception
+2025-10-16 02:13:21.384431+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -312,7 +259,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:22.099437+07:00 jdbc[3]: exception
+2025-10-16 02:13:21.386939+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -374,7 +321,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.402576+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.878251+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -413,7 +360,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.404584+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.880251+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -452,7 +399,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.408586+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.882251+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -491,7 +438,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.419617+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.899301+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -533,7 +480,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.421620+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.903807+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -574,7 +521,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.428144+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.906824+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -615,7 +562,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.430144+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.908824+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -655,7 +602,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.431142+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.910824+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -695,7 +642,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:57:59.433662+07:00 jdbc[3]: exception
+2025-10-16 02:13:41.913332+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -735,7 +682,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:58:36.319717+07:00 jdbc[3]: exception
+2025-10-16 02:14:04.324345+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -839,7 +786,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:58:45.366381+07:00 jdbc[3]: exception
+2025-10-16 02:14:11.891884+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -903,7 +850,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:58:45.367383+07:00 jdbc[3]: exception
+2025-10-16 02:14:11.892879+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -966,7 +913,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:58:45.369379+07:00 jdbc[3]: exception
+2025-10-16 02:14:11.895036+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1029,7 +976,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:58:45.377900+07:00 jdbc[3]: exception
+2025-10-16 02:14:11.906383+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1091,7 +1038,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:58:45.378934+07:00 jdbc[3]: exception
+2025-10-16 02:14:11.907384+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1153,7 +1100,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:58:45.379899+07:00 jdbc[3]: exception
+2025-10-16 02:14:11.908383+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1215,7 +1162,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:59:00.252419+07:00 jdbc[3]: exception
+2025-10-16 02:14:17.739753+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1280,7 +1227,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:59:01.784215+07:00 jdbc[3]: exception
+2025-10-16 02:14:19.723651+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1342,7 +1289,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:59:01.787232+07:00 jdbc[3]: exception
+2025-10-16 02:14:19.725666+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1404,7 +1351,7 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:59:01.788217+07:00 jdbc[3]: exception
+2025-10-16 02:14:19.727648+07:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "ctgd.ID_GIAI_DAU" not found; SQL statement:
 SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID WHERE ctgd.ID_GIAI_DAU = ? ORDER BY nd.ID ASC [42122-224]
 	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
@@ -1466,56 +1413,3 @@ SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM FROM NOI_DUNG nd JOIN CHI_TIET_GIAI_DAU c
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:109)
 	at java.desktop/java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:101)
 	at java.desktop/java.awt.EventDispatchThread.run(EventDispatchThread.java:90)
-2025-10-16 01:59:17.592549+07:00 jdbc[3]: exception
-java.sql.SQLClientInfoException: Client info name 'ApplicationName' not supported.
-	at org.h2.jdbc.JdbcConnection.setClientInfo(JdbcConnection.java:1626)
-	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.populateClientAppName(GenericDataSource.java:198)
-	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.openConnection(GenericDataSource.java:161)
-	at org.jkiss.dbeaver.ext.h2.model.H2DataSource.openConnection(H2DataSource.java:74)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCExecutionContext.connect(JDBCExecutionContext.java:124)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCRemoteInstance.initializeMainContext(JDBCRemoteInstance.java:106)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCRemoteInstance.<init>(JDBCRemoteInstance.java:61)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCDataSource.initializeRemoteInstance(JDBCDataSource.java:125)
-	at org.jkiss.dbeaver.ext.generic.model.GenericDataSource.<init>(GenericDataSource.java:124)
-	at org.jkiss.dbeaver.ext.h2.model.H2DataSource.<init>(H2DataSource.java:43)
-	at org.jkiss.dbeaver.ext.h2.model.H2MetaModel.createDataSourceImpl(H2MetaModel.java:57)
-	at org.jkiss.dbeaver.ext.generic.GenericDataSourceProvider.openDataSource(GenericDataSourceProvider.java:57)
-	at org.jkiss.dbeaver.registry.DataSourceDescriptor.openDataSource(DataSourceDescriptor.java:1414)
-	at org.jkiss.dbeaver.registry.DataSourceDescriptor.connect0(DataSourceDescriptor.java:1272)
-	at org.jkiss.dbeaver.registry.DataSourceDescriptor.connect(DataSourceDescriptor.java:1063)
-	at org.jkiss.dbeaver.ui.editors.DatabaseLazyEditorInput.initializeRealInput(DatabaseLazyEditorInput.java:285)
-	at org.jkiss.dbeaver.ui.editors.ProgressEditorPart$InitNodeService.evaluate(ProgressEditorPart.java:175)
-	at org.jkiss.dbeaver.ui.editors.ProgressEditorPart$InitNodeService.evaluate(ProgressEditorPart.java:1)
-	at org.jkiss.dbeaver.ui.LoadingJob.run(LoadingJob.java:88)
-	at org.jkiss.dbeaver.model.runtime.AbstractJob.run(AbstractJob.java:119)
-	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:63)
-2025-10-16 01:59:18.894778+07:00 jdbc[3]: exception
-org.h2.jdbc.JdbcSQLSyntaxErrorException: Column "KEY_SEQ" not found [42122-224]
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:514)
-	at org.h2.message.DbException.getJdbcSQLException(DbException.java:489)
-	at org.h2.message.DbException.get(DbException.java:223)
-	at org.h2.message.DbException.get(DbException.java:199)
-	at org.h2.jdbc.JdbcResultSet.getColumnIndex(JdbcResultSet.java:3492)
-	at org.h2.jdbc.JdbcResultSet.getInt(JdbcResultSet.java:337)
-	at org.jkiss.dbeaver.model.impl.jdbc.exec.JDBCResultSetImpl.getInt(JDBCResultSetImpl.java:509)
-	at org.jkiss.dbeaver.model.impl.jdbc.JDBCUtils.safeGetInt(JDBCUtils.java:117)
-	at org.jkiss.dbeaver.ext.generic.model.GenericUtils.safeGetInt(GenericUtils.java:79)
-	at org.jkiss.dbeaver.ext.generic.model.meta.GenericMetaModel.createConstraintColumnsImpl(GenericMetaModel.java:1003)
-	at org.jkiss.dbeaver.ext.h2.model.H2MetaModel.createConstraintColumnsImpl(H2MetaModel.java:183)
-	at org.jkiss.dbeaver.ext.generic.model.ConstraintKeysCache.fetchObjectRow(ConstraintKeysCache.java:108)
-	at org.jkiss.dbeaver.ext.generic.model.ConstraintKeysCache.fetchObjectRow(ConstraintKeysCache.java:1)
-	at org.jkiss.dbeaver.model.impl.jdbc.cache.JDBCCompositeCache.loadObjects(JDBCCompositeCache.java:358)
-	at org.jkiss.dbeaver.model.impl.jdbc.cache.JDBCCompositeCache.getObjects(JDBCCompositeCache.java:135)
-	at org.jkiss.dbeaver.ext.generic.model.GenericTableBase.getConstraints(GenericTableBase.java:251)
-	at org.jkiss.dbeaver.ext.generic.model.GenericTableBase.getConstraints(GenericTableBase.java:1)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.getBestIdentifier(DBExecUtils.java:538)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.bindUniqueIdentifiers(DBExecUtils.java:912)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.bindAttributes(DBExecUtils.java:858)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetDataReceiver.fetchEnd(ResultSetDataReceiver.java:166)
-	at org.jkiss.dbeaver.model.impl.jdbc.struct.JDBCTable.readData(JDBCTable.java:228)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetJobDataRead.lambda$0(ResultSetJobDataRead.java:128)
-	at org.jkiss.dbeaver.model.exec.DBExecUtils.tryExecuteRecover(DBExecUtils.java:189)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetJobDataRead.run(ResultSetJobDataRead.java:126)
-	at org.jkiss.dbeaver.ui.controls.resultset.ResultSetViewer$ResultSetDataPumpJob.run(ResultSetViewer.java:5202)
-	at org.jkiss.dbeaver.model.runtime.AbstractJob.run(AbstractJob.java:119)
-	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:63)

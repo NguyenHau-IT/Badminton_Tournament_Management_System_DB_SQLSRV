@@ -260,6 +260,60 @@ public class DbConnectionPanel extends JPanel {
     }
 
     private void onOk() {
+        // If user chooses to initialize a new H2 database, create it first and do NOT
+        // auto-connect
+        if (rbInitNew.isSelected() && cbDbType.getSelectedItem() == DbType.H2) {
+            String dbName = safe(txtDbName.getText());
+            if (dbName.isBlank()) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Vui lòng nhập Tên DB (H2).", "Thiếu thông tin",
+                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (dbName.contains("/") || dbName.contains("\\")) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Tên DB không được chứa dấu / hoặc \\. Vui lòng nhập tên hợp lệ.", "Tên DB không hợp lệ",
+                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            setBusy(true);
+            new Thread(() -> {
+                try {
+                    File dir = new File("database");
+                    if (!dir.exists())
+                        dir.mkdirs();
+                    String fileUrl = "jdbc:h2:file:./database/" + dbName
+                            + ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
+                    // Create empty DB (if not exists)
+                    DriverManager.getConnection(fileUrl, "sa", "").close();
+
+                    // Try to initialize schema from script (optional)
+                    try {
+                        initH2DatabaseFromScript(dbName);
+                    } catch (Exception initEx) {
+                        showErrorLater("Khởi tạo schema từ script thất bại: " + initEx.getMessage());
+                    }
+
+                    // Refresh existing list and guide user to connect manually
+                    SwingUtilities.invokeLater(() -> {
+                        loadExistingDbOptions();
+                        rbLocalLan.setSelected(true);
+                        cbDbType.setSelectedItem(DbType.H2);
+                        txtServer.setText(""); // use file mode by default
+                        javax.swing.JOptionPane.showMessageDialog(this,
+                                "Đã khởi tạo DB H2 thành công. Hãy chuyển sang chế độ 'Sử dụng DB cục bộ / cùng mạng' và nhấn Kết nối để kết nối thủ công.",
+                                "Hoàn tất khởi tạo",
+                                javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    });
+                } catch (Exception ex) {
+                    showErrorLater("Không thể khởi tạo DB H2: " + ex.getMessage());
+                } finally {
+                    setBusy(false);
+                }
+            }, "h2-init-new").start();
+            return; // do NOT proceed to auto-connect or close the dialog
+        }
+
         DbConnectionSelection sel = new DbConnectionSelection();
         sel.setMode(rbLocalLan.isSelected() ? Mode.LOCAL_OR_LAN
                 : rbInitNew.isSelected() ? Mode.INIT_NEW
@@ -356,40 +410,6 @@ public class DbConnectionPanel extends JPanel {
         Prefs p = new Prefs();
         if (sel.getDbType() != null)
             p.put("db.type", sel.getDbType().name());
-
-        if (sel.getMode() == Mode.INIT_NEW && sel.getDbType() == DbType.H2) {
-            String dbName = sel.getDbName();
-            if (dbName == null || dbName.isBlank()) {
-                javax.swing.JOptionPane.showMessageDialog(this, "Vui lòng nhập Tên DB (H2).", "Thiếu thông tin",
-                        javax.swing.JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            if (dbName.contains("/") || dbName.contains("\\")) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                        "Tên DB không được chứa dấu / hoặc \\. Vui lòng nhập tên hợp lệ.", "Tên DB không hợp lệ",
-                        javax.swing.JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            try {
-                File dir = new File("database");
-                if (!dir.exists())
-                    dir.mkdirs();
-                String fileUrl = "jdbc:h2:file:./database/" + dbName
-                        + ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
-                DriverManager.getConnection(fileUrl, "sa", "").close();
-                try {
-                    initH2DatabaseFromScript(dbName);
-                } catch (Exception initEx) {
-                    javax.swing.JOptionPane.showMessageDialog(this,
-                            "Đã tạo DB nhưng khởi tạo schema từ script thất bại: " + initEx.getMessage(),
-                            "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                }
-            } catch (Exception ex) {
-                javax.swing.JOptionPane.showMessageDialog(this, "Không thể khởi tạo DB H2: " + ex.getMessage(),
-                        "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-        }
         p.put("db.name", nz(sel.getDbName()));
         p.put("db.server", nz(sel.getServer()));
         p.put("db.port", nz(sel.getPort()));
