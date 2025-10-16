@@ -19,8 +19,8 @@ import javax.swing.SwingUtilities;
 
 import com.example.btms.config.Prefs;
 import com.example.btms.model.tournament.GiaiDau;
-import com.example.btms.service.tournament.GiaiDauService;
 import com.example.btms.service.match.CourtManagerService;
+import com.example.btms.service.tournament.GiaiDauService;
 
 /**
  * Panel cho phép chọn hoặc tạo mới giải đấu sau khi đăng nhập
@@ -129,8 +129,6 @@ public class GiaiDauSelectPanel extends JPanel {
         Prefs prefs = new Prefs();
         prefs.putInt("selectedGiaiDauId", selectedGiaiDau.getId());
         prefs.put("selectedGiaiDauName", selectedGiaiDau.getTenGiai());
-        JOptionPane.showMessageDialog(this, "Đã chọn giải đấu: " + selectedGiaiDau.getTenGiai(), "Thông báo",
-                JOptionPane.INFORMATION_MESSAGE);
         return true;
     }
 

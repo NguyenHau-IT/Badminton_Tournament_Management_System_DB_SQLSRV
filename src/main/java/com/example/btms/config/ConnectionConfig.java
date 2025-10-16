@@ -1,17 +1,17 @@
 package com.example.btms.config;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
 /**
  * Bind trực tiếp spring.datasource.* từ application.properties
  *
  * Ví dụ:
- * spring.datasource.url=jdbc:sqlserver://GODZILLA\\SQLDEV:1433;databaseName=badminton;encrypt=true;trustServerCertificate=true
+ * spring.datasource.url=jdbc:sqlserver://GODZILLA\\SQLDEV;databaseName=badminton
  * spring.datasource.username=hau2
  * spring.datasource.password=hau123
  */
@@ -23,23 +23,21 @@ public class ConnectionConfig {
         NAME, HOME, ABSOLUTE
     }
 
-    // ===== Values bind trực tiếp =====
-    private String url; // jdbc:sqlserver://...
-    private String username; // spring.datasource.username
-    private String password; // spring.datasource.password
+    private String url;
+    private String username;
+    private String password;
 
-    // ===== Cache đã parse từ URL =====
-    private String host; // "SERVER" hoặc "SERVER\\INSTANCE"
-    private String port; // mặc định 1433 nếu rỗng
-    private String databaseInput; // databaseName
-    private Boolean encrypt; // default true
-    private Boolean trustServerCertificate; // default true (dev/test)
-    private Integer loginTimeoutSeconds; // default 30 (property chuẩn là loginTimeout)
-    private String applicationName; // optional
-    private Boolean integratedSecurity; // optional
+    private String host;
+    private String port;
+    private String databaseInput;
+    private Boolean encrypt;
+    private Boolean trustServerCertificate;
+    private Integer loginTimeoutSeconds;
+    private String applicationName;
+    private Boolean integratedSecurity;
     private Mode mode = Mode.NAME;
 
-    // ===== Getters theo API cũ (để code cũ không phải đổi) =====
+    // === Getters cũ ===
     public String host() {
         return host;
     }
@@ -84,20 +82,7 @@ public class ConnectionConfig {
         return integratedSecurity;
     }
 
-    // ===== Effective helpers =====
-    public String normalizedHost() {
-        return trimOrEmpty(host);
-    }
-
-    public String normalizedPort() {
-        String p = trimOrEmpty(port);
-        return p.isEmpty() ? "1433" : p;
-    }
-
-    public String normalizedDatabase() {
-        return trimOrEmpty(databaseInput);
-    }
-
+    // === Hiệu lực mặc định ===
     public boolean effectiveEncrypt() {
         return encrypt == null || encrypt;
     }
@@ -114,28 +99,40 @@ public class ConnectionConfig {
         return integratedSecurity != null && integratedSecurity;
     }
 
-    /** Xây JDBC URL từ các thuộc tính đã parse (dùng được cho DriverManager) */
+    // === Xây JDBC URL đầy đủ ===
     public String buildJdbcUrl() {
-        String h = normalizedHost();
-        String p = normalizedPort();
-        String db = normalizedDatabase().isEmpty() ? "master" : normalizedDatabase();
+        String h = trimOrEmpty(host);
+        if (h.isEmpty()) {
+            return trimOrEmpty(url);
+        }
 
         StringBuilder sb = new StringBuilder("jdbc:sqlserver://").append(h);
-        if (p != null && !p.isBlank())
-            sb.append(":").append(p);
 
-        sb.append(";databaseName=").append(db);
+        if (port != null && !port.isBlank()) {
+            sb.append(":").append(port.trim());
+        }
+        if (databaseInput != null && !databaseInput.isBlank()) {
+            sb.append(";databaseName=").append(databaseInput.trim());
+        }
+
+        // Bắt buộc luôn bật encrypt và trustServerCertificate
         sb.append(";encrypt=").append(effectiveEncrypt());
         sb.append(";trustServerCertificate=").append(effectiveTrustServerCertificate());
-        sb.append(";loginTimeout=").append(effectiveLoginTimeoutSeconds());
-        if (applicationName != null && !applicationName.isBlank())
-            sb.append(";applicationName=").append(applicationName);
-        if (effectiveIntegratedSecurity())
+
+        if (loginTimeoutSeconds != null) {
+            sb.append(";loginTimeout=").append(Math.max(0, loginTimeoutSeconds));
+        }
+        if (applicationName != null && !applicationName.isBlank()) {
+            sb.append(";applicationName=").append(applicationName.trim());
+        }
+        if (integratedSecurity != null && integratedSecurity) {
             sb.append(";integratedSecurity=true");
+        }
+
         return sb.toString();
     }
 
-    // ===== Setters để Spring bind =====
+    // === Setters ===
     public void setUrl(String url) {
         this.url = trimOrNull(url);
         parseSqlServerUrl(this.url);
@@ -147,14 +144,14 @@ public class ConnectionConfig {
 
     public void setPassword(String password) {
         this.password = password;
-    } // không trim
+    }
 
     public ConnectionConfig mode(Mode v) {
         this.mode = (v == null ? Mode.NAME : v);
         return this;
     }
 
-    // ===== URL parser cho SQL Server JDBC =====
+    // === Phân tích URL SQL Server ===
     private void parseSqlServerUrl(String url) {
         host = port = databaseInput = null;
         encrypt = trustServerCertificate = integratedSecurity = null;
@@ -163,11 +160,12 @@ public class ConnectionConfig {
 
         if (url == null)
             return;
+
         String prefix = "jdbc:sqlserver://";
         if (!url.startsWith(prefix))
             return;
 
-        String body = url.substring(prefix.length()); // server[\instance][:port];k=v;...
+        String body = url.substring(prefix.length());
         String serverPart;
         String propsPart = "";
         int semi = body.indexOf(';');
@@ -193,17 +191,13 @@ public class ConnectionConfig {
         encrypt = parseBool(kv.get("encrypt"));
         trustServerCertificate = parseBool(kv.get("trustServerCertificate"));
         integratedSecurity = parseBool(kv.get("integratedSecurity"));
-        Integer lt = parseInt(kv.get("loginTimeout"));
-        loginTimeoutSeconds = lt;
+        loginTimeoutSeconds = parseInt(kv.get("loginTimeout"));
 
-        if (port == null || port.isEmpty())
-            port = "1433";
+        // 🔒 Gán mặc định luôn bật SSL + tin cậy server (LAN/dev)
         if (encrypt == null)
             encrypt = true;
         if (trustServerCertificate == null)
             trustServerCertificate = true;
-        if (loginTimeoutSeconds == null)
-            loginTimeoutSeconds = 30;
     }
 
     private static Map<String, String> splitProps(String props) {
@@ -235,8 +229,8 @@ public class ConnectionConfig {
         if (v == null || v.isEmpty())
             return null;
         try {
-            return Integer.parseInt(v.trim());
-        } catch (Exception ignore) {
+            return Integer.parseInt(v);
+        } catch (NumberFormatException ignore) {
             return null;
         }
     }
@@ -260,8 +254,8 @@ public class ConnectionConfig {
                 ", port='" + port + '\'' +
                 ", databaseInput='" + databaseInput + '\'' +
                 ", user='" + (username == null ? null : "***") + '\'' +
-                ", encrypt=" + encrypt +
-                ", trustServerCertificate=" + trustServerCertificate +
+                ", encrypt=" + effectiveEncrypt() +
+                ", trustServerCertificate=" + effectiveTrustServerCertificate() +
                 ", loginTimeoutSeconds=" + loginTimeoutSeconds +
                 ", applicationName='" + applicationName + '\'' +
                 ", integratedSecurity=" + integratedSecurity +

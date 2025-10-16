@@ -72,7 +72,7 @@ public class NoiDungRepository {
         String sql1 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM " +
                 "FROM NOI_DUNG nd " +
                 "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
-                "WHERE ctgd.ID_GIAI_DAU = ?";
+                "WHERE ctgd.ID_GIAI = ?";
         String sql2 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM " +
                 "FROM NOI_DUNG nd " +
                 "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
@@ -178,7 +178,7 @@ public class NoiDungRepository {
         String sql1 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM " +
                 "FROM NOI_DUNG nd " +
                 "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
-                "WHERE ctgd.ID_GIAI_DAU = ? " +
+                "WHERE ctgd.ID_GIAI = ? " +
                 "ORDER BY nd.ID ASC";
         String sql2 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TEAM " +
                 "FROM NOI_DUNG nd " +
@@ -210,7 +210,7 @@ public class NoiDungRepository {
         }
         if (!loaded) {
             JOptionPane.showMessageDialog(null,
-                    "Tải \"nội dung\" từ DB lỗi: Không xác định được cấu trúc CHI_TIET_GIAI_DAU (thiếu cột ID_GIAI/ID_GIAI_DAU)",
+                    "Tải \"nội dung\" từ DB lỗi: Không xác định được cấu trúc CHI_TIET_GIAI_DAU (thiếu cột ID_GIAI)",
                     "Lỗi DB", JOptionPane.ERROR_MESSAGE);
         }
 
