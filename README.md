@@ -46,7 +46,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 ### 🔄 Đồng bộ thời gian thực
 - Server-Sent Events (SSE) cho cập nhật tức thì
 - Fallback polling nếu SSE không khả dụng
-- UDP receiver cho screenshot monitoring
+- (Đã bỏ) UDP receiver cho screenshot monitoring
 
 ### 💾 Quản lý dữ liệu
 - Quản lý giải đấu, câu lạc bộ, vận động viên
@@ -73,7 +73,7 @@ graph TB
     
   subgraph "Real-time Communication"
     D --> I[Server-Sent Events]
-    D --> J[UDP Screenshot Receiver]
+  D --> J[(Đã bỏ) UDP Screenshot Receiver]
   end
     
     subgraph "Database Layer"
@@ -87,7 +87,7 @@ graph TB
 ### 🔧 Đặc điểm kiến trúc
 - **Hybrid Application**: Desktop + Web trong cùng một JVM process
 - **Non-headless Mode**: `spring.main.headless=false` để hỗ trợ Swing UI
-- **Event-driven**: SSE (SseEmitter) và UDP receiver (port 2346) cho real-time updates
+- **Event-driven**: SSE (SseEmitter) cho real-time updates.
 - **Thread-safe**: Concurrent collections và thread pool management
 
 ---
@@ -326,7 +326,7 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 │   │   ├── club/                            # Club management
 │   │   ├── player/                          # Player management
 │   │   └── scoreboard/                      # Scoreboard & match services
-│   │       └── ScreenshotReceiver.java      # UDP receiver (port 2346)
+│   │       └── (đã bỏ) ScreenshotReceiver.java      # Trước đây: UDP receiver (port 2346)
 │   ├── ui/                                  # Swing UI components
 │   │   ├── main/MainFrame.java              # Main desktop window
 │   │   ├── control/                         # Match control panels

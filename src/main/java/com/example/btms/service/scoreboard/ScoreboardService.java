@@ -1,16 +1,8 @@
 package com.example.btms.service.scoreboard;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
-import java.nio.charset.StandardCharsets;
-import java.io.IOException;
+import java.net.NetworkInterface;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -231,55 +223,7 @@ public class ScoreboardService {
         return -1;
     }
 
-    /**
-     * Gửi ảnh screenshot về admin qua UDP broadcast
-     */
-    public void sendScreenshotToAdmin(BufferedImage image, String fileName, String matchInfo, NetworkInterface nif) {
-        try {
-            // Chuyển ảnh thành byte array
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(image, "PNG", baos);
-            byte[] imageData = baos.toByteArray();
-
-            // Tạo header chứa thông tin
-            String header = String.format("SCREENSHOT|%s|%s|%d", fileName, matchInfo, imageData.length);
-            byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
-
-            // Tạo packet hoàn chỉnh: header + ảnh
-            byte[] fullPacket = new byte[headerBytes.length + imageData.length];
-            System.arraycopy(headerBytes, 0, fullPacket, 0, headerBytes.length);
-            System.arraycopy(imageData, 0, fullPacket, headerBytes.length, imageData.length);
-
-            // Gửi qua UDP broadcast
-            try (DatagramSocket socket = new DatagramSocket()) {
-                socket.setBroadcast(true);
-
-                // Tìm địa chỉ broadcast của network interface
-                Enumeration<InetAddress> addresses = nif.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress addr = addresses.nextElement();
-                    if (!addr.isLoopbackAddress() && addr.getHostAddress().contains(".")) {
-                        // Tạo địa chỉ broadcast
-                        String ip = addr.getHostAddress();
-                        String[] parts = ip.split("\\.");
-                        String broadcastIP = parts[0] + "." + parts[1] + "." + parts[2] + ".255";
-
-                        InetAddress broadcastAddr = InetAddress.getByName(broadcastIP);
-                        DatagramPacket packet = new DatagramPacket(fullPacket, fullPacket.length, broadcastAddr, 2346);
-                        socket.send(packet);
-
-                        // Đã gửi screenshot thành công
-                        break;
-                    }
-                }
-            }
-
-        } catch (IOException ex) {
-            LOGGER.error("Lỗi IO khi gửi screenshot: {}", ex.getMessage());
-        } catch (SecurityException ex) {
-            LOGGER.error("Lỗi bảo mật khi gửi screenshot: {}", ex.getMessage());
-        }
-    }
+    // UDP screenshot sending removed: screenshots are saved to local folder only
 
     public void minimizeDisplays() {
         for (BadmintonDisplayFrame v : verticalDisplays) {
