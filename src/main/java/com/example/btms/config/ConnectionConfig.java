@@ -229,7 +229,7 @@ public class ConnectionConfig {
         if (v == null || v.isEmpty())
             return null;
         try {
-            return Integer.parseInt(v);
+            return Integer.valueOf(v);
         } catch (NumberFormatException ignore) {
             return null;
         }

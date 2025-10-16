@@ -282,9 +282,9 @@ public class BadmintonMatch {
         gameStartTime = Instant.now();
 
         // Reset mảng điểm các ván đã hoàn thành
-        for (int i = 0; i < completedGameScores.length; i++) {
-            completedGameScores[i][0] = -1;
-            completedGameScores[i][1] = -1;
+        for (int[] completedGameScore : completedGameScores) {
+            completedGameScore[0] = -1;
+            completedGameScore[1] = -1;
         }
 
         pcs.firePropertyChange("reset", null, snapshot());
@@ -331,11 +331,11 @@ public class BadmintonMatch {
         server = server == 0 ? 1 : 0;
 
         // Đổi điểm các ván đã hoàn thành
-        for (int i = 0; i < completedGameScores.length; i++) {
-            if (completedGameScores[i][0] >= 0) {
-                int tmpGameScore = completedGameScores[i][0];
-                completedGameScores[i][0] = completedGameScores[i][1];
-                completedGameScores[i][1] = tmpGameScore;
+        for (int[] completedGameScore : completedGameScores) {
+            if (completedGameScore[0] >= 0) {
+                int tmpGameScore = completedGameScore[0];
+                completedGameScore[0] = completedGameScore[1];
+                completedGameScore[1] = tmpGameScore;
             }
         }
 
@@ -467,5 +467,10 @@ public class BadmintonMatch {
     /** Số giây đã trôi qua từ khi bắt đầu trận. */
     public long getElapsedSeconds() {
         return Duration.between(startTime, Instant.now()).getSeconds();
+    }
+
+    /** Số giây đã trôi qua từ khi bắt đầu ván hiện tại. */
+    public long getGameElapsedSeconds() {
+        return Duration.between(gameStartTime, Instant.now()).getSeconds();
     }
 }

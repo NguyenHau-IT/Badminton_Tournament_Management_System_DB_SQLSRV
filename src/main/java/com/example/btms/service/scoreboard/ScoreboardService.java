@@ -9,6 +9,10 @@ import java.net.NetworkInterface;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.example.btms.infrastructure.net.ScoreboardBroadcaster;
 import com.example.btms.model.match.BadmintonMatch;
@@ -18,6 +22,7 @@ import com.example.btms.util.ui.FullscreenHelper;
 import com.example.btms.util.ui.IconUtil;
 
 public class ScoreboardService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScoreboardService.class);
     private ScoreboardBroadcaster broadcaster;
     // Cho phép mở nhiều cửa sổ bảng điểm cùng lúc
     private final List<BadmintonDisplayFrame> verticalDisplays = new ArrayList<>();
@@ -57,7 +62,8 @@ public class ScoreboardService {
                 // Giải phóng fullscreen cho frame này để không ảnh hưởng các cửa sổ khác
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -71,7 +77,8 @@ public class ScoreboardService {
             public void windowClosing(java.awt.event.WindowEvent e) {
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -95,7 +102,8 @@ public class ScoreboardService {
             public void windowClosed(java.awt.event.WindowEvent e) {
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ ngang: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -109,7 +117,8 @@ public class ScoreboardService {
             public void windowClosing(java.awt.event.WindowEvent e) {
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ ngang: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -154,7 +163,8 @@ public class ScoreboardService {
                     gd.setFullScreenWindow(null);
                 }
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.warn("Không thể giải phóng fullscreen: {}", ex.getMessage());
         }
     }
 
@@ -167,7 +177,8 @@ public class ScoreboardService {
             for (BadmintonDisplayHorizontalFrame h : new ArrayList<>(horizontalDisplays)) {
                 ensureVisibleAndFocused(h);
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi khôi phục hiển thị: {}", ex.getMessage());
         }
     }
 
@@ -182,7 +193,8 @@ public class ScoreboardService {
             tryReenterFullscreen(f);
             f.toFront();
             f.requestFocus();
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi đảm bảo hiển thị và focus: {}", ex.getMessage());
         }
     }
 
@@ -200,7 +212,8 @@ public class ScoreboardService {
                     FullscreenHelper.enterFullscreenOnScreen(jf, idx);
                 }
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi đưa frame trở lại fullscreen: {}", ex.getMessage());
         }
     }
 
@@ -212,7 +225,8 @@ public class ScoreboardService {
                 if (db.intersects(fb))
                     return i;
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi xác định màn hình chứa frame: {}", ex.getMessage());
         }
         return -1;
     }
@@ -229,7 +243,7 @@ public class ScoreboardService {
 
             // Tạo header chứa thông tin
             String header = String.format("SCREENSHOT|%s|%s|%d", fileName, matchInfo, imageData.length);
-            byte[] headerBytes = header.getBytes("UTF-8");
+            byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
 
             // Tạo packet hoàn chỉnh: header + ảnh
             byte[] fullPacket = new byte[headerBytes.length + imageData.length];
@@ -260,9 +274,10 @@ public class ScoreboardService {
                 }
             }
 
-        } catch (Exception ex) {
-            System.err.println("Lỗi khi gửi screenshot: " + ex.getMessage());
-            ex.printStackTrace();
+        } catch (IOException ex) {
+            LOGGER.error("Lỗi IO khi gửi screenshot: {}", ex.getMessage());
+        } catch (SecurityException ex) {
+            LOGGER.error("Lỗi bảo mật khi gửi screenshot: {}", ex.getMessage());
         }
     }
 

@@ -2,9 +2,12 @@ package com.example.btms.service.scoreboard;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -16,8 +19,8 @@ import javax.imageio.ImageIO;
 public class ScreenshotReceiver {
     private DatagramSocket socket;
     private boolean running = false;
-    private ExecutorService executor;
-    private ScreenshotListener listener;
+    private final ExecutorService executor;
+    private final ScreenshotListener listener;
 
     public interface ScreenshotListener {
         void onScreenshotReceived(String fileName, String matchInfo, BufferedImage image, InetAddress clientAddress);
@@ -46,7 +49,7 @@ public class ScreenshotReceiver {
                         socket.receive(packet);
                         processScreenshotPacket(packet);
 
-                    } catch (Exception ex) {
+                    } catch (IOException ex) {
                         if (running) {
                             System.err.println("Lỗi khi nhận screenshot: " + ex.getMessage());
                         }
@@ -56,7 +59,7 @@ public class ScreenshotReceiver {
 
             // ScreenshotReceiver đã khởi động thành công trên port 2346
 
-        } catch (Exception ex) {
+        } catch (SocketException ex) {
             System.err.println("Không thể khởi động ScreenshotReceiver: " + ex.getMessage());
         }
     }
@@ -89,7 +92,7 @@ public class ScreenshotReceiver {
                 return;
 
             // Đọc header
-            String header = new String(data, 0, firstPipe, "UTF-8");
+            String header = new String(data, 0, firstPipe, StandardCharsets.UTF_8);
             if (!"SCREENSHOT".equals(header))
                 return;
 
@@ -110,8 +113,8 @@ public class ScreenshotReceiver {
                 return;
 
             // Parse thông tin từ header
-            String fileName = new String(data, firstPipe + 1, secondPipe - firstPipe - 1, "UTF-8");
-            String matchInfo = new String(data, secondPipe + 1, thirdPipe - secondPipe - 1, "UTF-8");
+            String fileName = new String(data, firstPipe + 1, secondPipe - firstPipe - 1, StandardCharsets.UTF_8);
+            String matchInfo = new String(data, secondPipe + 1, thirdPipe - secondPipe - 1, StandardCharsets.UTF_8);
 
             // Đọc kích thước ảnh
             int imageSizeStart = thirdPipe + 1;
@@ -126,7 +129,7 @@ public class ScreenshotReceiver {
             if (imageSizeEnd == -1)
                 return;
 
-            String sizeStr = new String(data, imageSizeStart, imageSizeEnd - imageSizeStart, "UTF-8");
+            String sizeStr = new String(data, imageSizeStart, imageSizeEnd - imageSizeStart, StandardCharsets.UTF_8);
             int imageSize = Integer.parseInt(sizeStr);
 
             // Đọc dữ liệu ảnh
@@ -144,7 +147,7 @@ public class ScreenshotReceiver {
                 listener.onScreenshotReceived(fileName, matchInfo, image, packet.getAddress());
             }
 
-        } catch (Exception ex) {
+        } catch (IOException | NumberFormatException | IndexOutOfBoundsException ex) {
             System.err.println("Lỗi khi xử lý screenshot packet: " + ex.getMessage());
         }
     }

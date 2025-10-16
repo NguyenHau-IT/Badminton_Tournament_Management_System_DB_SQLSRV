@@ -218,7 +218,7 @@ public class LogTab extends JPanel {
         });
     }
 
-    public void addLog(String level, String source, String message) {
+    public final void addLog(String level, String source, String message) {
         LogEntry entry = new LogEntry(level, source, message);
         logBuffer.offer(entry);
         logCount.incrementAndGet();
@@ -278,7 +278,6 @@ public class LogTab extends JPanel {
     }
 
     private void exportLogs() {
-        // TODO: Implement export to file
         addLog("INFO", "LogTab", "Tính năng xuất logs sẽ được triển khai sau");
     }
 
@@ -348,24 +347,15 @@ public class LogTab extends JPanel {
         @Override
         public String toString() {
             String timeStr = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date(timestamp));
-            String levelStr = String.format("%-4s", level);
             String sourceStr = String.format("%-18s", source);
 
             // Color coding for different log levels
-            String levelDisplay = level;
-            switch (level.toUpperCase()) {
-                case "INFO":
-                    levelDisplay = "ℹ️ " + level;
-                    break;
-                case "ERR":
-                    levelDisplay = "❌ " + level;
-                    break;
-                case "OUT":
-                    levelDisplay = "📤 " + level;
-                    break;
-                default:
-                    levelDisplay = "📝 " + level;
-            }
+            String levelDisplay = switch (level.toUpperCase()) {
+                case "INFO" -> "ℹ️ " + level;
+                case "ERR" -> "❌ " + level;
+                case "OUT" -> "📤 " + level;
+                default -> "📝 " + level;
+            };
 
             return String.format("[%s] %s [%s] %s", timeStr, levelDisplay, sourceStr, message);
         }

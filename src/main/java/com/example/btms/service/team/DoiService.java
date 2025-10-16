@@ -17,6 +17,14 @@ public class DoiService {
         this.teamRepo = new DoiRepository(conn);
     }
 
+    /**
+     * Returns the underlying JDBC Connection; kept to allow transaction handling
+     * or other direct connection access when needed.
+     */
+    public Connection getConnection() {
+        return conn;
+    }
+
     /** Lấy danh sách đội theo nội dung & giải. */
     public List<DangKiDoi> getTeamsByNoiDungVaGiai(int idNoiDung, int idGiai) {
         return teamRepo.fetchTeamsByNoiDungVaGiai(idNoiDung, idGiai);

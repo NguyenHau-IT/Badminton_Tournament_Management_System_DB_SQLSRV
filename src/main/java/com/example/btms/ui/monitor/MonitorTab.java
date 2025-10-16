@@ -7,11 +7,14 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -132,9 +135,9 @@ public class MonitorTab extends JPanel implements AutoCloseable {
         right.setOpaque(false);
         autoOpen.setOpaque(false);
         autoOpen.setSelected(false); // Tắt auto-open để tránh mở nhiều cửa sổ
-    right.add(btnRefresh);
-    // Bỏ tự động mở bảng điểm: không thêm checkbox autoOpen vào UI nữa
-    right.add(btnToggle);
+        right.add(btnRefresh);
+        // Bỏ tự động mở bảng điểm: không thêm checkbox autoOpen vào UI nữa
+        right.add(btnToggle);
         header.add(right, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
@@ -205,8 +208,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
             String titleText = isAdminMode ? "Giám sát bảng điểm (Admin)" : "Bảng điểm của tôi";
             // Tìm và cập nhật JLabel title trong header
             for (Component comp : getComponents()) {
-                if (comp instanceof JPanel) {
-                    JPanel header = (JPanel) comp;
+                if (comp instanceof JPanel header) {
                     for (Component headerComp : header.getComponents()) {
                         if (headerComp instanceof JLabel && headerComp.getName() == null) {
                             // Giả sử JLabel đầu tiên là title
@@ -325,7 +327,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                 NetworkInterface chosen = null;
                 try {
                     chosen = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
-                } catch (Exception ignore) {
+                } catch (SocketException | UnknownHostException ignore) {
                 }
                 try {
                     if (chosen == null || !chosen.isUp() || chosen.isLoopback() || !chosen.supportsMulticast()) {
@@ -338,19 +340,17 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                             }
                         }
                     }
-                } catch (Exception ignore) {
+                } catch (SocketException ignore) {
                 }
                 if (chosen != null) {
                     try {
                         ms.setNetworkInterface(chosen);
                         ms.joinGroup(new InetSocketAddress(group, PORT), chosen);
-                    } catch (Exception ex) {
-                        // Fallback cuối cùng – thử API cũ (đã deprecated) nếu tất cả đều thất bại
+                    } catch (IOException ex) {
+                        // Fallback cuối cùng – thử API cũ nếu tất cả đều thất bại
                         try {
-                            @SuppressWarnings("deprecation")
-                            var __unused = 0; // chỉ để gắn suppress trong block
                             ms.joinGroup(group);
-                        } catch (Exception ignore2) {
+                        } catch (IOException ignore2) {
                         }
                     }
                 } else {
@@ -441,6 +441,14 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
         // Lọc dữ liệu dựa trên mode
         String clientId = m.getOrDefault("client", "");
+
+        // Nếu đang ở client mode và localClientId được cấu hình, chỉ xử lý
+        // các broadcast dành cho client này để tránh hiển thị bảng điểm của client
+        // khác.
+        if (!isAdminMode && localClientId != null && !localClientId.isEmpty() && !localClientId.equals(clientId)) {
+            // Ignore messages not intended for this client
+            return;
+        }
 
         // Dùng key kết hợp để tránh đè khi nhiều sân dùng chung sid
         String courtIdFromMsg = m.getOrDefault("courtId", "");

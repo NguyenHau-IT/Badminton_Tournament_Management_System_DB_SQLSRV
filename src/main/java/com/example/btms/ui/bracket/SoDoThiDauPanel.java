@@ -8,10 +8,13 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.HeadlessException;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +61,7 @@ import com.example.btms.service.result.KetQuaDoiService;
 import com.example.btms.service.team.DoiService;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
+import com.lowagie.text.DocumentException;
 
 /**
  * Trang "Sơ đồ thi đấu" hiển thị bracket loại trực tiếp 16 -> 1 (5 cột)
@@ -357,7 +361,8 @@ public class SoDoThiDauPanel extends JPanel {
                 java.lang.reflect.Method mEns = mcExisting.getClass().getDeclaredMethod("ensureTabsForExistingCourts");
                 mEns.setAccessible(true);
                 mEns.invoke(mcExisting);
-            } catch (Exception ignore) {
+            } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                    | InvocationTargetException ignore) {
             }
             try {
                 java.lang.reflect.Field fTabs = mcExisting.getClass().getDeclaredField("courtTabs");
@@ -370,7 +375,8 @@ public class SoDoThiDauPanel extends JPanel {
                             openedCourts.add(title);
                     }
                 }
-            } catch (Exception ignore) {
+            } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException
+                    | SecurityException ignore) {
             }
             if (openedCourts.isEmpty()) {
                 javax.swing.JOptionPane.showMessageDialog(this,
@@ -428,7 +434,7 @@ public class SoDoThiDauPanel extends JPanel {
                         return;
                     }
                 }
-            } catch (Exception ignore) {
+            } catch (HeadlessException ignore) {
             }
 
             // 3) Xác định nội dung và tiêu đề header
@@ -461,7 +467,8 @@ public class SoDoThiDauPanel extends JPanel {
                         }
                     }
                 }
-            } catch (Exception ignore) {
+            } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException
+                    | SecurityException ignore) {
             }
             if (!tabExists) {
                 javax.swing.JOptionPane.showMessageDialog(this,
@@ -514,7 +521,8 @@ public class SoDoThiDauPanel extends JPanel {
                             panel = p2;
                         }
                     }
-                } catch (Exception ignore) {
+                } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException
+                        | SecurityException ignore) {
                 }
             }
 
@@ -528,7 +536,8 @@ public class SoDoThiDauPanel extends JPanel {
                             .getDeclaredMethod("reloadListsFromDb");
                     mReload.setAccessible(true);
                     mReload.invoke(panel);
-                } catch (Exception ignore) {
+                } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                        | InvocationTargetException ignore) {
                 }
 
                 try {
@@ -581,12 +590,14 @@ public class SoDoThiDauPanel extends JPanel {
                                 String.class);
                         setCourtIdMethod.setAccessible(true);
                         setCourtIdMethod.invoke(panel, courtId);
-                    } catch (Exception ignore) {
+                    } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException
+                            | SecurityException | InvocationTargetException ignore) {
                     }
-                } catch (Exception ignore) {
+                } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException
+                        | SecurityException ignore) {
                 }
             }
-        } catch (Exception ex) {
+        } catch (HeadlessException ex) {
             JOptionPane.showMessageDialog(this, "Không thể mở bảng điều khiển trận đấu: " + ex.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
@@ -818,7 +829,7 @@ public class SoDoThiDauPanel extends JPanel {
             }
             javax.swing.JOptionPane.showMessageDialog(this, "Đã xuất PDF:\n" + path,
                     "Xuất sơ đồ thi đấu", javax.swing.JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
+        } catch (DocumentException | HeadlessException | IOException ex) {
             javax.swing.JOptionPane.showMessageDialog(this, "Lỗi xuất sơ đồ PDF: " + ex.getMessage(),
                     "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
         }
@@ -919,7 +930,7 @@ public class SoDoThiDauPanel extends JPanel {
                 doc.close();
             }
             return true;
-        } catch (Exception ex) {
+        } catch (DocumentException | IOException ex) {
             return false;
         }
     }
@@ -1064,7 +1075,7 @@ public class SoDoThiDauPanel extends JPanel {
                 doc.close();
             }
             return true;
-        } catch (Exception ex) {
+        } catch (DocumentException | IOException ex) {
             return false;
         }
     }
@@ -1199,7 +1210,7 @@ public class SoDoThiDauPanel extends JPanel {
                     doc.close();
                     count++;
                 }
-            } catch (Exception ignore) {
+            } catch (DocumentException | IOException ignore) {
             }
         }
         // restore previous selection
@@ -1295,7 +1306,7 @@ public class SoDoThiDauPanel extends JPanel {
             if (!f.exists())
                 return null;
             return javax.imageio.ImageIO.read(f);
-        } catch (Exception ignore) {
+        } catch (IOException ignore) {
             return null;
         }
     }
@@ -1310,35 +1321,8 @@ public class SoDoThiDauPanel extends JPanel {
             if (!f.exists())
                 return null;
             return javax.imageio.ImageIO.read(f);
-        } catch (Exception ignore) {
+        } catch (IOException ignore) {
             return null;
-        }
-    }
-
-    // Draw a scaled logo at top-right of the given image, keeping aspect ratio
-    private static void overlayLogoTopRight(java.awt.image.BufferedImage base,
-            java.awt.image.BufferedImage logo, int targetHeightPx, int paddingPx) {
-        if (base == null || logo == null || targetHeightPx <= 0)
-            return;
-        int srcW = logo.getWidth();
-        int srcH = logo.getHeight();
-        if (srcW <= 0 || srcH <= 0)
-            return;
-        double k = targetHeightPx / (double) srcH;
-        int newH = Math.max(1, targetHeightPx);
-        int newW = Math.max(1, (int) Math.round(srcW * k));
-        java.awt.Image scaled = logo.getScaledInstance(newW, newH, java.awt.Image.SCALE_SMOOTH);
-        int x = Math.max(0, base.getWidth() - newW - Math.max(0, paddingPx));
-        int y = Math.max(0, Math.max(0, paddingPx));
-        java.awt.Graphics2D g = base.createGraphics();
-        try {
-            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
-                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
-                    java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-            g.drawImage(scaled, x, y, null);
-        } finally {
-            g.dispose();
         }
     }
 
@@ -1407,7 +1391,7 @@ public class SoDoThiDauPanel extends JPanel {
                 if (Float.isFinite(val) && val > 0f && val < 72f)
                     return val; // clamp
             }
-        } catch (Throwable ignore) {
+        } catch (NumberFormatException ignore) {
         }
         return 9f;
     }
@@ -1423,7 +1407,7 @@ public class SoDoThiDauPanel extends JPanel {
                 if (Float.isFinite(val) && val >= 0f && val < 48f)
                     return val;
             }
-        } catch (Throwable ignore) {
+        } catch (NumberFormatException ignore) {
         }
         return 0f;
     }
@@ -1440,7 +1424,7 @@ public class SoDoThiDauPanel extends JPanel {
                 if (Float.isFinite(val) && val >= -40f && val <= 40f)
                     return val;
             }
-        } catch (Throwable ignore) {
+        } catch (NumberFormatException ignore) {
         }
         return -20f; // move up a bit more by default
     }
@@ -1472,7 +1456,7 @@ public class SoDoThiDauPanel extends JPanel {
                 if (Float.isFinite(val) && val > 0.1f && val <= 20f)
                     return val;
             }
-        } catch (Throwable ignore) {
+        } catch (NumberFormatException ignore) {
         }
         return 10f; // default 10x
     }
@@ -1489,7 +1473,7 @@ public class SoDoThiDauPanel extends JPanel {
                 if (Float.isFinite(val) && val > 0.2f && val <= 2.0f)
                     return val;
             }
-        } catch (Throwable ignore) {
+        } catch (NumberFormatException ignore) {
         }
         return 0.9f;
     }
@@ -1540,57 +1524,6 @@ public class SoDoThiDauPanel extends JPanel {
         }
     }
 
-    // Load left logo (tournament/org) from settings, scale to header height
-    private com.lowagie.text.Image tryLoadReportLogo() {
-        try {
-            String logoPath = new Prefs().get("report.logo.path", "");
-            if (logoPath == null || logoPath.isBlank())
-                return null;
-            java.io.File f = new java.io.File(logoPath);
-            if (!f.exists())
-                return null;
-            com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = 34f; // slightly smaller header logo
-            if (img.getScaledHeight() > maxH) {
-                float k = maxH / img.getScaledHeight();
-                img.scalePercent(k * 100f);
-            }
-            return img;
-        } catch (com.lowagie.text.BadElementException e) {
-            System.err.println("Logo load BadElementException: " + e.getMessage());
-            return null;
-        } catch (java.io.IOException e) {
-            System.err.println("Logo load IOException: " + e.getMessage());
-            return null;
-        }
-    }
-
-    // Load right logo (sponsor) from settings, scale to header height
-    private com.lowagie.text.Image tryLoadSponsorLogo() {
-        try {
-            String logoPath = new Prefs().get("report.sponsor.logo.path", "");
-            if (logoPath == null || logoPath.isBlank())
-                return null;
-            java.io.File f = new java.io.File(logoPath);
-            if (!f.exists())
-                return null;
-            com.lowagie.text.Image img = com.lowagie.text.Image.getInstance(logoPath);
-            float maxH = 34f; // align visual height with left logo (reduced)
-            if (img.getScaledHeight() > maxH) {
-                float k = maxH / img.getScaledHeight();
-                img.scalePercent(k * 100f);
-            }
-            return img;
-        } catch (com.lowagie.text.BadElementException e) {
-            System.err.println("Sponsor logo load BadElementException: " + e.getMessage());
-            return null;
-        } catch (java.io.IOException e) {
-            System.err.println("Sponsor logo load IOException: " + e.getMessage());
-            return null;
-        }
-    }
-
-    // Page event for header/footer (logos + tournament title + footer info)
     private static final class ReportPageEvent extends com.lowagie.text.pdf.PdfPageEventHelper {
         private final com.lowagie.text.Image leftLogo;
         private final com.lowagie.text.Image rightLogo;
@@ -1693,8 +1626,7 @@ public class SoDoThiDauPanel extends JPanel {
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
-                "Bạn có chắc muốn xoá toàn bộ sơ đồ, kết quả huy chương và danh sách bốc thăm của nội dung này?\n\n" +
-                        "Hành động này sẽ xoá dữ liệu trong CSDL và không thể hoàn tác.",
+                "Bạn có chắc muốn xoá ?" ,
                 "Xác nhận xoá", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm != JOptionPane.YES_OPTION) {
             return;
@@ -2215,43 +2147,45 @@ public class SoDoThiDauPanel extends JPanel {
     private List<Integer> computeSeedPositionsWithMode(int N, int M) {
         int mode = Math.max(1, Math.min(7, prefs.getInt("bracket.seed.mode", 2)));
         List<Integer> base;
-        if (M == 8) {
-            // 0-based slot order per entrant index i = 0..N-1
-            int[][] modes = new int[][] {
-                    { 0, 4, 2, 6, 1, 5, 3, 7 }, // Mode 1: [1,5,3,7,2,6,4,8]
-                    { 7, 3, 5, 1, 6, 2, 4, 0 }, // Mode 2: [8,4,6,2,7,3,5,1]
-                    { 0, 7, 4, 3, 2, 5, 6, 1 }, // Mode 3: [1,8,5,4,3,6,7,2]
-                    { 0, 1, 2, 3, 4, 5, 6, 7 }, // Mode 4: natural
-                    { 7, 6, 5, 4, 3, 2, 1, 0 }, // Mode 5: reverse
-                    { 7, 2, 5, 1, 6, 3, 4, 0 }, // Mode 6: variant
-                    { 0, 7, 3, 4, 1, 6, 2, 5 } // Mode 7: variant
-            };
-            int[] arr = modes[mode - 1];
-            base = balancedFromFullMapping(arr, M, N);
-        } else if (M == 4) {
-            int[][] modes = new int[][] {
-                    { 0, 2, 1, 3 }, // 1,3,2,4
-                    { 3, 1, 2, 0 },
-                    { 0, 3, 1, 2 },
-                    { 0, 1, 2, 3 },
-                    { 3, 2, 1, 0 },
-                    { 2, 0, 3, 1 },
-                    { 1, 3, 0, 2 }
-            };
-            int[] arr = modes[mode - 1];
-            base = balancedFromFullMapping(arr, M, N);
-        } else if (M == 2) {
-            int[][] modes = new int[][] {
-                    { 0, 1 }, { 1, 0 }, { 0, 1 }, { 0, 1 }, { 1, 0 }, { 0, 1 }, { 1, 0 }
-            };
-            int[] arr = modes[mode - 1];
-            base = balancedFromFullMapping(arr, M, N);
-        } else if (M == 16) {
-            // For 16, fallback to top-heavy which is generally balanced; anti-CLB step will
-            // adjust pairs
-            base = computeTopHeavyPositionsWithinBlock(N, M);
-        } else {
-            base = computeTopHeavyPositionsWithinBlock(N, M);
+        switch (M) {
+            case 8 ->  {
+                // 0-based slot order per entrant index i = 0..N-1
+                int[][] modes = new int[][] {
+                        { 0, 4, 2, 6, 1, 5, 3, 7 }, // Mode 1: [1,5,3,7,2,6,4,8]
+                        { 7, 3, 5, 1, 6, 2, 4, 0 }, // Mode 2: [8,4,6,2,7,3,5,1]
+                        { 0, 7, 4, 3, 2, 5, 6, 1 }, // Mode 3: [1,8,5,4,3,6,7,2]
+                        { 0, 1, 2, 3, 4, 5, 6, 7 }, // Mode 4: natural
+                        { 7, 6, 5, 4, 3, 2, 1, 0 }, // Mode 5: reverse
+                        { 7, 2, 5, 1, 6, 3, 4, 0 }, // Mode 6: variant
+                        { 0, 7, 3, 4, 1, 6, 2, 5 } // Mode 7: variant
+                };
+                int[] arr = modes[mode - 1];
+                base = balancedFromFullMapping(arr, M, N);
+            }
+            case 4 ->  {
+                int[][] modes = new int[][] {
+                        { 0, 2, 1, 3 }, // 1,3,2,4
+                        { 3, 1, 2, 0 },
+                        { 0, 3, 1, 2 },
+                        { 0, 1, 2, 3 },
+                        { 3, 2, 1, 0 },
+                        { 2, 0, 3, 1 },
+                        { 1, 3, 0, 2 }
+                };
+                int[] arr = modes[mode - 1];
+                base = balancedFromFullMapping(arr, M, N);
+            }
+            case 2 ->  {
+                int[][] modes = new int[][] {
+                        { 0, 1 }, { 1, 0 }, { 0, 1 }, { 0, 1 }, { 1, 0 }, { 0, 1 }, { 1, 0 }
+                };
+                int[] arr = modes[mode - 1];
+                base = balancedFromFullMapping(arr, M, N);
+            }
+            case 16 -> // For 16, fallback to top-heavy which is generally balanced; anti-CLB step will
+                // adjust pairs
+                base = computeTopHeavyPositionsWithinBlock(N, M);
+            default -> base = computeTopHeavyPositionsWithinBlock(N, M);
         }
         return base;
     }
@@ -2321,7 +2255,7 @@ public class SoDoThiDauPanel extends JPanel {
                 var row = list.get(i);
                 var vdv = vdvService.findOne(row.getIdVdv());
                 Integer clubId = (vdv != null) ? vdv.getIdClb() : null;
-                clubs[i] = (clubId != null) ? clubId.intValue() : 0;
+                clubs[i] = (clubId != null) ? clubId : 0;
             } catch (RuntimeException ignore) {
                 clubs[i] = 0;
             }
