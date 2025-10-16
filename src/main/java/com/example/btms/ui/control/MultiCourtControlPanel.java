@@ -168,6 +168,7 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
 
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.add(scrollPane, BorderLayout.CENTER);
+
         return wrapper;
     }
 

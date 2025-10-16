@@ -29,6 +29,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 
@@ -80,6 +81,11 @@ import com.lowagie.text.DocumentException;
  * thì hiển thị "Slot n".
  */
 public class SoDoThiDauPanel extends JPanel {
+
+    // Main tabs: "Sơ đồ" (bracket) and "Thi đấu" (embedded MultiCourtControlPanel)
+    private final JTabbedPane mainTabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+    private final JPanel bracketTab = new JPanel(new BorderLayout(8, 8));
+    private MultiCourtControlPanel embeddedMultiCourt;
 
     private final BracketCanvas canvas = new BracketCanvas();
     private final JButton btnSave = new JButton("Lưu");
@@ -142,8 +148,9 @@ public class SoDoThiDauPanel extends JPanel {
         this.ketQuaCaNhanService = new KetQuaCaNhanService(new KetQuaCaNhanRepository((Connection) conn));
         this.vdvService = new VanDongVienService(new VanDongVienRepository((Connection) conn));
 
-        setLayout(new BorderLayout(8, 8));
-        add(buildTop(), BorderLayout.NORTH);
+        setLayout(new BorderLayout());
+        // Build "Sơ đồ" tab content
+        bracketTab.add(buildTop(), BorderLayout.NORTH);
         // Put canvas inside a scroll pane and increase scroll sensitivity because
         // default wheel scrolling can feel slow on some systems.
         javax.swing.JScrollPane canvasScroll = new javax.swing.JScrollPane(canvas);
@@ -174,9 +181,14 @@ public class SoDoThiDauPanel extends JPanel {
             bar.setValue(bar.getValue() + delta);
             e.consume();
         });
-        add(canvasScroll, BorderLayout.CENTER);
-        add(buildRightPanel(), BorderLayout.EAST);
-        setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        bracketTab.add(canvasScroll, BorderLayout.CENTER);
+        bracketTab.add(buildRightPanel(), BorderLayout.EAST);
+        bracketTab.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+
+        // Add tabs to main container
+        mainTabs.addTab("Sơ đồ", bracketTab);
+        ensureEmbeddedMultiCourtTab();
+        add(mainTabs, BorderLayout.CENTER);
         // Chỉ tải dữ liệu khi đã có giải được chọn trong Prefs
         updateGiaiLabel();
         if (prefs.getInt("selectedGiaiDauId", -1) > 0) {
@@ -193,6 +205,30 @@ public class SoDoThiDauPanel extends JPanel {
         } catch (Throwable ignore) {
         }
         updateCanvasForMode();
+    }
+
+    /**
+     * Ensure the embedded "Thi đấu" tab is present and wired with DB connection.
+     */
+    private void ensureEmbeddedMultiCourtTab() {
+        if (embeddedMultiCourt == null) {
+            embeddedMultiCourt = new MultiCourtControlPanel();
+            try {
+                embeddedMultiCourt.setConnection(this.conn);
+            } catch (Throwable ignore) {
+            }
+        }
+        // Add the tab only once
+        boolean added = false;
+        for (int i = 0; i < mainTabs.getTabCount(); i++) {
+            if (mainTabs.getComponentAt(i) == embeddedMultiCourt) {
+                added = true;
+                break;
+            }
+        }
+        if (!added) {
+            mainTabs.addTab("Thi đấu", embeddedMultiCourt);
+        }
     }
 
     private boolean isMatchMode() {
@@ -486,6 +522,13 @@ public class SoDoThiDauPanel extends JPanel {
                 selectCourtTab(mcPanel, courtId);
             } catch (Exception ignore) {
             }
+            // If using embedded panel, bring its tab to front
+            if (mcPanel == embeddedMultiCourt) {
+                try {
+                    mainTabs.setSelectedComponent(embeddedMultiCourt);
+                } catch (Exception ignore) {
+                }
+            }
             try {
                 java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(mcPanel);
                 if (win != null) {
@@ -604,7 +647,11 @@ public class SoDoThiDauPanel extends JPanel {
     }
 
     /** Duyệt toàn bộ cửa sổ để tìm một MultiCourtControlPanel đang hiện diện. */
-    private static MultiCourtControlPanel findExistingMultiCourtPanel() {
+    private MultiCourtControlPanel findExistingMultiCourtPanel() {
+        // Prefer embedded panel inside this view if available
+        if (embeddedMultiCourt != null) {
+            return embeddedMultiCourt;
+        }
         try {
             for (java.awt.Window w : java.awt.Window.getWindows()) {
                 if (w == null)
@@ -1626,7 +1673,7 @@ public class SoDoThiDauPanel extends JPanel {
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
-                "Bạn có chắc muốn xoá ?" ,
+                "Bạn có chắc muốn xoá ?",
                 "Xác nhận xoá", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm != JOptionPane.YES_OPTION) {
             return;
@@ -2148,7 +2195,7 @@ public class SoDoThiDauPanel extends JPanel {
         int mode = Math.max(1, Math.min(7, prefs.getInt("bracket.seed.mode", 2)));
         List<Integer> base;
         switch (M) {
-            case 8 ->  {
+            case 8 -> {
                 // 0-based slot order per entrant index i = 0..N-1
                 int[][] modes = new int[][] {
                         { 0, 4, 2, 6, 1, 5, 3, 7 }, // Mode 1: [1,5,3,7,2,6,4,8]
@@ -2162,7 +2209,7 @@ public class SoDoThiDauPanel extends JPanel {
                 int[] arr = modes[mode - 1];
                 base = balancedFromFullMapping(arr, M, N);
             }
-            case 4 ->  {
+            case 4 -> {
                 int[][] modes = new int[][] {
                         { 0, 2, 1, 3 }, // 1,3,2,4
                         { 3, 1, 2, 0 },
@@ -2175,7 +2222,7 @@ public class SoDoThiDauPanel extends JPanel {
                 int[] arr = modes[mode - 1];
                 base = balancedFromFullMapping(arr, M, N);
             }
-            case 2 ->  {
+            case 2 -> {
                 int[][] modes = new int[][] {
                         { 0, 1 }, { 1, 0 }, { 0, 1 }, { 0, 1 }, { 1, 0 }, { 0, 1 }, { 1, 0 }
                 };
