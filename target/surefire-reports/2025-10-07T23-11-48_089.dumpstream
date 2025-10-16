@@ -1,5 +1,0 @@
-# Created at 2025-10-07T23:11:48.498
-Boot Manifest-JAR contains absolute paths in classpath 'D:\Badminton_Tournament_Management_System_DB_SQLSRV\target\test-classes'
-Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
-'other' has different root
-
