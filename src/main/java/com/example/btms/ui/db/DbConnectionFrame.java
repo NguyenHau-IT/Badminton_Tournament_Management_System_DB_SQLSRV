@@ -21,8 +21,9 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
@@ -36,8 +37,9 @@ import com.example.btms.ui.db.DbConnectionSelection.DbType;
 import com.example.btms.ui.db.DbConnectionSelection.Mode;
 import com.example.btms.util.h2db.H2ScriptUtil;
 
-public class DbConnectionPanel extends JPanel {
+public class DbConnectionFrame extends JFrame {
 
+    // ==== UI controls (giữ nguyên logic & tên biến) ====
     private final JRadioButton rbLocalLan = new JRadioButton("Sử dụng DB cục bộ / cùng mạng");
     private final JRadioButton rbInitNew = new JRadioButton("Khởi tạo mới");
     private final JRadioButton rbOnline = new JRadioButton("Sử dụng online");
@@ -56,9 +58,11 @@ public class DbConnectionPanel extends JPanel {
     private Consumer<DbConnectionSelection> onOk;
     private Runnable onCancel;
 
-    public DbConnectionPanel() {
-        super(new BorderLayout(0, 8));
-        setBorder(new EmptyBorder(10, 10, 10, 10));
+    public DbConnectionFrame() {
+        super("Thiết lập kết nối CSDL");
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setLayout(new BorderLayout(0, 8));
+        ((JPanel) getContentPane()).setBorder(new EmptyBorder(10, 10, 10, 10));
 
         JLabel title = new JLabel("Thiết lập kết nối CSDL");
         title.putClientProperty("FlatLaf.style", "font: bold +2");
@@ -168,8 +172,12 @@ public class DbConnectionPanel extends JPanel {
 
         SwingUtilities.invokeLater(() -> txtDbName.requestFocusInWindow());
         applyUiHints();
+
+        pack();
+        setLocationRelativeTo(null);
     }
 
+    // ==== API giống bản panel cũ ====
     public void setOnOk(Consumer<DbConnectionSelection> onOk) {
         this.onOk = onOk;
     }
@@ -178,6 +186,7 @@ public class DbConnectionPanel extends JPanel {
         this.onCancel = onCancel;
     }
 
+    // ==== Logic giữ nguyên, chỉ sửa phần dispose/owner ====
     private void onTestConnection(JButton... toDisable) {
         setBusy(true, toDisable);
         new Thread(() -> {
@@ -250,29 +259,27 @@ public class DbConnectionPanel extends JPanel {
     }
 
     private void showInfoLater(String msg) {
-        SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Thông báo",
-                javax.swing.JOptionPane.INFORMATION_MESSAGE));
+        SwingUtilities.invokeLater(
+                () -> JOptionPane.showMessageDialog(this, msg, "Thông báo", JOptionPane.INFORMATION_MESSAGE));
     }
 
     private void showErrorLater(String msg) {
-        SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(this, msg, "Lỗi",
-                javax.swing.JOptionPane.ERROR_MESSAGE));
+        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, msg, "Lỗi", JOptionPane.ERROR_MESSAGE));
     }
 
     private void onOk() {
-        // If user chooses to initialize a new H2 database, create it first and do NOT
-        // auto-connect
+        // Khởi tạo H2 mới nhưng KHÔNG auto-connect/đóng ngay
         if (rbInitNew.isSelected() && cbDbType.getSelectedItem() == DbType.H2) {
             String dbName = safe(txtDbName.getText());
             if (dbName.isBlank()) {
-                javax.swing.JOptionPane.showMessageDialog(this, "Vui lòng nhập Tên DB (H2).", "Thiếu thông tin",
-                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập Tên DB (H2).",
+                        "Thiếu thông tin", JOptionPane.WARNING_MESSAGE);
                 return;
             }
             if (dbName.contains("/") || dbName.contains("\\")) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                        "Tên DB không được chứa dấu / hoặc \\. Vui lòng nhập tên hợp lệ.", "Tên DB không hợp lệ",
-                        javax.swing.JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this,
+                        "Tên DB không được chứa dấu / hoặc \\. Vui lòng nhập tên hợp lệ.",
+                        "Tên DB không hợp lệ", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -284,26 +291,22 @@ public class DbConnectionPanel extends JPanel {
                         dir.mkdirs();
                     String fileUrl = "jdbc:h2:file:./database/" + dbName
                             + ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
-                    // Create empty DB (if not exists)
                     DriverManager.getConnection(fileUrl, "sa", "").close();
 
-                    // Try to initialize schema from script (optional)
                     try {
                         initH2DatabaseFromScript(dbName);
                     } catch (Exception initEx) {
                         showErrorLater("Khởi tạo schema từ script thất bại: " + initEx.getMessage());
                     }
 
-                    // Refresh existing list and guide user to connect manually
                     SwingUtilities.invokeLater(() -> {
                         loadExistingDbOptions();
                         rbLocalLan.setSelected(true);
                         cbDbType.setSelectedItem(DbType.H2);
-                        txtServer.setText(""); // use file mode by default
-                        javax.swing.JOptionPane.showMessageDialog(this,
+                        txtServer.setText(""); // file mode mặc định
+                        JOptionPane.showMessageDialog(this,
                                 "Đã khởi tạo DB H2 thành công. Hãy chuyển sang chế độ 'Sử dụng DB cục bộ / cùng mạng' và nhấn Kết nối để kết nối thủ công.",
-                                "Hoàn tất khởi tạo",
-                                javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                                "Hoàn tất khởi tạo", JOptionPane.INFORMATION_MESSAGE);
                     });
                 } catch (Exception ex) {
                     showErrorLater("Không thể khởi tạo DB H2: " + ex.getMessage());
@@ -311,7 +314,7 @@ public class DbConnectionPanel extends JPanel {
                     setBusy(false);
                 }
             }, "h2-init-new").start();
-            return; // do NOT proceed to auto-connect or close the dialog
+            return;
         }
 
         DbConnectionSelection sel = new DbConnectionSelection();
@@ -354,24 +357,51 @@ public class DbConnectionPanel extends JPanel {
             sel.setJdbcUrl(u.toString());
         }
 
-        if (sel.isRemember())
-            savePrefs(sel);
+        // Preflight connect — nếu fail thì ở lại để sửa
+        setBusy(true);
+        new Thread(() -> {
+            try {
+                if (sel.getDbType() == DbType.H2) {
+                    DriverManager.getConnection(sel.getJdbcUrl(), "sa", "").close();
+                } else if (sel.getDbType() == DbType.SQLSRV) {
+                    StringBuilder testUrl = new StringBuilder(sel.getJdbcUrl())
+                            .append(";encrypt=true;trustServerCertificate=true;loginTimeout=5");
+                    String user = nz(sel.getUsername());
+                    boolean useIntegrated = user.isBlank();
+                    if (useIntegrated) {
+                        testUrl.append(";integratedSecurity=true");
+                        DriverManager.getConnection(testUrl.toString()).close();
+                    } else {
+                        DriverManager.getConnection(testUrl.toString(), user,
+                                sel.getPassword() == null ? "" : new String(sel.getPassword())).close();
+                    }
+                } else {
+                    throw new IllegalStateException("Kiểu DB không hợp lệ.");
+                }
 
-        this.result = sel;
-        if (onOk != null)
-            onOk.accept(sel);
-        java.awt.Window w = SwingUtilities.getWindowAncestor(this);
-        if (w instanceof JDialog d)
-            d.dispose();
+                SwingUtilities.invokeLater(() -> completeSelectionAndClose(sel));
+            } catch (Exception ex) {
+                showErrorLater("Kết nối thất bại: " + ex.getMessage());
+            } finally {
+                setBusy(false);
+            }
+        }, "db-preflight-connect").start();
     }
 
     private void onCancel() {
         this.result = null;
         if (onCancel != null)
             onCancel.run();
-        java.awt.Window w = SwingUtilities.getWindowAncestor(this);
-        if (w instanceof JDialog d)
-            d.dispose();
+        dispose(); // JFrame: đóng thẳng frame
+    }
+
+    private void completeSelectionAndClose(DbConnectionSelection sel) {
+        if (sel.isRemember())
+            savePrefs(sel);
+        this.result = sel;
+        if (onOk != null)
+            onOk.accept(sel);
+        dispose();
     }
 
     private void loadExistingDbOptions() {
@@ -400,7 +430,7 @@ public class DbConnectionPanel extends JPanel {
             cbDbType.setSelectedItem(DbType.SQLSRV);
         }
         txtDbName.setText(p.get("db.name", ""));
-        txtServer.setText(p.get("db.server", ""));
+        txtServer.setText(p.get("db.server", "localhost"));
         txtPort.setText(p.get("db.port", "1433"));
         txtUser.setText(p.get("db.user", ""));
         chkRemember.setSelected(p.getBool("db.remember", false));
@@ -422,6 +452,8 @@ public class DbConnectionPanel extends JPanel {
         H2ScriptUtil.runSqlServerScriptOnH2FileDb(dbName, script);
     }
 
+    // giữ lại helper (nếu bạn không dùng có thể bỏ)
+    @SuppressWarnings("unused")
     private static String readTextAuto(File file) throws IOException {
         byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
         if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
@@ -483,6 +515,7 @@ public class DbConnectionPanel extends JPanel {
         txtUser.setEnabled(!isH2);
         txtPass.setEnabled(!isH2);
         if (isH2) {
+            txtServer.setText("localhost");
             txtPort.setText("9092");
             txtUser.setText("sa");
             txtPass.setText("");

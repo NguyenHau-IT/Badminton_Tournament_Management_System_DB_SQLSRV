@@ -8,6 +8,8 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.SecondaryLoop;
+import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.NetworkInterface;
@@ -17,6 +19,7 @@ import java.text.DecimalFormat;
 import java.util.LinkedHashMap; // still used earlier? (kept for backward compatibility but theme menu removed)
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -35,6 +38,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -75,7 +79,6 @@ import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
-import com.example.btms.ui.db.DbConnectionSelection;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
@@ -86,6 +89,7 @@ import com.example.btms.ui.tournament.TournamentTabPanel;
 import com.example.btms.util.report.RegistrationPdfExporter;
 import com.example.btms.util.ui.IconUtil;
 import com.example.btms.util.ui.Ui;
+import com.example.btms.util.ui.UiUtil;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
@@ -522,59 +526,63 @@ public class MainFrame extends JFrame {
      * --------------------
      */
     private void startDatabaseSetupFlow() {
-        // Hiển thị dialog cấu hình DB (chứa panel)
-        final DbConnectionSelection[] outSel = new DbConnectionSelection[1];
-        javax.swing.JDialog dlg = new javax.swing.JDialog(this, "Kết nối cơ sở dữ liệu", true);
-        com.example.btms.ui.db.DbConnectionPanel panel = new com.example.btms.ui.db.DbConnectionPanel();
-        panel.setOnOk(s -> outSel[0] = s);
-        panel.setOnCancel(() -> outSel[0] = null);
-        dlg.setContentPane(panel);
-        dlg.pack();
-        dlg.setLocationRelativeTo(this);
-        dlg.setVisible(true);
-        DbConnectionSelection sel = outSel[0];
-        if (sel == null) {
-            // Người dùng hủy -> không kết nối, không đăng nhập
+        // Mở cửa sổ cấu hình DB dạng JFrame (có icon taskbar, Alt+Tab)
+        com.example.btms.ui.db.DbConnectionFrame frame = new com.example.btms.ui.db.DbConnectionFrame();
+
+        frame.setOnOk(sel -> {
+            // Người dùng bấm Kết nối (OK) và preflight đã pass trong frame
+            if (sel == null) {
+                // Phòng hờ thôi, bình thường không null
+                statusConn.setText("Chưa kết nối");
+                statusConn.setForeground(new Color(231, 76, 60));
+                if (!isVisible()) {
+                    dispose();
+                    System.exit(0);
+                }
+                return;
+            }
+
+            // Dùng trực tiếp URL đã dựng từ trang cấu hình
+            try {
+                String url = nz(sel.getJdbcUrl());
+                ConnectionConfig runtimeCfg = new ConnectionConfig().mode(ConnectionConfig.Mode.NAME);
+                runtimeCfg.setUrl(url);
+                if (sel.getUsername() != null && !sel.getUsername().isBlank())
+                    runtimeCfg.setUsername(sel.getUsername());
+                if (sel.getPassword() != null)
+                    runtimeCfg.setPassword(new String(sel.getPassword()));
+
+                service.setConfig(runtimeCfg);
+                Connection conn = service.connect();
+                onDatabaseConnected(conn);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Kết nối CSDL thất bại: " + ex.getMessage(),
+                        "Lỗi", JOptionPane.ERROR_MESSAGE);
+                statusConn.setText("Lỗi kết nối");
+                statusConn.setForeground(new Color(231, 76, 60));
+                if (!isVisible()) {
+                    dispose();
+                    System.exit(1);
+                }
+            }
+        });
+
+        frame.setOnCancel(() -> {
+            // Người dùng bấm Hủy
             statusConn.setText("Chưa kết nối");
             statusConn.setForeground(new Color(231, 76, 60));
-            // Nếu frame chưa hiển thị (đang ở giai đoạn khởi động), thoát ứng dụng để tránh
-            // treo ẩn
             if (!isVisible()) {
                 dispose();
                 System.exit(0);
             }
-            return;
-        }
+        });
 
-        // Dùng trực tiếp URL đã dựng từ trang cấu hình, không cần dựng lại
-        try {
-            String url = nz(sel.getJdbcUrl());
-            ConnectionConfig runtimeCfg = new ConnectionConfig().mode(ConnectionConfig.Mode.NAME);
-            runtimeCfg.setUrl(url);
-            if (sel.getUsername() != null && !sel.getUsername().isBlank())
-                runtimeCfg.setUsername(sel.getUsername());
-            if (sel.getPassword() != null)
-                runtimeCfg.setPassword(new String(sel.getPassword()));
-
-            service.setConfig(runtimeCfg);
-            Connection conn = service.connect();
-            onDatabaseConnected(conn);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Kết nối CSDL thất bại: " + ex.getMessage(), "Lỗi",
-                    JOptionPane.ERROR_MESSAGE);
-            statusConn.setText("Lỗi kết nối");
-            statusConn.setForeground(new Color(231, 76, 60));
-            if (!isVisible()) {
-                // Nếu đang ở luồng khởi động và kết nối thất bại, thoát để tránh cửa sổ ẩn
-                dispose();
-                System.exit(1);
-            }
-            return;
-        }
+        frame.setVisible(true);
     }
 
+    // helper cũ (giữ lại nếu class này đang dùng)
     private static String nz(String s) {
-        return s == null ? "" : s;
+        return (s == null) ? "" : s;
     }
 
     private void onDatabaseConnected(Connection conn) {
@@ -756,6 +764,28 @@ public class MainFrame extends JFrame {
                 if (currentRole == Role.ADMIN)
                     mOther.add(menuItem("Logs"));
                 mOther.add(menuItem("Cài đặt"));
+                // Backup DB tool
+                JMenuItem miBackup = new JMenuItem("Sao lưu CSDL...");
+                miBackup.addActionListener(e -> {
+                    Connection c = null;
+                    try {
+                        c = (service != null) ? service.current() : null;
+                    } catch (Throwable ignore) {
+                    }
+                    if (c == null) {
+                        JOptionPane.showMessageDialog(this, "Chưa kết nối CSDL.", "Thông báo",
+                                JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                    try {
+                        com.example.btms.ui.tools.DbBackupFrame f = new com.example.btms.ui.tools.DbBackupFrame(c);
+                        f.setVisible(true);
+                    } catch (Throwable ex) {
+                        JOptionPane.showMessageDialog(this, "Không mở được cửa sổ sao lưu: " + ex.getMessage(),
+                                "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+                mOther.add(miBackup);
                 mb.add(mOther);
             }
         }
@@ -2595,14 +2625,32 @@ public class MainFrame extends JFrame {
 
     /* -------------------- Inline dialogs -------------------- */
     private boolean showLoginDialog() {
-        final JDialog dlg = new JDialog(this, "Đăng nhập", true);
-        dlg.setLayout(new BorderLayout());
-        try {
-            if (loginTab.getParent() != null) {
-                ((java.awt.Container) loginTab.getParent()).remove(loginTab);
-            }
-        } catch (Exception ignore) {
-        }
+        // 1) Tách loginTab khỏi parent nếu đang gắn ở nơi khác
+        UiUtil.detachFromParent(loginTab);
+
+        // 2) Tạo root chứa loginTab + hàng nút Hủy
+        JPanel root = new JPanel(new BorderLayout());
+        root.add(loginTab, BorderLayout.CENTER);
+
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnCancel = new JButton("Hủy");
+        south.add(btnCancel);
+        root.add(south, BorderLayout.SOUTH);
+
+        // 3) Tạo JFrame có icon (hiện ở taskbar)
+        JFrame win = new JFrame("Đăng nhập");
+        win.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        win.setContentPane(root);
+        win.pack();
+        win.setLocationRelativeTo(this);
+        UiUtil.applyWindowIcons(win, UiUtil.loadImages(
+                "/icons/app-16.png", "/icons/app-32.png", "/icons/app-48.png", "/icons/app-128.png"));
+
+        // 4) “Giả modal” bằng SecondaryLoop để vẫn return boolean như cũ
+        AtomicBoolean accepted = new AtomicBoolean(false);
+        SecondaryLoop loop = Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
+
+        // 5) Gắn listener đăng nhập (OK)
         loginTab.setListener((username, role) -> {
             this.currentRole = role;
             try {
@@ -2615,21 +2663,32 @@ public class MainFrame extends JFrame {
                 }
             } catch (Exception ignore) {
             }
-            dlg.dispose();
+            accepted.set(true);
+            win.dispose();
+            loop.exit();
         });
-        dlg.add(loginTab, BorderLayout.CENTER);
-        JPanel south = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        JButton btnCancel = new JButton("Hủy");
+
+        // 6) Nút Hủy & đóng cửa sổ
         btnCancel.addActionListener(e -> {
             this.currentRole = null;
-            dlg.dispose();
+            accepted.set(false);
+            win.dispose();
+            loop.exit();
         });
-        south.add(btnCancel);
-        dlg.add(south, BorderLayout.SOUTH);
-        dlg.pack();
-        dlg.setLocationRelativeTo(this);
-        dlg.setVisible(true);
-        return currentRole != null;
+        win.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                currentRole = null;
+                accepted.set(false);
+                loop.exit();
+            }
+        });
+
+        // 7) Hiển thị & chờ kết quả
+        win.setVisible(true);
+        loop.enter(); // đợi tới khi listener/cancel/windowClosing gọi loop.exit()
+
+        return accepted.get(); // true nếu đăng nhập ok, false nếu hủy
     }
 
     private GiaiDau showTournamentSelectDialog() {
