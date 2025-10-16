@@ -63,7 +63,7 @@ graph TB
     A[Desktop App - Java Swing] --> B[Spring Boot Core]
     B --> C[Web Interface - Thymeleaf]
     B --> D[REST API + SSE]
-    B --> E[SQL Server Database]
+    B --> E[SQL Server Database/ H2 Database]
     
     F[Mobile/Tablet Browser] --> C
     F --> D
@@ -125,49 +125,14 @@ graph TB
 | **Maven** | - | Build & dependency management |
 | **ZXing** | 3.5.2 | QR Code generation |
 | **OkHttp** | - | HTTP client |
+| **H2** | - | In-memory/file DB phục vụ local testing (runtime) |
 | **Jackson** | - | JSON processing |
 | **JCalendar** | 1.4 | Date picker component |
 | **OpenPDF** | 1.3.39 | PDF generation |
 
 ---
-
-## ⚙️ Cài đặt và cấu hình
-
 ### 📋 Yêu cầu hệ thống
 - **OS**: Windows 10/11 64-bit
-- **Java**: JRE/JDK 17 hoặc cao hơn
-- **RAM**: Tối thiểu 2GB, khuyến nghị 4GB+
-- **Storage**: 500MB cho ứng dụng + database
-- **Network**: LAN connection cho multi-device access
-
-### 🔧 Cấu hình cơ sở dữ liệu
-Sao chép `application.properties.copy` thành `src/main/resources/application.properties` và cập nhật:
-
-```properties
-# Server Configuration
-server.address=0.0.0.0
-server.port=2345
-spring.main.headless=false
-
-# SQL Server Database (mặc định: badminton_tournament)
-spring.datasource.url=jdbc:sqlserver://server:1433;databaseName=badminton_tournament;encrypt=true;trustServerCertificate=true
-spring.datasource.username=your_username
-spring.datasource.password=your_password
-spring.datasource.driver-class-name=com.microsoft.sqlserver.jdbc.SQLServerDriver
-
-# Connection Pool
-spring.datasource.hikari.maximum-pool-size=10
-spring.datasource.hikari.minimum-idle=5
-spring.datasource.hikari.idle-timeout=300000
-spring.datasource.hikari.max-lifetime=1200000
-
-# JPA/Hibernate
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.SQLServerDialect
-spring.jpa.show-sql=false
-```
-
-Lưu ý: Ứng dụng desktop có cơ chế auto-connect. Nếu thiếu cấu hình, fallback trong code sử dụng database `badminton` (khác với cấu hình mặc định `badminton_tournament`). Khuyến nghị cấu hình rõ `spring.datasource.url` như trên để thống nhất.
 
 ### 🚀 Chạy ứng dụng
 
@@ -287,6 +252,12 @@ POST /api/court/{pin}/change-server # Change server
 POST /api/court/{pin}/undo          # Undo last action
 ```
 
+#### Debug & Convenience (PIN mode)
+```http
+GET  /api/court/{pin}/test          # Kiểm tra nhanh controller hoạt động với PIN
+POST /api/court/{pin}/{action}      # action ∈ {increaseA,decreaseA,increaseB,decreaseB,reset,next,swap,change-server,undo}
+```
+
 ### Base URL (No-PIN mode)
 - **Local**: `http://localhost:2345/api/scoreboard`
 - **Network**: `http://[YOUR_IP]:2345/api/scoreboard`
@@ -312,12 +283,17 @@ POST /api/scoreboard/undo           # Undo last action
 ```json
 {
   "names": ["Team A", "Team B"],
+  "clubs": ["Club A", "Club B"],
   "score": [21, 19],
-  "games": [1, 0], 
+  "games": [1, 0],
   "gameNumber": 1,
-  "bestOf": 3,
   "server": 0,
   "doubles": false,
+  "betweenGamesInterval": false,
+  "changedEndsThisGame": false,
+  "matchFinished": false,
+  "bestOf": 3,
+  "elapsedSec": 123,
   "gameScores": [[21, 19]]
 }
 ```
@@ -325,7 +301,8 @@ POST /api/scoreboard/undo           # Undo last action
 ### SSE Events
 - **init**: Initial match state when connecting
 - **update**: Match state changes (score, games, server, etc.)
-- **error**: Error messages
+
+Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự động reconnect; không có event "error" riêng.
 
 ---
 
@@ -470,7 +447,7 @@ mvn clean package jpackage:jpackage
 #### MSI Configuration
 - **Install Location**: 
   - `D:\BTMS` (nếu có ổ D:)
-  - `C:\Program Files\BTMS` (fallback)
+  - `C:\BTMS` (fallback khi không có ổ D:)
 - **Features**: Desktop shortcut, Start menu entry
 - **JRE**: Bundled Java Runtime Environment
 - **Upgrade Support**: MSI upgrade UUID configured
@@ -616,19 +593,19 @@ We welcome contributions! Các areas cần hỗ trợ:
 
 ---
 
-## 🤝 Contributing
+### 🤝 Contributing
 
-### 🛠️ Development Setup
-```bash
-# Clone repository
+### 🛠️ Development Setup (Windows CMD)
+```bat
+:: Clone repository
 git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
 cd Badminton_Tournament_Management_System_DB_SQLSRV
 
-# Setup database configuration
-cp application.properties.copy src/main/resources/application.properties
-# Edit database settings
+:: Setup database configuration
+copy /Y application.properties.copy src\main\resources\application.properties
+:: Edit database settings
 
-# Run in development mode
+:: Run in development mode
 mvn spring-boot:run
 ```
 
