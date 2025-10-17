@@ -31,4 +31,5 @@ target/classes/application.properties
 *.mv.db
 *.trace.db
 
-src/target
+#target folder
+target/
