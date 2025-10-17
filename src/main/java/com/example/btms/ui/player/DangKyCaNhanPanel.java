@@ -7,7 +7,6 @@ import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -53,11 +52,7 @@ public class DangKyCaNhanPanel extends JPanel {
         @Override
         public Class<?> getColumnClass(int columnIndex) {
             return switch (columnIndex) {
-                case 0, 1, 3 -> Integer.class; // hidden
-                                               // ids
-                                               // (idGiai,
-                                               // idNoiDung,
-                                               // idVdv)
+                case 0, 1, 3 -> Integer.class;
                 default -> String.class;
             };
         }
@@ -182,13 +177,8 @@ public class DangKyCaNhanPanel extends JPanel {
     }
 
     private void onOpenImportPanel() {
-        DangKyCaNhanImportPanel p = new DangKyCaNhanImportPanel(
+        DangKyCaNhanImportPanel.showImportWindow(
                 conn, prefs, noiDungService, dkService, vdvService, clbService, this::reload);
-        JDialog dlg = new JDialog((java.awt.Frame) null, "Nhập CSV đăng ký cá nhân", true);
-        dlg.setContentPane(p);
-        dlg.pack();
-        dlg.setLocationRelativeTo(this);
-        dlg.setVisible(true);
     }
 
     // no-op helper removed
