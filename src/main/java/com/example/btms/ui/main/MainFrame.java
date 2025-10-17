@@ -7,7 +7,6 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.awt.SecondaryLoop;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
@@ -21,10 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -34,11 +30,9 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -71,8 +65,8 @@ import com.example.btms.service.db.DatabaseService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.result.KetQuaCaNhanService;
 import com.example.btms.service.result.KetQuaDoiService;
-import com.example.btms.ui.auth.LoginTab;
-import com.example.btms.ui.auth.LoginTab.Role;
+import com.example.btms.ui.auth.LoginFrame;
+import com.example.btms.ui.auth.LoginFrame.Role;
 import com.example.btms.ui.bracket.SoDoThiDauPanel;
 import com.example.btms.ui.category.NoiDungManagementPanel;
 import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
@@ -80,21 +74,23 @@ import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.ui.log.LogTab;
+import com.example.btms.ui.manager.BracketWindowManager;
+import com.example.btms.ui.manager.PlayWindowManager;
 import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.report.BaoCaoPdfPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;
-import com.example.btms.ui.tournament.TournamentTabPanel;
+import com.example.btms.ui.tournament.TournamentManagementComponent;
 import com.example.btms.util.report.RegistrationPdfExporter;
 import com.example.btms.util.ui.IconUtil;
 import com.example.btms.util.ui.Ui;
-import com.example.btms.util.ui.UiUtil;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 // import com.formdev.flatlaf.extras.FlatSVGIcon; // (no longer used after removing icons)
 
+@SuppressWarnings("all")
 public class MainFrame extends JFrame {
     // Lưu map font gốc để tránh nhân đôi khi đổi scale nhiều lần
     private static java.util.Map<Object, Font> baseUIFontMap;
@@ -114,13 +110,9 @@ public class MainFrame extends JFrame {
     private BaoCaoPdfPanel baoCaoPdfPanel;
     // Trang biên bản (kết quả dạng log set/điểm)
     private com.example.btms.ui.result.BienBanPanel bienBanPanel;
-    // Cửa sổ nổi cho "Sơ đồ thi đấu"
-    private JFrame soDoThiDauFrame;
-    // Dạng tab: mỗi nội dung là 1 tab riêng
-    private javax.swing.JTabbedPane soDoTabbedPane;
-    private final java.util.LinkedHashMap<Integer, com.example.btms.ui.bracket.SoDoThiDauPanel> soDoPanelsByNoiDung = new java.util.LinkedHashMap<>();
-    // Cửa sổ nổi cho "Thi đấu"/"Nhiều sân"
-    private JFrame thiDauFrame;
+    // Managers tách riêng phần cửa sổ nổi
+    private final BracketWindowManager bracketWindowManager = new BracketWindowManager();
+    private final PlayWindowManager playWindowManager = new PlayWindowManager();
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
@@ -133,8 +125,11 @@ public class MainFrame extends JFrame {
     private final MonitorTab monitorTab = new MonitorTab();
     private final ScreenshotTab screenshotTab = new ScreenshotTab();
     private final LogTab logTab = new LogTab();
-    private final LoginTab loginTab = new LoginTab(); // dùng trong dialog đăng nhập tự tạo
-    private final TournamentTabPanel tournamentTabPanel = new TournamentTabPanel(service);
+    // Login UI is created on demand via LoginFrame
+    // Dùng JPanel thay cho JFrame để nhúng vào MainFrame
+    private final TournamentManagementComponent tournamentTabPanel = new TournamentManagementComponent(service, false); // full
+                                                                                                                        // management
+                                                                                                                        // mode
     private GiaiDau selectedGiaiDau; // giải đấu đã chọn sau đăng nhập
 
     private AuthService authService;
@@ -306,6 +301,14 @@ public class MainFrame extends JFrame {
                     clearTournamentSelectionPrefs();
                 } catch (Exception ignore) {
                 }
+                try {
+                    bracketWindowManager.closeWindow();
+                } catch (Exception ignore) {
+                }
+                try {
+                    playWindowManager.closeWindow();
+                } catch (Exception ignore) {
+                }
                 System.exit(0);
             }
 
@@ -316,17 +319,11 @@ public class MainFrame extends JFrame {
                 } catch (Exception ignored) {
                 }
                 try {
-                    if (soDoThiDauFrame != null) {
-                        soDoThiDauFrame.dispose();
-                        soDoThiDauFrame = null;
-                    }
+                    bracketWindowManager.closeWindow();
                 } catch (Exception ignored) {
                 }
                 try {
-                    if (thiDauFrame != null) {
-                        thiDauFrame.dispose();
-                        thiDauFrame = null;
-                    }
+                    playWindowManager.closeWindow();
                 } catch (Exception ignored) {
                 }
                 try {
@@ -355,7 +352,9 @@ public class MainFrame extends JFrame {
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
         setAlwaysOnTop(false);
-        IconUtil.applyTo(this);
+        // Defer icon application until after constructor to avoid 'leaking this in
+        // constructor'
+        SwingUtilities.invokeLater(() -> IconUtil.applyTo(this));
 
         String implTitle = getClass().getPackage().getImplementationTitle();
         String implVer = getClass().getPackage().getImplementationVersion();
@@ -518,21 +517,66 @@ public class MainFrame extends JFrame {
     /* -------------------- Auth wiring -------------------- */
     private void updateAuthService(Connection c) {
         this.authService = (c != null) ? new AuthService(c) : null;
-        loginTab.setAuthService(this.authService);
     }
 
     /*
      * -------------------- SETUP DATABASE FLOW (manual, after network)
      * --------------------
      */
+    private boolean showLoginDialog() {
+        // Create the standalone login window
+        LoginFrame win = new LoginFrame();
+        win.setAuthService(this.authService);
+
+        AtomicBoolean accepted = new AtomicBoolean(false);
+        SecondaryLoop loop = Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
+
+        win.setListener((username, role) -> {
+            try {
+                currentRole = role;
+                try {
+                    if (role == Role.ADMIN) {
+                        monitorTab.setAdminMode(true, null);
+                        controlPanel.setClientName("ADMIN-" + username);
+                    } else {
+                        monitorTab.setAdminMode(false, username);
+                        controlPanel.setClientName("CLIENT-" + username);
+                    }
+                } catch (Exception ignore) {
+                }
+                accepted.set(true);
+            } finally {
+                try {
+                    win.dispose();
+                } catch (Exception ignore) {
+                }
+                loop.exit();
+            }
+        });
+
+        win.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                // If closed without login, treat as cancel
+                if (!accepted.get())
+                    loop.exit();
+            }
+        });
+
+        win.open();
+        loop.enter();
+        return accepted.get();
+    }
+
+    /**
+     * Bắt đầu flow cấu hình và kết nối CSDL: mở DbConnectionFrame, sau khi kết nối
+     * thành công sẽ khởi tạo các panel và buộc đăng nhập + chọn giải.
+     */
     private void startDatabaseSetupFlow() {
-        // Mở cửa sổ cấu hình DB dạng JFrame (có icon taskbar, Alt+Tab)
         com.example.btms.ui.db.DbConnectionFrame frame = new com.example.btms.ui.db.DbConnectionFrame();
 
         frame.setOnOk(sel -> {
-            // Người dùng bấm Kết nối (OK) và preflight đã pass trong frame
             if (sel == null) {
-                // Phòng hờ thôi, bình thường không null
                 statusConn.setText("Chưa kết nối");
                 statusConn.setForeground(new Color(231, 76, 60));
                 if (!isVisible()) {
@@ -542,7 +586,6 @@ public class MainFrame extends JFrame {
                 return;
             }
 
-            // Dùng trực tiếp URL đã dựng từ trang cấu hình
             try {
                 String url = nz(sel.getJdbcUrl());
                 ConnectionConfig runtimeCfg = new ConnectionConfig().mode(ConnectionConfig.Mode.NAME);
@@ -554,6 +597,15 @@ public class MainFrame extends JFrame {
 
                 service.setConfig(runtimeCfg);
                 Connection conn = service.connect();
+                // Ẩn/đóng cửa sổ kết nối trước khi chuyển bước chọn giải
+                try {
+                    frame.setVisible(false);
+                } catch (Exception ignore) {
+                }
+                try {
+                    frame.dispose();
+                } catch (Exception ignore) {
+                }
                 onDatabaseConnected(conn);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Kết nối CSDL thất bại: " + ex.getMessage(),
@@ -568,31 +620,48 @@ public class MainFrame extends JFrame {
         });
 
         frame.setOnCancel(() -> {
-            // Người dùng bấm Hủy
             statusConn.setText("Chưa kết nối");
             statusConn.setForeground(new Color(231, 76, 60));
+            try {
+                frame.setVisible(false);
+            } catch (Exception ignore) {
+            }
+            try {
+                frame.dispose();
+            } catch (Exception ignore) {
+            }
             if (!isVisible()) {
                 dispose();
                 System.exit(0);
             }
         });
 
-        frame.setVisible(true);
+        frame.open();
     }
 
-    // helper cũ (giữ lại nếu class này đang dùng)
+    // helper
     private static String nz(String s) {
         return (s == null) ? "" : s;
     }
 
+    /**
+     * Được gọi khi kết nối DB thành công. Khởi tạo các service/panel phụ thuộc DB,
+     * cập nhật trạng thái, dựng menu và ép người dùng đăng nhập + chọn giải.
+     */
     private void onDatabaseConnected(Connection conn) {
         try {
             controlPanel.setConnection(conn);
             multiCourtPanel.setConnection(conn);
-            tournamentTabPanel.updateConnection();
+            // Ensure tournament panel binds to the new DB connection before using its
+            // service
+            try {
+                tournamentTabPanel.updateConnection();
+            } catch (Throwable ignore) {
+            }
 
             noiDungService = new NoiDungService(new NoiDungRepository(conn));
             noiDungPanel = new NoiDungManagementPanel(noiDungService);
+
             // CLB
             CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
             cauLacBoPanel = new CauLacBoManagementPanel(clbService);
@@ -600,8 +669,7 @@ public class MainFrame extends JFrame {
             VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
             vanDongVienPanel = new VanDongVienManagementPanel(vdvService, clbService);
             // Panel Nội dung của giải theo giải chọn trong Prefs
-            ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(
-                    new ChiTietGiaiDauRepository(conn));
+            ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
             dangKyNoiDungPanel = new DangKyNoiDungPanel(
                     noiDungService,
                     chiTietService,
@@ -640,11 +708,57 @@ public class MainFrame extends JFrame {
             statusConn.setText("Đã kết nối");
             statusConn.setForeground(new Color(46, 204, 113));
 
-            // Sau khi có connection: buộc đăng nhập và chọn giải qua dialog
+            // Flow theo yêu cầu: Chỉ chọn giải, ẩn dialog, rồi mở trang chủ.
+            // Mặc định coi như ADMIN để hiển thị đầy đủ tính năng (bỏ bước đăng nhập).
+            try {
+                monitorTab.setAdminMode(true, null);
+                controlPanel.setClientName("ADMIN");
+            } catch (Exception ignore) {
+            }
+            currentRole = Role.ADMIN;
             buildMenuBar();
-            forceLoginAndTournamentSelection();
-            // Nếu đăng nhập và chọn giải thành công, đảm bảo frame được hiển thị
-            if (!isVisible() && currentRole != null && selectedGiaiDau != null) {
+            startTournamentOnlyFlow();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Lỗi cập nhật UI: " + e.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Chỉ chọn giải đấu (không đăng nhập), sau đó mở trang chủ và hiển thị
+     * MainFrame.
+     */
+    private void startTournamentOnlyFlow() {
+        // 1) Chọn giải đấu
+        GiaiDau gd = showTournamentSelectDialog();
+        if (gd == null) {
+            // Không chọn giải thì thoát nếu frame chưa hiển thị
+            if (!isVisible()) {
+                dispose();
+                System.exit(0);
+            }
+            return;
+        }
+        selectedGiaiDau = gd;
+        try {
+            new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
+            if (gd.getTenGiai() != null) {
+                new com.example.btms.config.Prefs().put("selectedGiaiDauName", gd.getTenGiai());
+            }
+        } catch (Exception ignore) {
+        }
+
+        // 2) Hiển thị đầy đủ chức năng theo vai trò hiện tại (ADMIN)
+        registerViewsForCurrentRole();
+        buildMenuBar();
+        rebuildNavigationTree();
+        showView("Giải đấu");
+        // 3) Làm mới toàn bộ để các panel nạp lại theo giải vừa chọn
+        refreshApplicationData();
+
+        // 4) Đảm bảo MainFrame hiển thị
+        try {
+            if (!isVisible()) {
                 try {
                     if (getWidth() == 0 || getHeight() == 0)
                         pack();
@@ -653,9 +767,12 @@ public class MainFrame extends JFrame {
                 setLocationRelativeTo(null);
                 setVisible(true);
             }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Lỗi cập nhật UI: " + e.getMessage(), "Lỗi",
-                    JOptionPane.ERROR_MESSAGE);
+            if ((getExtendedState() & java.awt.Frame.ICONIFIED) != 0) {
+                setExtendedState(java.awt.Frame.NORMAL);
+            }
+            toFront();
+            requestFocus();
+        } catch (Throwable ignore) {
         }
     }
 
@@ -857,15 +974,7 @@ public class MainFrame extends JFrame {
             // Làm mới Sơ đồ thi đấu: tab đang mở reloadData(); danh sách trong cây cũng
             // được rebuild
             try {
-                if (soDoTabbedPane != null) {
-                    int count = soDoTabbedPane.getTabCount();
-                    for (int i = 0; i < count; i++) {
-                        java.awt.Component c = soDoTabbedPane.getComponentAt(i);
-                        if (c instanceof com.example.btms.ui.bracket.SoDoThiDauPanel p) {
-                            p.reloadData();
-                        }
-                    }
-                }
+                bracketWindowManager.reloadOpenTabs();
             } catch (Throwable ignore) {
             }
             // Làm mới cây điều hướng (bao gồm lọc Sơ đồ theo bốc thăm đã có)
@@ -920,6 +1029,16 @@ public class MainFrame extends JFrame {
         showView("Giải đấu");
         // Làm mới toàn bộ để các panel nạp lại theo giải vừa chọn
         refreshApplicationData();
+
+        // Nếu frame đang bị thu nhỏ (ICONIFIED), khôi phục và đưa lên trước
+        try {
+            if ((getExtendedState() & java.awt.Frame.ICONIFIED) != 0) {
+                setExtendedState(java.awt.Frame.NORMAL);
+            }
+            toFront();
+            requestFocus();
+        } catch (Throwable ignore) {
+        }
     }
 
     private void registerViewsForCurrentRole() {
@@ -966,16 +1085,7 @@ public class MainFrame extends JFrame {
                 }
                 // Đóng cửa sổ Sơ đồ thi đấu (nếu đang mở) để lần mở sau build tabs theo giải
                 // mới
-                if (soDoThiDauFrame != null) {
-                    try {
-                        soDoThiDauFrame.dispose();
-                    } catch (Exception ignored) {
-                    }
-                    soDoThiDauFrame = null;
-                    if (soDoTabbedPane != null)
-                        soDoTabbedPane = null;
-                    soDoPanelsByNoiDung.clear();
-                }
+                bracketWindowManager.reset();
                 updateNavigationRootTitleFromSelection();
                 if (navModel != null)
                     navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
@@ -1714,15 +1824,7 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem miRefreshSoDo = new javax.swing.JMenuItem("Làm mới tất cả sơ đồ đang mở");
                     miRefreshSoDo.addActionListener(ev -> {
                         try {
-                            if (soDoTabbedPane != null) {
-                                int count = soDoTabbedPane.getTabCount();
-                                for (int i = 0; i < count; i++) {
-                                    java.awt.Component c = soDoTabbedPane.getComponentAt(i);
-                                    if (c instanceof com.example.btms.ui.bracket.SoDoThiDauPanel p) {
-                                        p.reloadData();
-                                    }
-                                }
-                            }
+                            bracketWindowManager.reloadOpenTabs();
                         } catch (Exception ex) {
                         }
                     });
@@ -1982,9 +2084,10 @@ public class MainFrame extends JFrame {
         try {
             if (!doAutoDrawSave(cn.idNoiDung))
                 return;
-            openSoDoThiDauWindow();
-            ensureSoDoTab(cn.idNoiDung, cn.label);
-            com.example.btms.ui.bracket.SoDoThiDauPanel p = soDoPanelsByNoiDung.get(cn.idNoiDung);
+            bracketWindowManager.openWindow(service, this,
+                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
+            bracketWindowManager.ensureTab(service, cn.idNoiDung, cn.label, this);
+            com.example.btms.ui.bracket.SoDoThiDauPanel p = bracketWindowManager.getPanelByNoiDungId(cn.idNoiDung);
             if (p != null) {
                 p.selectNoiDungById(cn.idNoiDung);
                 p.autoSeedFromDrawAndSave();
@@ -2137,8 +2240,9 @@ public class MainFrame extends JFrame {
                     showView("Danh sách đăng kí");
                 }
             } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
-                openSoDoThiDauWindow();
-                ensureSoDoTab(cn.idNoiDung, cn.label);
+                bracketWindowManager.openWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
+                bracketWindowManager.ensureTab(service, cn.idNoiDung, cn.label, this);
             } else if ("Nội dung của giải".equals(parentLabel)) {
                 if (dangKyNoiDungPanel != null) {
                     ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
@@ -2153,7 +2257,8 @@ public class MainFrame extends JFrame {
         }
         if (uo instanceof String label) {
             if ("Sơ đồ thi đấu".equals(label)) {
-                openSoDoThiDauWindow();
+                bracketWindowManager.openWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
                 return;
             }
             if ("Bốc thăm thi đấu".equals(label)) {
@@ -2209,17 +2314,11 @@ public class MainFrame extends JFrame {
         if (confirm != JOptionPane.YES_OPTION)
             return;
         try {
-            if (soDoThiDauFrame != null) {
-                soDoThiDauFrame.dispose();
-                soDoThiDauFrame = null;
-            }
+            bracketWindowManager.closeWindow();
         } catch (Exception ignore) {
         }
         try {
-            if (thiDauFrame != null) {
-                thiDauFrame.dispose();
-                thiDauFrame = null;
-            }
+            playWindowManager.closeWindow();
         } catch (Exception ignore) {
         }
         try {
@@ -2325,182 +2424,19 @@ public class MainFrame extends JFrame {
      * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại.
      * Nếu cửa sổ đã mở, sẽ đưa ra phía trước.
      */
-    private void openSoDoThiDauWindow() {
-        try {
-            if (soDoThiDauFrame != null) {
-                soDoThiDauFrame.setVisible(true);
-                soDoThiDauFrame.toFront();
-                soDoThiDauFrame.requestFocus();
-                return;
-            }
-            Connection conn = (service != null) ? service.current() : null;
-            if (conn == null) {
-                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            // Cửa sổ tabs – tạo JTabbedPane, chưa thêm tab nào (chỉ thêm theo yêu cầu)
-            JTabbedPane tabs = new JTabbedPane();
-            // Khi chuyển tab, tự reload data của tab đang chọn
-            tabs.addChangeListener(e -> {
-                try {
-                    int sel = tabs.getSelectedIndex();
-                    if (sel >= 0) {
-                        java.awt.Component c = tabs.getComponentAt(sel);
-                        if (c instanceof SoDoThiDauPanel p) {
-                            p.reloadData();
-                        }
-                    }
-                } catch (Exception ignore) {
-                }
-            });
-            this.soDoTabbedPane = tabs;
-            JFrame f = new JFrame();
-            String title = "Sơ đồ thi đấu";
-            try {
-                if (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
-                        && !selectedGiaiDau.getTenGiai().isBlank())
-                    title = title + " - " + selectedGiaiDau.getTenGiai();
-            } catch (Exception ignore) {
-            }
-            f.setTitle(title);
-            f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            f.setLayout(new BorderLayout());
-            f.add(tabs, BorderLayout.CENTER);
-            IconUtil.applyTo(f);
-            f.setExtendedState(JFrame.MAXIMIZED_BOTH);
-            f.setLocationRelativeTo(this);
-            f.addWindowListener(new WindowAdapter() {
-                @Override
-                public void windowClosed(WindowEvent e) {
-                    soDoThiDauFrame = null;
-                    soDoPanelsByNoiDung.clear();
-                    soDoTabbedPane = null;
-                }
-
-                @Override
-                public void windowClosing(WindowEvent e) {
-                    soDoThiDauFrame = null;
-                    soDoPanelsByNoiDung.clear();
-                    soDoTabbedPane = null;
-                }
-            });
-            soDoThiDauFrame = f;
-            f.setVisible(true);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Không thể mở Sơ đồ thi đấu: " + ex.getMessage(),
-                    "Lỗi", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    /** Đảm bảo có tab cho idNoiDung, nếu chưa có thì tạo; sau đó chọn tab đó. */
-    private void ensureSoDoTab(Integer idNoiDung, String title) {
-        try {
-            if (soDoThiDauFrame == null)
-                return;
-            if (soDoTabbedPane == null)
-                return;
-            SoDoThiDauPanel existing = soDoPanelsByNoiDung.get(idNoiDung);
-            if (existing != null) {
-                // đã có -> focus
-                int count = soDoTabbedPane.getTabCount();
-                for (int i = 0; i < count; i++) {
-                    if (soDoTabbedPane.getComponentAt(i) == existing) {
-                        soDoTabbedPane.setSelectedIndex(i);
-                        break;
-                    }
-                }
-            } else {
-                Connection conn = (service != null) ? service.current() : null;
-                if (conn == null) {
-                    JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                SoDoThiDauPanel p = new SoDoThiDauPanel(conn);
-                try {
-                    p.selectNoiDungById(idNoiDung);
-                    p.setNoiDungLabelMode(true);
-                    p.reloadData(); // tự động load khi tab vừa được tạo
-                } catch (Throwable ignore) {
-                }
-                soDoPanelsByNoiDung.put(idNoiDung, p);
-                soDoTabbedPane.addTab(title, p);
-                int idx = soDoTabbedPane.indexOfComponent(p);
-                makeTabClosable(soDoTabbedPane, idx, title, () -> {
-                    // remove mapping and tab when closing
-                    soDoPanelsByNoiDung.remove(idNoiDung);
-                    int i = soDoTabbedPane.indexOfComponent(p);
-                    if (i >= 0)
-                        soDoTabbedPane.removeTabAt(i);
-                    // Nếu sau khi đóng tab mà không còn tab nào nữa, đóng luôn cửa sổ chung
-                    try {
-                        if (soDoTabbedPane.getTabCount() == 0 && soDoThiDauFrame != null) {
-                            soDoThiDauFrame.dispose();
-                            // Các listener windowClosing/windowClosed sẽ dọn dẹp map & refs
-                        }
-                    } catch (Exception ignore) {
-                    }
-                });
-                soDoTabbedPane.setSelectedComponent(p);
-            }
-            // bring window to front
-            soDoThiDauFrame.setVisible(true);
-            soDoThiDauFrame.toFront();
-            soDoThiDauFrame.requestFocus();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Không thể mở tab Sơ đồ: " + ex.getMessage(),
-                    "Lỗi", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    /** Đặt tab header có nút đóng. */
-    private void makeTabClosable(JTabbedPane tabs, int index, String title, Runnable onClose) {
-        JPanel tabHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        tabHeader.setOpaque(false);
-        JLabel lbl = new JLabel(title);
-        JButton btn = new JButton("x");
-        btn.setMargin(new Insets(0, 4, 0, 4));
-        btn.setBorder(BorderFactory.createEmptyBorder());
-        btn.setFocusable(false);
-        btn.addActionListener(e -> {
-            try {
-                if (onClose != null)
-                    onClose.run();
-            } catch (Exception ignore) {
-            }
-        });
-        tabHeader.add(lbl);
-        tabHeader.add(btn);
-        tabs.setTabComponentAt(index, tabHeader);
-    }
+    // Đã chuyển toàn bộ logic Sơ đồ thi đấu sang BracketWindowManager
 
     /** Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại. */
     @SuppressWarnings("unused")
     private void showSoDoTabForNoiDung(Integer idNoiDung) {
-        if (soDoThiDauFrame == null)
-            return;
-        if (soDoTabbedPane == null)
-            return;
-        if (idNoiDung == null) {
-            soDoThiDauFrame.setVisible(true);
-            soDoThiDauFrame.toFront();
-            soDoThiDauFrame.requestFocus();
-            return;
+        // Method kept for compatibility; delegate to window manager
+        bracketWindowManager.openWindow(service, this,
+                (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
+        if (idNoiDung != null) {
+            // Focus if already exists; creation requires a title which we don't have here
+            var p = bracketWindowManager.getPanelByNoiDungId(idNoiDung);
+            // no-op: window is brought to front by openWindow; focusing is handled by user
         }
-        // Tìm index tab theo panel map
-        com.example.btms.ui.bracket.SoDoThiDauPanel target = soDoPanelsByNoiDung.get(idNoiDung);
-        if (target != null) {
-            int count = soDoTabbedPane.getTabCount();
-            for (int i = 0; i < count; i++) {
-                if (soDoTabbedPane.getComponentAt(i) == target) {
-                    soDoTabbedPane.setSelectedIndex(i);
-                    break;
-                }
-            }
-        }
-        // đảm bảo cửa sổ hiện lên
-        soDoThiDauFrame.setVisible(true);
-        soDoThiDauFrame.toFront();
-        soDoThiDauFrame.requestFocus();
     }
 
     /* -------------------- Export đăng ký đội (PDF) -------------------- */
@@ -2516,9 +2452,11 @@ public class MainFrame extends JFrame {
                 return;
             }
             int idGiai;
-            idGiai = (selectedGiaiDau != null && selectedGiaiDau.getId() != null)
-                    ? selectedGiaiDau.getId().intValue()
-                    : new Prefs().getInt("selectedGiaiDauId", -1);
+            if (selectedGiaiDau != null && selectedGiaiDau.getId() != null) {
+                idGiai = selectedGiaiDau.getId().intValue();
+            } else {
+                idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
+            }
             if (idGiai <= 0) {
                 JOptionPane.showMessageDialog(this, "Chưa chọn giải.", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
@@ -2567,161 +2505,18 @@ public class MainFrame extends JFrame {
      * Dùng chung CourtManagerService nên có thể mở song song với tab nếu cần.
      */
     private void openThiDauWindow() {
-        try {
-            if (thiDauFrame != null) {
-                thiDauFrame.setVisible(true);
-                thiDauFrame.toFront();
-                thiDauFrame.requestFocus();
-                return;
-            }
-            Connection conn = (service != null) ? service.current() : null;
-            if (conn == null) {
-                JOptionPane.showMessageDialog(this, "Chưa có kết nối CSDL.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            // Tạo panel điều khiển mới và gắn kết nối + network interface hiện tại
-            MultiCourtControlPanel panel = new MultiCourtControlPanel();
-            panel.setConnection(conn);
-            try {
-                if (multiCourtPanel != null && multiCourtPanel.getNetworkInterface() != null) {
-                    panel.setNetworkInterface(multiCourtPanel.getNetworkInterface());
-                }
-            } catch (Throwable ignore) {
-            }
-
-            JFrame f = new JFrame();
-            String title = (currentRole == Role.ADMIN) ? "Thi đấu" : "Nhiều sân";
-            try {
-                if (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
-                        && !selectedGiaiDau.getTenGiai().isBlank())
-                    title = title + " - " + selectedGiaiDau.getTenGiai();
-            } catch (Exception ignore) {
-            }
-            f.setTitle(title);
-            f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            f.setLayout(new BorderLayout());
-            f.add(panel, BorderLayout.CENTER);
-            IconUtil.applyTo(f);
-            f.setExtendedState(JFrame.MAXIMIZED_BOTH);
-            f.setLocationRelativeTo(this);
-            f.addWindowListener(new WindowAdapter() {
-                @Override
-                public void windowClosed(WindowEvent e) {
-                    thiDauFrame = null;
-                }
-
-                @Override
-                public void windowClosing(WindowEvent e) {
-                    thiDauFrame = null;
-                }
-            });
-            thiDauFrame = f;
-            f.setVisible(true);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Không thể mở trang Thi đấu: " + ex.getMessage(),
-                    "Lỗi", JOptionPane.ERROR_MESSAGE);
-        }
+        playWindowManager.open(
+                service,
+                this,
+                currentRole,
+                (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null),
+                multiCourtPanel != null ? multiCourtPanel.getNetworkInterface() : null);
     }
 
     /* -------------------- Inline dialogs -------------------- */
-    private boolean showLoginDialog() {
-        // 1) Tách loginTab khỏi parent nếu đang gắn ở nơi khác
-        UiUtil.detachFromParent(loginTab);
-
-        // 2) Tạo root chứa loginTab + hàng nút Hủy
-        JPanel root = new JPanel(new BorderLayout());
-        root.add(loginTab, BorderLayout.CENTER);
-
-        JPanel south = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnCancel = new JButton("Hủy");
-        south.add(btnCancel);
-        root.add(south, BorderLayout.SOUTH);
-
-        // 3) Tạo JFrame có icon (hiện ở taskbar)
-        JFrame win = new JFrame("Đăng nhập");
-        win.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        win.setContentPane(root);
-        win.pack();
-        win.setLocationRelativeTo(this);
-        UiUtil.applyWindowIcons(win, UiUtil.loadImages(
-                "/icons/app-16.png", "/icons/app-32.png", "/icons/app-48.png", "/icons/app-128.png"));
-
-        // 4) “Giả modal” bằng SecondaryLoop để vẫn return boolean như cũ
-        AtomicBoolean accepted = new AtomicBoolean(false);
-        SecondaryLoop loop = Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
-
-        // 5) Gắn listener đăng nhập (OK)
-        loginTab.setListener((username, role) -> {
-            this.currentRole = role;
-            try {
-                if (role == Role.ADMIN) {
-                    monitorTab.setAdminMode(true, null);
-                    controlPanel.setClientName("ADMIN-" + username);
-                } else {
-                    monitorTab.setAdminMode(false, username);
-                    controlPanel.setClientName("CLIENT-" + username);
-                }
-            } catch (Exception ignore) {
-            }
-            accepted.set(true);
-            win.dispose();
-            loop.exit();
-        });
-
-        // 6) Nút Hủy & đóng cửa sổ
-        btnCancel.addActionListener(e -> {
-            this.currentRole = null;
-            accepted.set(false);
-            win.dispose();
-            loop.exit();
-        });
-        win.addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override
-            public void windowClosing(java.awt.event.WindowEvent e) {
-                currentRole = null;
-                accepted.set(false);
-                loop.exit();
-            }
-        });
-
-        // 7) Hiển thị & chờ kết quả
-        win.setVisible(true);
-        loop.enter(); // đợi tới khi listener/cancel/windowClosing gọi loop.exit()
-
-        return accepted.get(); // true nếu đăng nhập ok, false nếu hủy
-    }
 
     private GiaiDau showTournamentSelectDialog() {
-        final JDialog dlg = new JDialog(this, "Chọn giải đấu", true);
-        dlg.setLayout(new BorderLayout());
-        TournamentTabPanel chooser = new TournamentTabPanel(service);
-        chooser.updateConnection();
-        dlg.add(chooser, BorderLayout.CENTER);
-        JPanel south = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        JButton btnOk = new JButton("Chọn");
-        JButton btnCancel = new JButton("Hủy");
-        final GiaiDau[] result = new GiaiDau[1];
-        btnOk.addActionListener(e -> {
-            GiaiDau pick = chooser.getSelectedGiaiDau();
-            if (pick == null) {
-                JOptionPane.showMessageDialog(dlg, "Vui lòng chọn một giải đấu.", "Chưa chọn",
-                        JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            result[0] = pick;
-            dlg.dispose();
-        });
-        btnCancel.addActionListener(e -> {
-            result[0] = null;
-            dlg.dispose();
-        });
-        south.add(btnCancel);
-        south.add(btnOk);
-        dlg.add(south, BorderLayout.SOUTH);
-        dlg.setSize(900, 600);
-        dlg.setLocationRelativeTo(this);
-        dlg.setVisible(true);
-        return result[0];
+        return com.example.btms.ui.tournament.TournamentManagementComponent.showSelectionDialog(this, service);
     }
 
     // Normalize a string to a safe ASCII filename using underscores as separator

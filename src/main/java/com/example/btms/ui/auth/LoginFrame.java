@@ -11,6 +11,7 @@ import java.awt.Insets;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
@@ -22,7 +23,9 @@ import com.example.btms.model.auth.AuthResult;
 import com.example.btms.service.auth.AuthService;
 import com.example.btms.util.security.HashUtil;
 
-public class LoginTab extends JPanel {
+@SuppressWarnings("serial")
+public class LoginFrame extends JFrame {
+
     public enum Role {
         CLIENT, ADMIN
     }
@@ -31,21 +34,58 @@ public class LoginTab extends JPanel {
         void onLoggedIn(String username, Role role);
     }
 
-    private AuthService authService; // <-- thay vì Connection
+    // ---- deps & state
+    private AuthService authService;
     private Listener listener;
 
+    private boolean accepted = false;
+    private String username;
+    private Role role;
+
+    // ---- UI
     private final JTextField tfUser = new JTextField(20);
     private final JPasswordField pfPass = new JPasswordField(20);
     private final JComboBox<String> cboMode = new JComboBox<>(new String[] { "Client", "Admin" });
     private final JLabel lblStatus = new JLabel(" ");
 
-    public LoginTab() {
-        super(new BorderLayout());
-        setBorder(new EmptyBorder(16, 16, 16, 16));
+    private final JButton btnLogin = new JButton("Đăng nhập");
+    private final JButton btnCancel = new JButton("Hủy");
 
+    public LoginFrame() {
+        super("Đăng nhập");
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        buildUI();
+        wireActions();
+
+        // mặc định
+        tfUser.setText("admin");
+        pfPass.setText("set");
+        cboMode.setSelectedIndex(1); // Admin
+        setInputsEnabled(false); // chờ setAuthService(...)
+
+        pack();
+        setSize(520, 360);
+        setLocationRelativeTo(null); // center screen
+    }
+
+    /** tiện mở + focus */
+    public void open() {
+        setVisible(true);
+        toFront();
+        requestFocus();
+    }
+
+    private void buildUI() {
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBorder(new EmptyBorder(16, 16, 16, 16));
+
+        // Title
         JLabel title = new JLabel("Đăng nhập");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        root.add(title, BorderLayout.NORTH);
 
+        // Form
         JPanel form = new JPanel(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(8, 8, 8, 8);
@@ -56,33 +96,35 @@ public class LoginTab extends JPanel {
         addRow(form, c, r++, "Tài khoản", tfUser);
         addRow(form, c, r++, "Mật khẩu", pfPass);
         addRow(form, c, r++, "Chế độ", cboMode);
+        root.add(form, BorderLayout.CENTER);
 
-        JButton btnLogin = new JButton("Đăng nhập");
-        btnLogin.addActionListener(e -> doLogin());
-        pfPass.addActionListener(e -> btnLogin.doClick());
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        // Footer: buttons + status
+        JPanel south = new JPanel(new BorderLayout(0, 8));
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttons.add(btnLogin);
+        buttons.add(btnCancel);
+        south.add(buttons, BorderLayout.NORTH);
 
         lblStatus.setForeground(new Color(120, 120, 120));
+        south.add(lblStatus, BorderLayout.SOUTH);
 
-        JPanel center = new JPanel(new BorderLayout(0, 12));
-        center.add(title, BorderLayout.NORTH);
-        center.add(form, BorderLayout.CENTER);
-        center.add(buttons, BorderLayout.SOUTH);
+        root.add(south, BorderLayout.SOUTH);
+        setLayout(new BorderLayout());
+        add(root, BorderLayout.CENTER);
+    }
 
-        JPanel wrap = new JPanel(new GridBagLayout());
-        wrap.add(center, new GridBagConstraints());
+    private void wireActions() {
+        btnLogin.addActionListener(e -> doLogin());
+        pfPass.addActionListener(e -> btnLogin.doClick());
+        btnCancel.addActionListener(e -> {
+            accepted = false;
+            username = null;
+            role = null;
+            dispose();
+        });
 
-        add(wrap, BorderLayout.CENTER);
-        add(lblStatus, BorderLayout.SOUTH);
-
-        // mặc định
-        tfUser.setText("admin");
-        pfPass.setText("set");
-        cboMode.setSelectedIndex(1);
-
-        setInputsEnabled(false); // chờ setAuthService(...)
+        // Frame: có thể dùng default button cho tiện
+        getRootPane().setDefaultButton(btnLogin);
     }
 
     private void addRow(JPanel p, GridBagConstraints c, int row, String label, JComponent comp) {
@@ -99,9 +141,10 @@ public class LoginTab extends JPanel {
         tfUser.setEnabled(enabled);
         pfPass.setEnabled(enabled);
         cboMode.setEnabled(enabled);
+        btnLogin.setEnabled(enabled);
     }
 
-    /** Gọi từ MainFrame sau khi đã có Connection */
+    /** Gọi sau khi DB ready */
     public void setAuthService(AuthService service) {
         this.authService = service;
         boolean ready = (service != null);
@@ -115,7 +158,7 @@ public class LoginTab extends JPanel {
         this.listener = l;
     }
 
-    /* ------------ Login flow -------------- */
+    // ------------ Login flow --------------
     private void doLogin() {
         if (authService == null) {
             toastErr("Chưa có kết nối DB.");
@@ -142,20 +185,26 @@ public class LoginTab extends JPanel {
                 return;
             }
 
-            Role role = (cboMode.getSelectedIndex() == 1) ? Role.ADMIN : Role.CLIENT;
+            // success
+            role = (cboMode.getSelectedIndex() == 1) ? Role.ADMIN : Role.CLIENT;
+            username = user;
+            accepted = true;
             toastOk("Đăng nhập thành công: " + user + " (" + role + ")");
+
             if (listener != null)
-                listener.onLoggedIn(user, role);
+                listener.onLoggedIn(username, role);
+
+            dispose();
 
         } catch (Exception ex) {
             toastErr("Lỗi DB: " + ex.getMessage());
         } finally {
-            java.util.Arrays.fill(pfPass.getPassword(), '\0');
+            java.util.Arrays.fill(pass, '\0');
             pfPass.setText("");
         }
     }
 
-    /* -------------- helpers -------------- */
+    // -------------- helpers --------------
     private void toastOk(String msg) {
         lblStatus.setForeground(new Color(60, 120, 60));
         lblStatus.setText(msg);
@@ -164,5 +213,18 @@ public class LoginTab extends JPanel {
     private void toastErr(String msg) {
         lblStatus.setForeground(new Color(170, 60, 60));
         lblStatus.setText(msg);
+    }
+
+    // ---- getters kết quả
+    public boolean isAccepted() {
+        return accepted;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public Role getRole() {
+        return role;
     }
 }

@@ -7,25 +7,18 @@ import java.awt.Insets;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Optional;
-
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.JTextField;
+import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.service.tournament.GiaiDauService;
 
-/**
- * Panel quản lý CRUD cho giải đấu
- */
+/** Panel quản lý CRUD cho giải đấu (độc lập) */
+@SuppressWarnings("serial")
 public class GiaiDauManagementPanel extends JPanel {
     private final GiaiDauService giaiDauService;
+    private final boolean selectionOnly;
+
     private JTable giaiDauTable;
     private DefaultTableModel tableModel;
     private JTextField searchField;
@@ -33,25 +26,27 @@ public class GiaiDauManagementPanel extends JPanel {
     private JButton btnRefresh, btnAdd, btnEdit, btnDelete, btnSearch;
 
     public GiaiDauManagementPanel(GiaiDauService giaiDauService) {
+        this(giaiDauService, false);
+    }
+
+    public GiaiDauManagementPanel(GiaiDauService giaiDauService, boolean selectionOnly) {
         this.giaiDauService = giaiDauService;
+        this.selectionOnly = selectionOnly;
         initializeComponents();
         setupLayout();
         loadData();
     }
 
     private void initializeComponents() {
-        // Table
-        // Thêm cột ID ẩn để thao tác CRUD dễ dàng
         String[] columnNames = { "ID", "Tên Giải", "Ngày Bắt Đầu", "Ngày Kết Thúc", "Trạng Thái" };
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
-                return false; // Không cho phép edit trực tiếp trên table
+            public boolean isCellEditable(int r, int c) {
+                return false;
             }
         };
         giaiDauTable = new JTable(tableModel);
-        giaiDauTable.setRowSelectionAllowed(true);
-        giaiDauTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        giaiDauTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         // Ẩn cột ID
         if (giaiDauTable.getColumnModel().getColumnCount() > 0) {
             giaiDauTable.getColumnModel().getColumn(0).setMinWidth(0);
@@ -59,22 +54,16 @@ public class GiaiDauManagementPanel extends JPanel {
             giaiDauTable.getColumnModel().getColumn(0).setPreferredWidth(0);
         }
 
-        // Search và Filter
         searchField = new JTextField(20);
         statusFilter = new JComboBox<>(new String[] { "Tất cả", "Đang hoạt động", "Sắp tới", "Đã kết thúc" });
 
-        // Buttons
         btnRefresh = new JButton("Làm mới");
         btnAdd = new JButton("Thêm mới");
         btnEdit = new JButton("Sửa");
         btnDelete = new JButton("Xóa");
         btnSearch = new JButton("Tìm kiếm");
 
-        // Event handlers
-        setupEventHandlers();
-    }
-
-    private void setupEventHandlers() {
+        // events
         btnRefresh.addActionListener(e -> loadData());
         btnAdd.addActionListener(e -> showAddDialog());
         btnEdit.addActionListener(e -> showEditDialog());
@@ -86,224 +75,92 @@ public class GiaiDauManagementPanel extends JPanel {
     private void setupLayout() {
         setLayout(new BorderLayout(10, 10));
 
-        // Top panel - Search và Filter
-        JPanel topPanel = new JPanel(new GridBagLayout());
+        JPanel top = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        topPanel.add(new JLabel("Tìm kiếm:"), gbc);
-
+        top.add(new JLabel("Tìm kiếm:"), gbc);
         gbc.gridx = 1;
         gbc.gridy = 0;
-        topPanel.add(searchField, gbc);
-
+        top.add(searchField, gbc);
         gbc.gridx = 2;
         gbc.gridy = 0;
-        topPanel.add(btnSearch, gbc);
-
+        top.add(btnSearch, gbc);
         gbc.gridx = 3;
         gbc.gridy = 0;
-        topPanel.add(new JLabel("Lọc theo:"), gbc);
-
+        top.add(new JLabel("Lọc theo:"), gbc);
         gbc.gridx = 4;
         gbc.gridy = 0;
-        topPanel.add(statusFilter, gbc);
+        top.add(statusFilter, gbc);
 
-        // Button panel
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(btnRefresh);
-        buttonPanel.add(btnAdd);
-        buttonPanel.add(btnEdit);
-        buttonPanel.add(btnDelete);
-
+        JPanel btns = new JPanel();
+        btns.add(btnRefresh);
+        if (!selectionOnly) {
+            btns.add(btnAdd);
+            btns.add(btnEdit);
+            btns.add(btnDelete);
+        }
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 5;
-        topPanel.add(buttonPanel, gbc);
+        top.add(btns, gbc);
 
-        add(topPanel, BorderLayout.NORTH);
-
-        // Table
+        add(top, BorderLayout.NORTH);
         add(new JScrollPane(giaiDauTable), BorderLayout.CENTER);
     }
 
     private void loadData() {
         try {
-            List<GiaiDau> giaiDaus = giaiDauService.getAllGiaiDau();
-            updateTable(giaiDaus);
+            updateTable(giaiDauService.getAllGiaiDau());
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Lỗi khi tải dữ liệu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void updateTable(List<GiaiDau> giaiDaus) {
+    private void updateTable(List<GiaiDau> list) {
         tableModel.setRowCount(0);
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
-
-        for (GiaiDau giaiDau : giaiDaus) {
-            String ngayBdStr = "";
-            if (giaiDau.getNgayBd() != null) {
-                java.sql.Date date = java.sql.Date.valueOf(giaiDau.getNgayBd());
-                ngayBdStr = formatter.format(date);
-            }
-            String ngayKtStr = "";
-            if (giaiDau.getNgayKt() != null) {
-                java.sql.Date date = java.sql.Date.valueOf(giaiDau.getNgayKt());
-                ngayKtStr = formatter.format(date);
-            }
-            Object[] row = {
-                    giaiDau.getId(),
-                    giaiDau.getTenGiai(),
-                    ngayBdStr,
-                    ngayKtStr,
-                    getStatusText(giaiDau),
-            };
-            tableModel.addRow(row);
-        }
-
-        // Auto-select a sensible default tournament to speed up user choice
-        selectDefaultTournament(giaiDaus);
-    }
-
-    // Prefer an active tournament; if multiple, pick the one started most recently.
-    // If none active, pick the upcoming one with the earliest start date.
-    // If none upcoming, pick the finished one with the most recent end date.
-    private void selectDefaultTournament(List<GiaiDau> giaiDaus) {
-        try {
-            if (giaiDaus == null || giaiDaus.isEmpty())
-                return;
-            // If user already has a selection, don't override
-            if (giaiDauTable.getSelectedRow() != -1)
-                return;
-
-            java.time.LocalDate today = java.time.LocalDate.now();
-            Integer pickId = null;
-
-            // 1) Active tournaments – pick the one with the latest start date (<= today)
-            java.time.LocalDate bestActiveStart = null;
-            for (GiaiDau gd : giaiDaus) {
-                if (gd == null || !gd.isActive())
-                    continue;
-                java.time.LocalDate s = gd.getNgayBd();
-                if (s == null)
-                    s = today; // treat missing start as today
-                if (bestActiveStart == null || (s.isAfter(bestActiveStart))) {
-                    bestActiveStart = s;
-                    pickId = gd.getId();
-                }
-            }
-
-            // 2) If none active, choose nearest upcoming (earliest start date after today)
-            if (pickId == null) {
-                java.time.LocalDate bestUpcomingStart = null;
-                for (GiaiDau gd : giaiDaus) {
-                    if (gd == null)
-                        continue;
-                    java.time.LocalDate s = gd.getNgayBd();
-                    if (s == null)
-                        continue;
-                    boolean upcoming = gd.isUpcoming() || s.isAfter(today);
-                    if (!upcoming)
-                        continue;
-                    if (bestUpcomingStart == null || s.isBefore(bestUpcomingStart)) {
-                        bestUpcomingStart = s;
-                        pickId = gd.getId();
-                    }
-                }
-            }
-
-            // 3) If none upcoming, choose most recently finished (latest end date)
-            if (pickId == null) {
-                java.time.LocalDate bestFinishedEnd = null;
-                for (GiaiDau gd : giaiDaus) {
-                    if (gd == null || !gd.isFinished())
-                        continue;
-                    java.time.LocalDate e = gd.getNgayKt();
-                    if (e == null)
-                        continue;
-                    if (bestFinishedEnd == null || e.isAfter(bestFinishedEnd)) {
-                        bestFinishedEnd = e;
-                        pickId = gd.getId();
-                    }
-                }
-            }
-
-            if (pickId == null)
-                return;
-            // find model row index by id
-            int modelIndex = -1;
-            for (int i = 0; i < tableModel.getRowCount(); i++) {
-                Object idObj = tableModel.getValueAt(i, 0);
-                int id;
-                if (idObj instanceof Integer)
-                    id = (Integer) idObj;
-                else if (idObj instanceof Long)
-                    id = ((Long) idObj).intValue();
-                else
-                    continue;
-                if (id == pickId.intValue()) {
-                    modelIndex = i;
-                    break;
-                }
-            }
-            if (modelIndex < 0)
-                return;
-            int viewIndex = giaiDauTable.convertRowIndexToView(modelIndex);
-            if (viewIndex >= 0 && viewIndex < tableModel.getRowCount()) {
-                giaiDauTable.setRowSelectionInterval(viewIndex, viewIndex);
-                giaiDauTable.scrollRectToVisible(giaiDauTable.getCellRect(viewIndex, 1, true));
-            }
-        } catch (RuntimeException ignore) {
-            // best-effort: ignore
+        SimpleDateFormat fmt = new SimpleDateFormat("dd/MM/yyyy");
+        for (GiaiDau gd : list) {
+            String sBd = gd.getNgayBd() == null ? "" : fmt.format(java.sql.Date.valueOf(gd.getNgayBd()));
+            String sKt = gd.getNgayKt() == null ? "" : fmt.format(java.sql.Date.valueOf(gd.getNgayKt()));
+            tableModel.addRow(new Object[] {
+                    gd.getId(), gd.getTenGiai(), sBd, sKt, statusText(gd)
+            });
         }
     }
 
-    private String getStatusText(GiaiDau giaiDau) {
-        if (giaiDau.isActive())
+    private String statusText(GiaiDau gd) {
+        if (gd.isActive())
             return "Đang hoạt động";
-        if (giaiDau.isUpcoming())
+        if (gd.isUpcoming())
             return "Sắp tới";
-        if (giaiDau.isFinished())
+        if (gd.isFinished())
             return "Đã kết thúc";
         return "Không xác định";
     }
 
     private void showAddDialog() {
-        java.awt.Window parent = javax.swing.SwingUtilities.getWindowAncestor(this);
-        GiaiDauDialog dialog = new GiaiDauDialog(parent,
-                "Thêm giải đấu mới", null, giaiDauService);
-        dialog.setVisible(true);
-        loadData(); // Refresh table
+        var parent = SwingUtilities.getWindowAncestor(this);
+        GiaiDauDialog d = new GiaiDauDialog(parent, "Thêm giải đấu mới", null, giaiDauService);
+        d.setVisible(true);
+        loadData();
     }
 
     private void showEditDialog() {
-        int selectedRow = giaiDauTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn giải đấu để sửa",
-                    "Thông báo", JOptionPane.WARNING_MESSAGE);
+        Integer id = getSelectedIdOrWarn();
+        if (id == null)
             return;
-        }
-        int modelRow = giaiDauTable.convertRowIndexToModel(selectedRow);
-        Object idObj = tableModel.getValueAt(modelRow, 0);
-        Integer id;
-        if (idObj instanceof Integer) {
-            id = (Integer) idObj;
-        } else if (idObj instanceof Long) {
-            id = ((Long) idObj).intValue();
-        } else {
-            throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
-        }
+
         try {
-            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.intValue());
-            if (giaiDauOpt.isPresent()) {
-                java.awt.Window parent = javax.swing.SwingUtilities.getWindowAncestor(this);
-                GiaiDauDialog dialog = new GiaiDauDialog(parent,
-                        "Sửa giải đấu", giaiDauOpt.get(), giaiDauService);
-                dialog.setVisible(true);
-                loadData(); // Refresh table
+            Optional<GiaiDau> opt = giaiDauService.getGiaiDauById(id);
+            if (opt.isPresent()) {
+                var parent = SwingUtilities.getWindowAncestor(this);
+                GiaiDauDialog d = new GiaiDauDialog(parent, "Sửa giải đấu", opt.get(), giaiDauService);
+                d.setVisible(true);
+                loadData();
             }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Lỗi khi lấy thông tin giải đấu: " + e.getMessage(),
@@ -312,56 +169,37 @@ public class GiaiDauManagementPanel extends JPanel {
     }
 
     private void deleteSelected() {
-        int selectedRow = giaiDauTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn giải đấu để xóa",
-                    "Thông báo", JOptionPane.WARNING_MESSAGE);
+        Integer id = getSelectedIdOrWarn();
+        if (id == null)
             return;
-        }
-        int modelRow = giaiDauTable.convertRowIndexToModel(selectedRow);
-        Object idObj = tableModel.getValueAt(modelRow, 0);
-        Integer id;
-        if (idObj instanceof Integer) {
-            id = (Integer) idObj;
-        } else if (idObj instanceof Long) {
-            id = ((Long) idObj).intValue();
-        } else {
-            throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
-        }
-        String tenGiai = (String) tableModel.getValueAt(modelRow, 1);
 
-        int confirm = JOptionPane.showConfirmDialog(this,
+        String tenGiai = (String) tableModel
+                .getValueAt(giaiDauTable.convertRowIndexToModel(giaiDauTable.getSelectedRow()), 1);
+        int c = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc muốn xóa giải đấu \"" + tenGiai + "\"?",
                 "Xác nhận xóa", JOptionPane.YES_NO_OPTION);
+        if (c != JOptionPane.YES_OPTION)
+            return;
 
-        if (confirm == JOptionPane.YES_OPTION) {
-            try {
-                boolean deleted = giaiDauService.deleteGiaiDau(id);
-                if (deleted) {
-                    JOptionPane.showMessageDialog(this, "Xóa giải đấu thành công!",
-                            "Thành công", JOptionPane.INFORMATION_MESSAGE);
-                    loadData(); // Refresh table
-                } else {
-                    JOptionPane.showMessageDialog(this, "Không thể xóa giải đấu",
-                            "Lỗi", JOptionPane.ERROR_MESSAGE);
-                }
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Lỗi khi xóa giải đấu: " + e.getMessage(),
-                        "Lỗi", JOptionPane.ERROR_MESSAGE);
+        try {
+            if (giaiDauService.deleteGiaiDau(id)) {
+                JOptionPane.showMessageDialog(this, "Xóa giải đấu thành công!",
+                        "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                loadData();
+            } else {
+                JOptionPane.showMessageDialog(this, "Không thể xóa giải đấu", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi xóa giải đấu: " + e.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void searchGiaiDau() {
-        String searchText = searchField.getText().trim();
+        String q = searchField.getText().trim();
         try {
-            List<GiaiDau> giaiDaus;
-            if (searchText.isEmpty()) {
-                giaiDaus = giaiDauService.getAllGiaiDau();
-            } else {
-                giaiDaus = giaiDauService.searchGiaiDauByName(searchText);
-            }
-            updateTable(giaiDaus);
+            updateTable(q.isEmpty() ? giaiDauService.getAllGiaiDau()
+                    : giaiDauService.searchGiaiDauByName(q));
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Lỗi khi tìm kiếm: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -369,62 +207,71 @@ public class GiaiDauManagementPanel extends JPanel {
     }
 
     private void filterByStatus() {
-        String status = (String) statusFilter.getSelectedItem();
+        String s = (String) statusFilter.getSelectedItem();
         try {
-            List<GiaiDau> giaiDaus;
-            switch (status) {
-                case "Đang hoạt động":
-                    giaiDaus = giaiDauService.getActiveGiaiDau();
-                    break;
-                case "Sắp tới":
-                    giaiDaus = giaiDauService.getUpcomingGiaiDau();
-                    break;
-                case "Đã kết thúc":
-                    giaiDaus = giaiDauService.getFinishedGiaiDau();
-                    break;
-                default:
-                    giaiDaus = giaiDauService.getAllGiaiDau();
-                    break;
-            }
-            updateTable(giaiDaus);
+            List<GiaiDau> list = switch (s) {
+                case "Đang hoạt động" -> giaiDauService.getActiveGiaiDau();
+                case "Sắp tới" -> giaiDauService.getUpcomingGiaiDau();
+                case "Đã kết thúc" -> giaiDauService.getFinishedGiaiDau();
+                default -> giaiDauService.getAllGiaiDau();
+            };
+            updateTable(list);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Lỗi khi lọc dữ liệu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /**
-     * Refresh data khi connection thay đổi
-     */
+    private Integer getSelectedIdOrWarn() {
+        int viewRow = giaiDauTable.getSelectedRow();
+        if (viewRow == -1) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn giải đấu!", "Thông báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return null;
+        }
+        int modelRow = giaiDauTable.convertRowIndexToModel(viewRow);
+        Object idObj = tableModel.getValueAt(modelRow, 0);
+        if (idObj instanceof Integer i)
+            return i;
+        if (idObj instanceof Long l)
+            return l.intValue();
+        throw new IllegalArgumentException("ID không phải Integer/Long");
+    }
+
+    /** Cho code ngoài gọi refresh */
     public void refreshData() {
         giaiDauService.refreshRepository();
         loadData();
     }
 
-    /**
-     * Lấy giải đấu được chọn từ table
-     */
+    /** Lấy entity đang chọn trong bảng (nếu cần) */
     public GiaiDau getSelectedGiaiDau() {
-        int selectedRow = giaiDauTable.getSelectedRow();
-        if (selectedRow == -1) {
+        Integer id = getSelectedIdOrWarn();
+        if (id == null)
             return null;
-        }
-        // Chuyển chỉ số dòng từ view sang model để đảm bảo đúng khi sort/filter
-        int modelRow = giaiDauTable.convertRowIndexToModel(selectedRow);
-        Object idObj = tableModel.getValueAt(modelRow, 0);
-        Integer id;
-        if (idObj instanceof Integer) {
-            id = (Integer) idObj;
-        } else if (idObj instanceof Long) {
-            id = ((Long) idObj).intValue();
-        } else {
-            throw new IllegalArgumentException("ID không phải kiểu Integer hoặc Long");
-        }
         try {
-            Optional<GiaiDau> giaiDauOpt = giaiDauService.getGiaiDauById(id.intValue());
-            return giaiDauOpt.orElse(null);
+            return giaiDauService.getGiaiDauById(id).orElse(null);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /** Chọn giải đấu theo ID trong bảng */
+    public void selectTournamentById(int tournamentId) {
+        try {
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                Object idObj = tableModel.getValueAt(i, 0);
+                int id = (idObj instanceof Integer) ? (Integer) idObj
+                        : (idObj instanceof Long) ? ((Long) idObj).intValue() : -1;
+                if (id == tournamentId) {
+                    int viewRow = giaiDauTable.convertRowIndexToView(i);
+                    giaiDauTable.setRowSelectionInterval(viewRow, viewRow);
+                    giaiDauTable.scrollRectToVisible(giaiDauTable.getCellRect(viewRow, 0, true));
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            // Ignore selection errors
         }
     }
 }
