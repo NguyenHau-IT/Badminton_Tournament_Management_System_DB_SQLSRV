@@ -383,10 +383,10 @@ public class MainFrame extends JFrame {
     private JPanel buildHeaderBar() {
         JPanel bar = new JPanel(new BorderLayout());
         bar.setBorder(new EmptyBorder(6, 10, 6, 10));
-        // Try to load a custom header image `btms.png`. Locations checked (in order):
+        // Try to load a custom header image. Locations checked (in order):
         // 1) Prefs key `ui.header.logo.path`
-        // 2) classpath resource `/btms.png` (e.g., src/main/resources)
-        // 3) project root `btms.png`
+        // 2) classpath resource `/icons/btms.png`
+        // 3) project file `icons/btms.png`
         javax.swing.JLabel headerImageLabel = null;
         try {
             String pathPref = new com.example.btms.config.Prefs().get("ui.header.logo.path", "");
@@ -397,13 +397,13 @@ public class MainFrame extends JFrame {
                     img = javax.imageio.ImageIO.read(f);
             }
             if (img == null) {
-                java.net.URL res = MainFrame.class.getResource("/btms.png");
+                java.net.URL res = MainFrame.class.getResource("/icons/btms.png");
                 if (res != null) {
                     img = javax.imageio.ImageIO.read(res);
                 }
             }
             if (img == null) {
-                java.io.File f2 = new java.io.File("btms.png");
+                java.io.File f2 = new java.io.File("icons/btms.png");
                 if (f2.exists())
                     img = javax.imageio.ImageIO.read(f2);
             }
