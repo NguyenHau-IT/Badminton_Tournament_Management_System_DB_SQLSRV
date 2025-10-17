@@ -2435,7 +2435,20 @@ public class MainFrame extends JFrame {
     /* -------------------- Inline dialogs -------------------- */
 
     private GiaiDau showTournamentSelectDialog() {
-        return com.example.btms.ui.tournament.TournamentManagementComponent.showSelectionDialog(this, service);
+        // Lấy userId từ Preferences nếu có
+        Integer currentUserId = null;
+        try {
+            com.example.btms.config.Prefs prefs = new com.example.btms.config.Prefs();
+            int userId = prefs.getInt("userId", -1);
+            if (userId != -1) {
+                currentUserId = userId;
+            }
+        } catch (Exception e) {
+            // Không có user ID hoặc lỗi, hiển thị tất cả giải đấu
+        }
+
+        return com.example.btms.ui.tournament.TournamentManagementComponent.showSelectionDialog(this, service,
+                currentUserId);
     }
 
     // Normalize a string to a safe ASCII filename using underscores as separator
