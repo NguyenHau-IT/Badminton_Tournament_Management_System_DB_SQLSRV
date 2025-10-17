@@ -3,7 +3,6 @@ package com.example.btms.ui.net;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.FlowLayout;
-import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.ArrayList;
@@ -24,6 +23,7 @@ import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
 import com.example.btms.config.NetworkConfig;
+import com.example.btms.model.net.NifItem;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
 /**
@@ -42,7 +42,7 @@ public class NetworkChooserPanel extends JPanel {
         setBorder(new EmptyBorder(10, 10, 10, 10));
         putClientProperty("FlatLaf.style", "background:@background");
 
-        // ===== Header gọn =====
+        // ===== Header =====
         JPanel header = new JPanel(new BorderLayout(6, 0));
         header.setOpaque(false);
         JLabel title = new JLabel("Network Interface");
@@ -68,6 +68,7 @@ public class NetworkChooserPanel extends JPanel {
             search.setText("");
             applyFilter("");
         });
+
         JButton btnRefresh = new JButton();
         btnRefresh.putClientProperty("JButton.buttonType", "toolBar");
         btnRefresh.setToolTipText("Tải lại");
@@ -76,6 +77,7 @@ public class NetworkChooserPanel extends JPanel {
         } catch (Exception ignore) {
         }
         btnRefresh.addActionListener(e -> refreshInterfaces());
+
         right.add(search);
         right.add(btnClear);
         right.add(btnRefresh);
@@ -94,7 +96,7 @@ public class NetworkChooserPanel extends JPanel {
 
     public NetworkConfig getSelectedConfig() {
         Object sel = combo.getSelectedItem();
-        return (sel instanceof NifItem ni) ? new NetworkConfig(ni.name) : null;
+        return (sel instanceof NifItem ni) ? new NetworkConfig(ni.getName(), ni.getIpv4Address()) : null;
     }
 
     private void refreshInterfaces() {
@@ -110,7 +112,8 @@ public class NetworkChooserPanel extends JPanel {
                     allItems.add(new NifItem(nif));
                 }
             }
-            Collections.sort(allItems, (a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
+            Collections.sort(allItems,
+                    (a, b) -> a.getDisplayName().compareToIgnoreCase(b.getDisplayName()));
             for (NifItem i : allItems)
                 model.addElement(i);
         } catch (SocketException | SecurityException ex) {
@@ -129,53 +132,14 @@ public class NetworkChooserPanel extends JPanel {
         } else {
             String s = q.toLowerCase();
             for (NifItem i : allItems) {
-                if (i.displayName.toLowerCase().contains(s) || i.name.toLowerCase().contains(s))
+                if (i.getDisplayName().toLowerCase().contains(s)
+                        || i.getName().toLowerCase().contains(s)) {
                     model.addElement(i);
+                }
             }
         }
         if (model.getSize() > 0)
             combo.setSelectedIndex(0);
-    }
-
-    /* ================= Model ================= */
-    private static class NifItem {
-        final String displayName;
-        final String name;
-        final int ipv4Count;
-        final int ipv6Count;
-        final String tooltip;
-
-        NifItem(NetworkInterface nif) throws SocketException {
-            this.displayName = String.valueOf(nif.getDisplayName());
-            this.name = String.valueOf(nif.getName());
-            int v4 = 0, v6 = 0;
-            StringBuilder tip = new StringBuilder("<html><b>")
-                    .append(displayName).append("</b> (").append(name).append(")<br/>");
-            for (InterfaceAddress ia : nif.getInterfaceAddresses()) {
-                if (ia == null || ia.getAddress() == null)
-                    continue;
-                String ip = ia.getAddress().getHostAddress();
-                if (ip.contains(":"))
-                    v6++;
-                else
-                    v4++;
-                tip.append(ip).append("<br/>");
-            }
-            tip.append("</html>");
-            ipv4Count = v4;
-            ipv6Count = v6;
-            tooltip = tip.toString();
-        }
-
-        boolean isWifi() {
-            String n = name.toLowerCase();
-            return n.contains("wlan") || n.contains("wifi") || n.contains("wi-fi");
-        }
-
-        @Override
-        public String toString() {
-            return displayName;
-        }
     }
 
     /* ============== Renderer cho JComboBox ============== */
@@ -203,16 +167,19 @@ public class NetworkChooserPanel extends JPanel {
             }
             icWifi = wifi;
             icLan = lan;
+
             JPanel center = new JPanel();
             center.setOpaque(false);
             center.setLayout(new javax.swing.BoxLayout(center, javax.swing.BoxLayout.Y_AXIS));
             lbTitle.putClientProperty("FlatLaf.style", "font: bold +0");
             center.add(lbTitle);
             center.add(lbSub);
+
             JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
             right.setOpaque(false);
             styleBadge(badge);
             right.add(badge);
+
             add(lbIcon, BorderLayout.WEST);
             add(center, BorderLayout.CENTER);
             add(right, BorderLayout.EAST);
@@ -230,15 +197,18 @@ public class NetworkChooserPanel extends JPanel {
         }
 
         @Override
-        public Component getListCellRendererComponent(javax.swing.JList<? extends NifItem> list, NifItem value,
+        public Component getListCellRendererComponent(
+                javax.swing.JList<? extends NifItem> list, NifItem value,
                 int index, boolean isSelected, boolean cellHasFocus) {
+
             if (value == null)
                 return this;
             lbIcon.setIcon(value.isWifi() ? icWifi : icLan);
-            lbTitle.setText(value.displayName);
-            lbSub.setText(value.name);
-            badge.setText("IPv4 " + value.ipv4Count + "/v6 " + value.ipv6Count);
-            setToolTipText(value.tooltip);
+            lbTitle.setText(value.getDisplayName());
+            lbSub.setText(value.getName());
+            badge.setText("IPv4 " + value.getIpv4Count() + "/v6 " + value.getIpv6Count());
+            setToolTipText(value.getTooltip());
+
             java.awt.Color bgSel = UIManager.getColor("List.selectionBackground");
             java.awt.Color fgSel = UIManager.getColor("List.selectionForeground");
             setBackground(isSelected ? bgSel : UIManager.getColor("List.background"));

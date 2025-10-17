@@ -3,6 +3,7 @@ package com.example.btms.ui.tournament;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Window;
+import java.util.List;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
@@ -222,6 +223,26 @@ public class TournamentManagementComponent extends JPanel {
         }
     }
 
+    /**
+     * Refresh data with updated user ID from current session
+     */
+    public void refreshWithCurrentUser() {
+        if (managementPanel != null) {
+            managementPanel.refreshWithCurrentUser();
+        }
+    }
+
+    /**
+     * Set user ID for filtering tournaments
+     * 
+     * @param userId User ID to filter by, null for all tournaments
+     */
+    public void setCurrentUserId(Integer userId) {
+        if (managementPanel != null) {
+            managementPanel.setCurrentUserId(userId);
+        }
+    }
+
     public boolean hasValidSelection() {
         return getSelectedGiaiDau() != null;
     }
@@ -248,13 +269,32 @@ public class TournamentManagementComponent extends JPanel {
      * Static method to show a selection dialog - replaces TournamentSelectDialog
      */
     public static GiaiDau showSelectionDialog(Window parent, DatabaseService databaseService) {
+        return showSelectionDialog(parent, databaseService, null);
+    }
+
+    /**
+     * Static method to show a selection dialog with user filtering
+     * 
+     * @param parent          Parent window
+     * @param databaseService Database service
+     * @param userId          User ID to filter tournaments by, null for all
+     *                        tournaments
+     */
+    public static GiaiDau showSelectionDialog(Window parent, DatabaseService databaseService, Integer userId) {
         // Check if there are no tournaments first
         try {
             GiaiDauService tempService = new GiaiDauService(databaseService);
-            if (tempService.getAllGiaiDau().isEmpty()) {
+            List<GiaiDau> tournaments = userId != null
+                    ? tempService.getGiaiDauByUserId(userId.longValue())
+                    : tempService.getAllGiaiDau();
+
+            if (tournaments.isEmpty()) {
+                String message = userId != null
+                        ? "Bạn chưa có giải đấu nào trong hệ thống.\nBạn có muốn tạo giải đấu mới trước khi tiếp tục?"
+                        : "Chưa có giải đấu nào trong hệ thống.\nBạn có muốn tạo giải đấu mới trước khi tiếp tục?";
+
                 int choice = javax.swing.JOptionPane.showConfirmDialog(parent,
-                        "Chưa có giải đấu nào trong hệ thống.\n" +
-                                "Bạn có muốn tạo giải đấu mới trước khi tiếp tục?",
+                        message,
                         "Không có giải đấu",
                         javax.swing.JOptionPane.YES_NO_OPTION,
                         javax.swing.JOptionPane.QUESTION_MESSAGE);
@@ -270,10 +310,13 @@ public class TournamentManagementComponent extends JPanel {
         }
 
         // Determine dialog title based on available tournaments
-        String dialogTitle = "Chọn giải đấu";
+        String dialogTitle = userId != null ? "Chọn giải đấu của bạn" : "Chọn giải đấu";
         try {
             GiaiDauService tempService = new GiaiDauService(databaseService);
-            if (tempService.getAllGiaiDau().isEmpty()) {
+            List<GiaiDau> tournaments = userId != null
+                    ? tempService.getGiaiDauByUserId(userId.longValue())
+                    : tempService.getAllGiaiDau();
+            if (tournaments.isEmpty()) {
                 dialogTitle = "Chọn hoặc tạo giải đấu";
             }
         } catch (Exception e) {
@@ -282,6 +325,11 @@ public class TournamentManagementComponent extends JPanel {
 
         JDialog dialog = new JDialog(parent, dialogTitle, JDialog.ModalityType.APPLICATION_MODAL);
         TournamentManagementComponent component = new TournamentManagementComponent(databaseService, true);
+
+        // Set user ID to filter tournaments
+        if (userId != null) {
+            component.setCurrentUserId(userId);
+        }
 
         dialog.setLayout(new BorderLayout());
         dialog.add(component, BorderLayout.CENTER);
