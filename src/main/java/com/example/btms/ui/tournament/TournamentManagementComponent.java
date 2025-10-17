@@ -2,8 +2,11 @@ package com.example.btms.ui.tournament;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.HeadlessException;
 import java.awt.Window;
+import java.sql.SQLException;
 import java.util.List;
+
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
@@ -42,7 +45,7 @@ public class TournamentManagementComponent extends JPanel {
     }
 
     /** Cập nhật kết nối database và render lại panel quản lý giải đấu. */
-    public void updateConnection() {
+    public final void updateConnection() {
         giaiDauService = (databaseService != null && databaseService.current() != null)
                 ? new GiaiDauService(databaseService)
                 : null;
@@ -116,7 +119,7 @@ public class TournamentManagementComponent extends JPanel {
                     return;
                 }
             }
-        } catch (Exception e) {
+        } catch (HeadlessException | SQLException e) {
             // Ignore and show normal message
         }
 
@@ -188,7 +191,7 @@ public class TournamentManagementComponent extends JPanel {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Ignore errors in auto-selection
         }
     }
@@ -305,7 +308,7 @@ public class TournamentManagementComponent extends JPanel {
                     // After creating, continue to show selection dialog
                 }
             }
-        } catch (Exception e) {
+        } catch (HeadlessException | SQLException e) {
             // Continue with normal flow if there's an error checking
         }
 
@@ -319,7 +322,7 @@ public class TournamentManagementComponent extends JPanel {
             if (tournaments.isEmpty()) {
                 dialogTitle = "Chọn hoặc tạo giải đấu";
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             // Use default title if there's an error
         }
 
