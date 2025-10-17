@@ -15,6 +15,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
+import com.example.btms.model.net.NifItem;
 import com.example.btms.service.db.DatabaseService;
 import com.example.btms.ui.auth.LoginFrame.Role;
 import com.example.btms.ui.bracket.SoDoThiDauPanel;
@@ -124,10 +125,23 @@ public class UnifiedWindowManager {
         }
     }
 
+    // Store NetworkInterface cho BRACKET window
+    private NetworkInterface bracketNetworkInterface;
+
     /**
      * Phương thức thuận tiện cho Bracket window
      */
     public void openBracketWindow(DatabaseService service, JFrame parent, String tournamentTitle) {
+        openBracketWindow(service, parent, tournamentTitle, null);
+    }
+
+    /**
+     * Phương thức thuận tiện cho Bracket window với NetworkInterface
+     */
+    public void openBracketWindow(DatabaseService service, JFrame parent, String tournamentTitle,
+            NetworkInterface nic) {
+        // Lưu NetworkInterface để sử dụng khi tạo tabs
+        this.bracketNetworkInterface = nic;
         WindowConfig config = new WindowConfig()
                 .title(WindowType.BRACKET.getDefaultTitle() +
                         (tournamentTitle != null ? " - " + tournamentTitle : ""));
@@ -257,6 +271,10 @@ public class UnifiedWindowManager {
 
         SoDoThiDauPanel panel = new SoDoThiDauPanel(conn);
         try {
+            // Set NetworkInterface nếu có
+            if (bracketNetworkInterface != null) {
+                panel.setNetworkInterface(bracketNetworkInterface);
+            }
             panel.selectNoiDungById(idNoiDung);
             panel.setNoiDungLabelMode(true);
             panel.reloadData();

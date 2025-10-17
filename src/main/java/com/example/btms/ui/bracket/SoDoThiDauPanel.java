@@ -15,6 +15,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.NetworkInterface;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
@@ -131,6 +132,7 @@ public class SoDoThiDauPanel extends JPanel {
     private final KetQuaCaNhanService ketQuaCaNhanService;
     private final VanDongVienService vdvService;
     private final Connection conn; // lưu connection để mở panel thi đấu
+    private NetworkInterface networkInterface; // lưu network interface để truyền cho embeddedMultiCourt
 
     // Seed mode controls moved to SettingsPanel; this panel now reads Prefs only.
 
@@ -215,6 +217,10 @@ public class SoDoThiDauPanel extends JPanel {
             embeddedMultiCourt = new MultiCourtControlPanel();
             try {
                 embeddedMultiCourt.setConnection(this.conn);
+                // Set network interface nếu có
+                if (networkInterface != null) {
+                    embeddedMultiCourt.setNetworkInterface(networkInterface);
+                }
             } catch (Throwable ignore) {
             }
         }
@@ -228,6 +234,20 @@ public class SoDoThiDauPanel extends JPanel {
         }
         if (!added) {
             mainTabs.addTab("Thi đấu", embeddedMultiCourt);
+        }
+    }
+
+    /**
+     * Set network interface cho embedded MultiCourtControlPanel
+     */
+    public void setNetworkInterface(NetworkInterface nif) {
+        this.networkInterface = nif;
+        // Cập nhật embeddedMultiCourt nếu đã tạo
+        if (embeddedMultiCourt != null) {
+            try {
+                embeddedMultiCourt.setNetworkInterface(nif);
+            } catch (Throwable ignore) {
+            }
         }
     }
 
