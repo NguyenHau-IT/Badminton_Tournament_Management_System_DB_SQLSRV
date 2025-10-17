@@ -67,7 +67,6 @@ public class NoiDungRepository {
         if (idGiai == null || idGiai <= 0)
             return list;
 
-        // Ưu tiên dùng cột ID_GIAI_DAU; nếu không tồn tại (schema khác), fallback sang
         // ID_GIAI
         String sql1 = "SELECT nd.ID, nd.TEN_NOI_DUNG, nd.TUOI_DUOI, nd.TUOI_TREN, nd.GIOI_TINH, nd.TEAM " +
                 "FROM NOI_DUNG nd " +
@@ -78,7 +77,6 @@ public class NoiDungRepository {
                 "JOIN CHI_TIET_GIAI_DAU ctgd ON ctgd.ID_NOI_DUNG = nd.ID " +
                 "WHERE ctgd.ID_GIAI = ?";
 
-        SQLException firstEx = null;
         try (PreparedStatement pstmt = conn.prepareStatement(sql1)) {
             pstmt.setInt(1, idGiai);
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -87,7 +85,6 @@ public class NoiDungRepository {
             }
             return list;
         } catch (SQLException e1) {
-            firstEx = e1;
             // thử fallback với cột ID_GIAI
             list.clear();
             try (PreparedStatement pstmt = conn.prepareStatement(sql2)) {
@@ -99,7 +96,7 @@ public class NoiDungRepository {
                 return list;
             } catch (SQLException e2) {
                 // ném lại lỗi đầu tiên để giữ nguyên ngữ cảnh
-                throw firstEx;
+                throw e1;
             }
         }
     }

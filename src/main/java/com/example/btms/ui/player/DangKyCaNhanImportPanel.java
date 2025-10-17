@@ -16,8 +16,9 @@ import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.player.DangKiCaNhanService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.club.CauLacBoService;
+import com.example.btms.util.ui.IconUtil;
 
-public class DangKyCaNhanImportPanel extends JPanel {
+public class DangKyCaNhanImportPanel extends JFrame {
     private final Connection conn;
     private final Prefs prefs;
     private final NoiDungService noiDungService;
@@ -25,6 +26,32 @@ public class DangKyCaNhanImportPanel extends JPanel {
     private final VanDongVienService vdvService;
     private final CauLacBoService clbService;
     private final Runnable onDone;
+
+    /**
+     * Tạo và hiển thị cửa sổ nhập danh sách đăng ký từ CSV
+     * 
+     * @param conn           Database connection
+     * @param prefs          Application preferences
+     * @param noiDungService Service for content management
+     * @param dkService      Registration service
+     * @param vdvService     Player service
+     * @param clbService     Club service
+     * @param onDone         Callback khi hoàn thành import
+     */
+    public static void showImportWindow(
+            Connection conn,
+            Prefs prefs,
+            NoiDungService noiDungService,
+            DangKiCaNhanService dkService,
+            VanDongVienService vdvService,
+            CauLacBoService clbService,
+            Runnable onDone) {
+        SwingUtilities.invokeLater(() -> {
+            DangKyCaNhanImportPanel frame = new DangKyCaNhanImportPanel(
+                    conn, prefs, noiDungService, dkService, vdvService, clbService, onDone);
+            frame.setVisible(true);
+        });
+    }
 
     private final JTextField txtFile = new JTextField(36);
     private final JButton btnBrowse = new JButton("Chọn CSV...");
@@ -34,7 +61,7 @@ public class DangKyCaNhanImportPanel extends JPanel {
     private final JTextArea taLog = new JTextArea(8, 60);
 
     private final DefaultTableModel previewModel = new DefaultTableModel(
-            new Object[] { "Dòng", "Họ tên", "CLB", "Nội dung (file)", "TuổiMin", "TuổiMax", "Ghi chú" }, 0) {
+            new Object[] { "Dòng", "Họ tên", "CLB", "Nội dung", "TuổiMin", "TuổiMax", "Ghi chú" }, 0) {
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -77,7 +104,27 @@ public class DangKyCaNhanImportPanel extends JPanel {
         this.onDone = onDone != null ? onDone : () -> {
         };
 
-        setLayout(new BorderLayout(8, 8));
+        initializeFrame();
+    }
+
+    private void initializeFrame() {
+        // Cấu hình JFrame
+        setTitle("Nhập danh sách đăng ký cá nhân từ CSV");
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setSize(1000, 700);
+        setLocationRelativeTo(null);
+
+        // Apply icon if available
+        try {
+            IconUtil.applyTo(this);
+        } catch (Exception e) {
+            // Ignore if IconUtil not available
+        }
+
+        // Tạo content panel
+        JPanel contentPanel = new JPanel(new BorderLayout(8, 8));
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        setContentPane(contentPanel);
 
         JPanel top = new JPanel(new BorderLayout(8, 8));
         JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
@@ -93,7 +140,7 @@ public class DangKyCaNhanImportPanel extends JPanel {
 
         top.add(row1, BorderLayout.NORTH);
         top.add(row2, BorderLayout.CENTER);
-        add(top, BorderLayout.NORTH);
+        contentPanel.add(top, BorderLayout.NORTH);
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Danh sách đọc được", new JScrollPane(previewTable));
@@ -109,12 +156,12 @@ public class DangKyCaNhanImportPanel extends JPanel {
         center.add(tabs, BorderLayout.CENTER);
         taLog.setEditable(false);
         center.add(new JScrollPane(taLog), BorderLayout.SOUTH);
-        add(center, BorderLayout.CENTER);
+        contentPanel.add(center, BorderLayout.CENTER);
 
         btnBrowse.addActionListener(e -> onBrowse());
         btnPreview.addActionListener(e -> onPreview());
         btnImport.addActionListener(e -> onImport());
-        btnClose.addActionListener(e -> closeDialog());
+        btnClose.addActionListener(e -> closeWindow());
     }
 
     private void onBrowse() {
@@ -151,7 +198,9 @@ public class DangKyCaNhanImportPanel extends JPanel {
         taLog.append(String.format(
                 "\nNhập xong: %d đăng ký mới, %d trùng, %d bỏ qua, %d lỗi, tạo %d VĐV mới, %d CLB mới.\n",
                 result.ok, result.duplicates, result.skipped, result.bad, result.createdPlayers, result.createdClubs));
-        onDone.run();
+        if (onDone != null) {
+            onDone.run();
+        }
     }
 
     private void onPreview() {
@@ -506,7 +555,7 @@ public class DangKyCaNhanImportPanel extends JPanel {
     }
 
     private static int nz(Integer v, int def) {
-        return v != null ? v.intValue() : def;
+        return v != null ? v : def;
     }
 
     // ================== Helper methods ==================
@@ -560,12 +609,12 @@ public class DangKyCaNhanImportPanel extends JPanel {
         return out;
     }
 
-    private void closeDialog() {
-        java.awt.Container p = getParent();
-        while (p != null && !(p instanceof JDialog))
-            p = p.getParent();
-        if (p instanceof JDialog d)
-            d.dispose();
+    private void closeWindow() {
+        // Gọi onDone callback trước khi đóng
+        if (onDone != null) {
+            onDone.run();
+        }
+        dispose();
     }
 
     private static class ImportResult {

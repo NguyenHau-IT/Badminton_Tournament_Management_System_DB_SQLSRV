@@ -2185,10 +2185,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
             logger.logTs("Đã chụp ảnh bảng điểm: %s", outputFile.getAbsolutePath());
 
-            // Gửi ảnh về admin nếu đang broadcast
-            if (hasStarted && selectedIf != null) {
-                sendScreenshotToAdmin(image, fileName);
-            }
+            // Lưu ảnh vào thư mục screenshots; bỏ tính năng gửi qua mạng
 
             // Hiển thị thông báo thành công
             JOptionPane.showMessageDialog(this,
@@ -2205,25 +2202,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
     }
 
-    /**
-     * Gửi ảnh screenshot về admin qua network
-     */
-    private void sendScreenshotToAdmin(BufferedImage image, String fileName) {
-        try {
-            // Tạo thông tin trận đấu để gửi kèm
-            var snapshot = match.snapshot();
-            String matchInfo = String.format("Trận: %s vs %s | Ván %d/%d | Tỉ số: %d-%d | Thời gian: %s",
-                    snapshot.names[0], snapshot.names[1], snapshot.gameNumber, snapshot.bestOf,
-                    snapshot.score[0], snapshot.score[1], new SimpleDateFormat("HH:mm:ss").format(new Date()));
-
-            // Gửi ảnh qua ScoreboardService để broadcast về admin
-            scoreboardSvc.sendScreenshotToAdmin(image, fileName, matchInfo, selectedIf);
-
-            logger.logTs("Đã gửi ảnh screenshot về admin: %s", fileName);
-        } catch (Exception ex) {
-            logger.logTs("Lỗi khi gửi ảnh về admin: %s", ex.getMessage());
-        }
-    }
+    // Bỏ phương thức gửi ảnh qua mạng; ảnh được lưu cục bộ và xem trong tab Lịch sử
 
     private void cancelFinishTimer() {
         if (finishTimer != null) {

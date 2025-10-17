@@ -127,7 +127,7 @@ Các tiện ích UI:
 - Thiết lập trận đấu: Đơn/Đôi, BO (Best of), tên đội/vận động viên, màn hình hiển thị (dọc/ngang), tiêu đề…
 - Điều khiển điểm: tăng/giảm cho A/B, reset, đổi sân (swap ends), đổi giao cầu (change server), ván tiếp theo.
 - Màn hình bảng điểm riêng (vertical/horizontal) có thể mở toàn màn hình ở màn hình thứ N.
-- Phát sóng trạng thái bảng điểm ra mạng nội bộ (broadcast UDP) và gửi screenshot về admin (UDP 2346, broadcast .255 theo interface đang chọn).
+- Phát sóng trạng thái bảng điểm ra mạng nội bộ (broadcast UDP). Tính năng gửi screenshot về admin (UDP 2346) đã bị loại bỏ.
 
 ---
 
@@ -192,7 +192,7 @@ Ghi chú:
 - Tournament (GiaiDau, chọn giải, đăng ký nội dung theo giải)
 - Danh mục: Nội dung, Câu lạc bộ (service/repository theo kết nối SQLSRV)
 - AuthService & LoginTab (phân quyền ADMIN/CLIENT ảnh hưởng tab và chế độ giám sát)
-- ScreenshotReceiver/ScoreboardHub/ScoreboardRemote (UDP nhận screenshot port 2346; quản lý state scoreboard)
+- ScoreboardHub/ScoreboardRemote (quản lý state scoreboard). Tính năng UDP nhận screenshot (port 2346) đã bị loại bỏ; ảnh chỉ lấy từ thư mục `screenshots`.
 - LogTab & util.log.Log (ghi log các sự kiện: tăng/giảm điểm, đổi sân, ván tiếp theo…)
 
 ---
@@ -210,7 +210,7 @@ Ghi chú:
 - Dữ liệu lưu cục bộ trong SQL Server nội bộ của đơn vị tổ chức (không phụ thuộc dịch vụ bên thứ ba).
 
 Khuyến nghị triển khai:
-- Bật tường lửa theo danh sách trắng (port 2345 TCP; UDP 2346 nếu dùng broadcast screenshot).
+- Bật tường lửa theo danh sách trắng (port 2345 TCP). UDP 2346 không còn được sử dụng.
 - Dùng HTTPS/nghiên cứu reverse proxy nếu xuất dịch vụ ra ngoài LAN.
 
 ---

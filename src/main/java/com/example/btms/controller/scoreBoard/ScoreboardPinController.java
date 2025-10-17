@@ -1,5 +1,7 @@
 package com.example.btms.controller.scoreBoard;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -74,7 +76,7 @@ public class ScoreboardPinController {
                         try {
                             client.send(SseEmitter.event().name("update").data(payload));
                             return false;
-                        } catch (Exception ex) {
+                        } catch (IOException ex) {
                             try {
                                 client.complete();
                             } catch (Exception ignore) {
@@ -83,8 +85,11 @@ public class ScoreboardPinController {
                         }
                     });
                 }
-            } catch (Exception e) {
-                // Log lỗi nhưng không crash
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                // JSON serialization error - log and continue
+                log.warn("JSON serialization error broadcasting to PIN {}: {}", pinCode, e.getMessage());
+            } catch (RuntimeException e) {
+                // Other runtime issues - log but don't crash the executor thread
                 log.warn("Error broadcasting to PIN {}: {}", pinCode, e.getMessage());
             }
         });
@@ -118,8 +123,10 @@ public class ScoreboardPinController {
             } catch (NoSuchMethodException ignore) {
                 // Control panel chưa có helper (phiên bản cũ) → bỏ qua nhẹ nhàng
             }
-        } catch (Exception ex) {
-            log.warn("CHI_TIET_VAN onPoint (web) failed for PIN {}: {}", pinCode, ex.getMessage());
+        } catch (ReflectiveOperationException ex) {
+            log.warn("CHI_TIET_VAN onPoint (web) reflection failed for PIN {}: {}", pinCode, ex.getMessage());
+        } catch (RuntimeException ex) {
+            log.warn("CHI_TIET_VAN onPoint (web) runtime failed for PIN {}: {}", pinCode, ex.getMessage());
         }
     }
 
@@ -150,8 +157,10 @@ public class ScoreboardPinController {
             } catch (NoSuchMethodException ignore) {
                 // Control panel chưa có helper (phiên bản cũ) → bỏ qua nhẹ nhàng
             }
-        } catch (Exception ex) {
-            log.warn("CHI_TIET_VAN totalsOnly (web) failed for PIN {}: {}", pinCode, ex.getMessage());
+        } catch (ReflectiveOperationException ex) {
+            log.warn("CHI_TIET_VAN totalsOnly (web) reflection failed for PIN {}: {}", pinCode, ex.getMessage());
+        } catch (RuntimeException ex) {
+            log.warn("CHI_TIET_VAN totalsOnly (web) runtime failed for PIN {}: {}", pinCode, ex.getMessage());
         }
     }
 
@@ -182,7 +191,7 @@ public class ScoreboardPinController {
         log.info("Received GET request for PIN: {}", pin);
         synchronized (LOCK) {
             try {
-                // TODO: Validate PIN với CourtManagerService
+
                 Map<String, Integer> result = view(pin);
                 log.info("Returning GET result for PIN {}: {}", pin, result);
                 return ResponseEntity.ok(result);
@@ -248,7 +257,7 @@ public class ScoreboardPinController {
     @GetMapping("/{pin}/sync")
     public ResponseEntity<BadmintonMatch.Snapshot> getSnapshotWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             return ResponseEntity.ok(match.snapshot());
         }
@@ -256,7 +265,6 @@ public class ScoreboardPinController {
 
     @GetMapping(value = "/{pin}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamWithPin(@PathVariable String pin) {
-        // TODO: Validate PIN với CourtManagerService
 
         SseEmitter em = new SseEmitter(0L); // no timeout
 
@@ -267,7 +275,7 @@ public class ScoreboardPinController {
             BadmintonMatch match = getOrCreateMatch(pin);
             em.send(SseEmitter.event().name("init")
                     .data(om.writeValueAsString(match.snapshot())));
-        } catch (Exception ignore) {
+        } catch (IOException ignore) {
         }
 
         em.onCompletion(() -> {
@@ -298,7 +306,7 @@ public class ScoreboardPinController {
         log.info("Received increaseA request for PIN: {}", pin);
         synchronized (LOCK) {
             try {
-                // TODO: Validate PIN với CourtManagerService
+
                 BadmintonMatch match = getOrCreateMatch(pin);
                 log.info("Got match for PIN {}: {}", pin, match);
 
@@ -327,7 +335,7 @@ public class ScoreboardPinController {
     @PostMapping("/{pin}/decreaseA")
     public ResponseEntity<Map<String, Integer>> decreaseAWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             match.pointDown(0, -1);
             log.info("Decreased score for Team A (PIN: {})", pin);
@@ -347,7 +355,7 @@ public class ScoreboardPinController {
         log.info("Received increaseB request for PIN: {}", pin);
         synchronized (LOCK) {
             try {
-                // TODO: Validate PIN với CourtManagerService
+
                 BadmintonMatch match = getOrCreateMatch(pin);
                 log.info("Got match for PIN {}: {}", pin, match);
 
@@ -376,7 +384,7 @@ public class ScoreboardPinController {
     @PostMapping("/{pin}/decreaseB")
     public ResponseEntity<Map<String, Integer>> decreaseBWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             match.pointDown(1, -1);
             log.info("Decreased score for Team B (PIN: {})", pin);
@@ -394,7 +402,7 @@ public class ScoreboardPinController {
     @PostMapping("/{pin}/reset")
     public ResponseEntity<Map<String, Integer>> resetWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             match.resetAll();
             log.info("Reset scores to 0 - 0 (PIN: {})", pin);
@@ -411,7 +419,7 @@ public class ScoreboardPinController {
     @PostMapping("/{pin}/next")
     public ResponseEntity<BadmintonMatch.Snapshot> nextGameWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             match.nextGame();
             try {
@@ -426,7 +434,7 @@ public class ScoreboardPinController {
     @PostMapping("/{pin}/swap")
     public ResponseEntity<BadmintonMatch.Snapshot> swapEndsWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             match.swapEnds();
             try {
@@ -443,7 +451,7 @@ public class ScoreboardPinController {
     @PostMapping("/{pin}/change-server")
     public ResponseEntity<BadmintonMatch.Snapshot> changeServerWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             match.changeServer();
             try {
@@ -459,7 +467,7 @@ public class ScoreboardPinController {
     @PostMapping("/{pin}/undo")
     public ResponseEntity<BadmintonMatch.Snapshot> undoWithPin(@PathVariable String pin) {
         synchronized (LOCK) {
-            // TODO: Validate PIN với CourtManagerService
+
             BadmintonMatch match = getOrCreateMatch(pin);
             match.undo();
             try {
@@ -503,7 +511,7 @@ public class ScoreboardPinController {
                 BadmintonMatch match = getOrCreateMatch(pin);
 
                 switch (action) {
-                    case "increaseA":
+                    case "increaseA" -> {
                         match.pointTo(0);
                         log.info("Increased score for Team A (PIN: {}), new score: {}", pin, match.getScore()[0]);
                         try {
@@ -511,8 +519,8 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                         }
                         tryUpdateChiTietVanOnPointForPin(pin, 0);
-                        break;
-                    case "decreaseA":
+                    }
+                    case "decreaseA" -> {
                         match.pointDown(0, -1);
                         log.info("Decreased score for Team A (PIN: {})", pin);
                         try {
@@ -520,8 +528,8 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                         }
                         tryUpdateChiTietVanTotalsOnlyForPin(pin);
-                        break;
-                    case "increaseB":
+                    }
+                    case "increaseB" -> {
                         match.pointTo(1);
                         log.info("Increased score for Team B (PIN: {}), new score: {}", pin, match.getScore()[1]);
                         try {
@@ -529,8 +537,8 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                         }
                         tryUpdateChiTietVanOnPointForPin(pin, 1);
-                        break;
-                    case "decreaseB":
+                    }
+                    case "decreaseB" -> {
                         match.pointDown(1, -1);
                         log.info("Decreased score for Team B (PIN: {})", pin);
                         try {
@@ -538,8 +546,8 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                         }
                         tryUpdateChiTietVanTotalsOnlyForPin(pin);
-                        break;
-                    case "reset":
+                    }
+                    case "reset" -> {
                         match.resetAll();
                         log.info("Reset match for PIN: {}", pin);
                         // Log reset action (no specific method available)
@@ -547,16 +555,16 @@ public class ScoreboardPinController {
                             appLog.logTs("Reset match for PIN: %s", pin);
                         } catch (Exception ignore) {
                         }
-                        break;
-                    case "next":
+                    }
+                    case "next" -> {
                         match.nextGame();
                         log.info("Next game for PIN: {}", pin);
                         try {
                             appLog.nextGame(match);
                         } catch (Exception ignore) {
                         }
-                        break;
-                    case "swap":
+                    }
+                    case "swap" -> {
                         log.info("=== SWAP ENDS REQUEST for PIN: {} ===", pin);
 
                         // Log trạng thái trước khi swap
@@ -581,8 +589,8 @@ public class ScoreboardPinController {
                         }
                         // Ghi dấu SWAP vào CHI_TIET_VAN qua control panel (nếu có)
                         tryUpdateChiTietVanSwapMarkerForPin(pin);
-                        break;
-                    case "change-server":
+                    }
+                    case "change-server" -> {
                         log.info("=== CHANGE SERVER REQUEST for PIN: {} ===", pin);
                         match.changeServer();
                         log.info("Đã thực hiện change server cho PIN: {}", pin);
@@ -592,8 +600,8 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                             log.warn("Error logging changeServer for PIN {}: {}", pin, ignore.getMessage());
                         }
-                        break;
-                    case "undo":
+                    }
+                    case "undo" -> {
                         match.undo();
                         log.info("Undo action for PIN: {}", pin);
                         try {
@@ -601,10 +609,11 @@ public class ScoreboardPinController {
                         } catch (Exception ignore) {
                         }
                         tryUpdateChiTietVanTotalsOnlyForPin(pin);
-                        break;
-                    default:
+                    }
+                    default -> {
                         log.warn("Unknown action '{}' for PIN: {}", action, pin);
                         return ResponseEntity.badRequest().body(Map.of("teamAScore", 0, "teamBScore", 0));
+                    }
                 }
 
                 broadcastSnapshotToPin(pin);
@@ -643,7 +652,7 @@ public class ScoreboardPinController {
             } catch (NoSuchMethodException ignore) {
                 // Control panel chưa có helper (phiên bản cũ)
             }
-        } catch (Exception ex) {
+        } catch (IllegalAccessException | IllegalArgumentException | SecurityException | InvocationTargetException ex) {
             log.warn("CHI_TIET_VAN swap marker (web) failed for PIN {}: {}", pinCode, ex.getMessage());
         }
     }

@@ -1,14 +1,10 @@
 package com.example.btms.service.scoreboard;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
+import java.net.NetworkInterface;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.example.btms.infrastructure.net.ScoreboardBroadcaster;
 import com.example.btms.model.match.BadmintonMatch;
@@ -18,6 +14,7 @@ import com.example.btms.util.ui.FullscreenHelper;
 import com.example.btms.util.ui.IconUtil;
 
 public class ScoreboardService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ScoreboardService.class);
     private ScoreboardBroadcaster broadcaster;
     // Cho phép mở nhiều cửa sổ bảng điểm cùng lúc
     private final List<BadmintonDisplayFrame> verticalDisplays = new ArrayList<>();
@@ -57,7 +54,8 @@ public class ScoreboardService {
                 // Giải phóng fullscreen cho frame này để không ảnh hưởng các cửa sổ khác
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -71,7 +69,8 @@ public class ScoreboardService {
             public void windowClosing(java.awt.event.WindowEvent e) {
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -95,7 +94,8 @@ public class ScoreboardService {
             public void windowClosed(java.awt.event.WindowEvent e) {
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ ngang: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -109,7 +109,8 @@ public class ScoreboardService {
             public void windowClosing(java.awt.event.WindowEvent e) {
                 try {
                     releaseFullscreen(frame);
-                } catch (Throwable ignore) {
+                } catch (RuntimeException ex) {
+                    LOGGER.warn("Không thể giải phóng fullscreen khi đóng cửa sổ ngang: {}", ex.getMessage());
                 }
                 try {
                     frame.detach();
@@ -154,7 +155,8 @@ public class ScoreboardService {
                     gd.setFullScreenWindow(null);
                 }
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.warn("Không thể giải phóng fullscreen: {}", ex.getMessage());
         }
     }
 
@@ -167,7 +169,8 @@ public class ScoreboardService {
             for (BadmintonDisplayHorizontalFrame h : new ArrayList<>(horizontalDisplays)) {
                 ensureVisibleAndFocused(h);
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi khôi phục hiển thị: {}", ex.getMessage());
         }
     }
 
@@ -182,7 +185,8 @@ public class ScoreboardService {
             tryReenterFullscreen(f);
             f.toFront();
             f.requestFocus();
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi đảm bảo hiển thị và focus: {}", ex.getMessage());
         }
     }
 
@@ -200,7 +204,8 @@ public class ScoreboardService {
                     FullscreenHelper.enterFullscreenOnScreen(jf, idx);
                 }
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi đưa frame trở lại fullscreen: {}", ex.getMessage());
         }
     }
 
@@ -212,59 +217,13 @@ public class ScoreboardService {
                 if (db.intersects(fb))
                     return i;
             }
-        } catch (Throwable ignore) {
+        } catch (RuntimeException ex) {
+            LOGGER.debug("Bỏ qua lỗi khi xác định màn hình chứa frame: {}", ex.getMessage());
         }
         return -1;
     }
 
-    /**
-     * Gửi ảnh screenshot về admin qua UDP broadcast
-     */
-    public void sendScreenshotToAdmin(BufferedImage image, String fileName, String matchInfo, NetworkInterface nif) {
-        try {
-            // Chuyển ảnh thành byte array
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(image, "PNG", baos);
-            byte[] imageData = baos.toByteArray();
-
-            // Tạo header chứa thông tin
-            String header = String.format("SCREENSHOT|%s|%s|%d", fileName, matchInfo, imageData.length);
-            byte[] headerBytes = header.getBytes("UTF-8");
-
-            // Tạo packet hoàn chỉnh: header + ảnh
-            byte[] fullPacket = new byte[headerBytes.length + imageData.length];
-            System.arraycopy(headerBytes, 0, fullPacket, 0, headerBytes.length);
-            System.arraycopy(imageData, 0, fullPacket, headerBytes.length, imageData.length);
-
-            // Gửi qua UDP broadcast
-            try (DatagramSocket socket = new DatagramSocket()) {
-                socket.setBroadcast(true);
-
-                // Tìm địa chỉ broadcast của network interface
-                Enumeration<InetAddress> addresses = nif.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress addr = addresses.nextElement();
-                    if (!addr.isLoopbackAddress() && addr.getHostAddress().contains(".")) {
-                        // Tạo địa chỉ broadcast
-                        String ip = addr.getHostAddress();
-                        String[] parts = ip.split("\\.");
-                        String broadcastIP = parts[0] + "." + parts[1] + "." + parts[2] + ".255";
-
-                        InetAddress broadcastAddr = InetAddress.getByName(broadcastIP);
-                        DatagramPacket packet = new DatagramPacket(fullPacket, fullPacket.length, broadcastAddr, 2346);
-                        socket.send(packet);
-
-                        // Đã gửi screenshot thành công
-                        break;
-                    }
-                }
-            }
-
-        } catch (Exception ex) {
-            System.err.println("Lỗi khi gửi screenshot: " + ex.getMessage());
-            ex.printStackTrace();
-        }
-    }
+    // UDP screenshot sending removed: screenshots are saved to local folder only
 
     public void minimizeDisplays() {
         for (BadmintonDisplayFrame v : verticalDisplays) {
