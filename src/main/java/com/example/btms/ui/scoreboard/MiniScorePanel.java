@@ -17,7 +17,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 
 import com.example.btms.model.match.BadmintonMatch;
-import static com.example.btms.util.text.UiTextUtil.processDoublesName;
 
 public class MiniScorePanel extends JPanel implements PropertyChangeListener {
     private final BadmintonMatch match;
@@ -56,7 +55,8 @@ public class MiniScorePanel extends JPanel implements PropertyChangeListener {
 
     public MiniScorePanel(BadmintonMatch match) {
         this.match = match;
-        this.match.addPropertyChangeListener(this);
+        // Avoid leaking 'this' from constructor by registering the listener after construction completes on the EDT
+        SwingUtilities.invokeLater(() -> this.match.addPropertyChangeListener(this));
 
         setBackground(Color.BLACK);
         setBorder(new EmptyBorder(6, 8, 6, 8));
@@ -117,7 +117,9 @@ public class MiniScorePanel extends JPanel implements PropertyChangeListener {
             gameScore[i][1] = -1;
         }
 
-        refresh();
+        // Avoid calling an overridable method from the constructor;
+        // schedule refresh to run on the EDT after construction completes.
+        SwingUtilities.invokeLater(this::refresh);
     }
 
     /** Khung tên 2 dòng cho đánh đôi (JLabel) */
@@ -403,9 +405,9 @@ public class MiniScorePanel extends JPanel implements PropertyChangeListener {
      */
     public void forceRefresh() {
         // Reset mảng gameScore
-        for (int i = 0; i < gameScore.length; i++) {
-            gameScore[i][0] = -1;
-            gameScore[i][1] = -1;
+        for (int[] gameScore1 : gameScore) {
+            gameScore1[0] = -1;
+            gameScore1[1] = -1;
         }
         refresh();
     }
@@ -421,9 +423,9 @@ public class MiniScorePanel extends JPanel implements PropertyChangeListener {
             if ("swap".equals(evt.getPropertyName())) {
                 System.out.println("=== MINI SCORE PANEL - SWAP EVENT DETECTED ===");
                 System.out.println("Resetting gameScore array to force refresh from snapshot");
-                for (int i = 0; i < gameScore.length; i++) {
-                    gameScore[i][0] = -1;
-                    gameScore[i][1] = -1;
+                for (int[] gameScore1 : gameScore) {
+                    gameScore1[0] = -1;
+                    gameScore1[1] = -1;
                 }
                 System.out.println("gameScore array reset completed");
             }

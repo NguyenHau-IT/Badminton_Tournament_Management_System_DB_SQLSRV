@@ -3,10 +3,13 @@ package com.example.btms.ui.tournament;
 import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.HeadlessException;
 import java.awt.Insets;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Optional;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
@@ -167,7 +170,7 @@ public class GiaiDauManagementPanel extends JPanel {
             }
 
             updateTable(giaiDauList);
-        } catch (Exception e) {
+        } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi tải dữ liệu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -216,7 +219,7 @@ public class GiaiDauManagementPanel extends JPanel {
                 d.setVisible(true);
                 loadData();
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi khi lấy thông tin giải đấu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
@@ -243,7 +246,7 @@ public class GiaiDauManagementPanel extends JPanel {
             } else {
                 JOptionPane.showMessageDialog(this, "Không thể xóa giải đấu", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
-        } catch (Exception e) {
+        } catch (HeadlessException | SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi khi xóa giải đấu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
@@ -275,7 +278,7 @@ public class GiaiDauManagementPanel extends JPanel {
             }
 
             updateTable(searchResults);
-        } catch (Exception e) {
+        } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi tìm kiếm: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -307,7 +310,7 @@ public class GiaiDauManagementPanel extends JPanel {
             } else {
                 updateTable(allResults);
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi lọc dữ liệu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -361,7 +364,7 @@ public class GiaiDauManagementPanel extends JPanel {
             return null;
         try {
             return giaiDauService.getGiaiDauById(id).orElse(null);
-        } catch (Exception e) {
+        } catch (SQLException e) {
             return null;
         }
     }
