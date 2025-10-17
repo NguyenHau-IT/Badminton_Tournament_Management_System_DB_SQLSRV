@@ -3,8 +3,10 @@ package com.example.btms.ui.tournament;
 import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.Window;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
@@ -242,7 +244,7 @@ public class GiaiDauDialog extends JDialog {
                             "Lỗi", JOptionPane.ERROR_MESSAGE);
                 }
             }
-        } catch (Exception e) {
+        } catch (HeadlessException | SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }

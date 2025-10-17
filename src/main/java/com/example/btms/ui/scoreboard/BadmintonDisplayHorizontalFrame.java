@@ -8,6 +8,7 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -40,14 +41,15 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
                     java.net.URL url = new java.net.URL(apiUrl);
                     java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
-                    java.io.BufferedReader in = new java.io.BufferedReader(
-                            new java.io.InputStreamReader(conn.getInputStream()));
-                    StringBuilder content = new StringBuilder();
-                    String inputLine;
-                    while ((inputLine = in.readLine()) != null) {
-                        content.append(inputLine);
+                    StringBuilder content;
+                    try (java.io.BufferedReader in = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(conn.getInputStream()))) {
+                        content = new StringBuilder();
+                        String inputLine;
+                        while ((inputLine = in.readLine()) != null) {
+                            content.append(inputLine);
+                        }
                     }
-                    in.close();
                     conn.disconnect();
 
                     // Đọc JSON điểm số (parsing đơn giản)
@@ -66,7 +68,7 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
                     }
                     final int finalA = scoreA, finalB = scoreB;
                     javax.swing.SwingUtilities.invokeLater(() -> match.setScore(finalA, finalB));
-                } catch (Exception ignored) {
+                } catch (IOException | NumberFormatException ignored) {
                     // Có thể log lỗi nếu cần
                 }
             }
@@ -95,7 +97,9 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
     private String headerText = "TRẬN ĐẤU";
 
     // Giữ để tương thích với code cũ, nhưng không sử dụng nữa.
+    @SuppressWarnings("unused")
     private String partnerA = "";
+    @SuppressWarnings("unused")
     private String partnerB = "";
 
     private static final int CELL_H = 130; // tăng để chắc chắn chứa 2 dòng tên + 1 dòng CLB
@@ -125,9 +129,9 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
         this.match = match;
 
         // Khởi tạo mảng điểm và khôi phục điểm của các ván đã hoàn thành (tối đa BO3)
-        for (int i = 0; i < gameScore.length; i++) {
-            gameScore[i][0] = -1;
-            gameScore[i][1] = -1;
+        for (int[] gameScore1 : gameScore) {
+            gameScore1[0] = -1;
+            gameScore1[1] = -1;
         }
 
         // Khôi phục điểm của các ván đã hoàn thành từ trạng thái hiện tại
@@ -263,7 +267,8 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
         setAlwaysOnTop(true); // Luôn hiển thị trên cùng
 
         refresh();
-        this.match.addPropertyChangeListener(this);
+        // Register listener after construction to avoid 'this' escaping during constructor
+        SwingUtilities.invokeLater(() -> this.match.addPropertyChangeListener(this));
 
         // Đảm bảo lần đầu có kích thước, re-fit text sau khi render
         SwingUtilities.invokeLater(this::refresh);
@@ -297,7 +302,7 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
 
     /* ===================== Rendering ===================== */
 
-    public void refresh() {
+    public final void refresh() {
         if (gameCellsA[0] == null || gameCellsB[0] == null)
             return;
 
@@ -482,11 +487,17 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
     private void setCellTextFit(JLabel label, String text, boolean highlight) {
         // Đặt text với font size cố định
         label.setText(text);
-        // Không cần fit font nữa vì đã cố định
-    }
-
-    private void refitToCurrentText(JLabel label) {
-        // Không cần refit font nữa vì đã cố định
+        // Sử dụng tham số highlight để tránh cảnh báo "variable never read"
+        // và để có thể nhấn mạnh ô đang chơi (thay đổi style chữ).
+        try {
+            if (highlight) {
+                label.setFont(label.getFont().deriveFont(Font.BOLD));
+            } else {
+                label.setFont(label.getFont().deriveFont(Font.PLAIN));
+            }
+        } catch (Exception ignore) {
+            // Nếu deriveFont không thành công thì bỏ qua, text đã được cập nhật.
+        }
     }
 
     /**
@@ -570,31 +581,6 @@ public class BadmintonDisplayHorizontalFrame extends JFrame implements PropertyC
         String emptyLine = "<span style='font-size: 34px; font-weight: bold;'>&nbsp;</span>";
         return "<html><div style='text-align: left; line-height: 1.15; width: " + wrapWidth + "px;'>" +
                 clubLine + "<br>" + nameLine + "<br>" + emptyLine + "</div></html>";
-    }
-
-    /**
-     * Tìm điểm chia tối ưu cho tên đội
-     */
-    private int findOptimalSplitPoint(String name) {
-        if (name.length() <= 15) {
-            // Tên ngắn, chia ở giữa
-            return name.length() / 2;
-        }
-
-        // Tìm dấu cách đầu tiên
-        int firstSpace = name.indexOf(' ');
-        if (firstSpace > 0 && firstSpace < name.length() - 1) {
-            return firstSpace;
-        }
-
-        // Tìm dấu gạch ngang
-        int firstDash = name.indexOf('-');
-        if (firstDash > 0 && firstDash < name.length() - 1) {
-            return firstDash;
-        }
-
-        // Tìm điểm chia cân bằng (khoảng 60% chiều dài)
-        return (int) (name.length() * 0.6);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.example.btms.ui.manager;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.HeadlessException;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.NetworkInterface;
@@ -15,7 +16,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
-import com.example.btms.model.net.NifItem;
 import com.example.btms.service.db.DatabaseService;
 import com.example.btms.ui.auth.LoginFrame.Role;
 import com.example.btms.ui.bracket.SoDoThiDauPanel;
@@ -114,11 +114,11 @@ public class UnifiedWindowManager {
             }
 
             JFrame frame = createWindow(type, config, tournamentTitle, parent);
-            setupWindowContent(type, frame, config, conn);
+            setupWindowContent(type, frame, config);
             windows.put(type, frame);
 
             frame.setVisible(true);
-        } catch (Exception ex) {
+        } catch (HeadlessException ex) {
             JOptionPane.showMessageDialog(parent,
                     "Không thể mở " + type.getDefaultTitle() + ": " + ex.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -235,7 +235,7 @@ public class UnifiedWindowManager {
         return frame;
     }
 
-    private void setupWindowContent(WindowType type, JFrame frame, WindowConfig config, Connection conn) {
+    private void setupWindowContent(WindowType type, JFrame frame, WindowConfig config) {
         if (type.supportsTabs()) {
             // Setup tabbed interface (for BRACKET)
             JTabbedPane tabs = new JTabbedPane();
