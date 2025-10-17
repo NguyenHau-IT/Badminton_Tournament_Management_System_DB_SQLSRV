@@ -1,7 +1,6 @@
 com\example\btms\ui\net\NetworkChooserPanel$NifItem.class
 com\example\btms\ui\result\BienBanPanel.class
 com\example\btms\ui\control\BadmintonControlPanel$7.class
-com\example\btms\ui\tournament\GiaiDauSelectPanel.class
 com\example\btms\ui\club\CauLacBoManagementPanel.class
 com\example\btms\service\team\DangKiDoiService.class
 com\example\btms\ui\player\DangKyCaNhanPanel.class
@@ -16,6 +15,7 @@ com\example\btms\service\bracket\SoDoCaNhanService.class
 com\example\btms\ui\result\TongSapHuyChuongPanel$4.class
 com\example\btms\ui\team\DangKyDoiDialog$5.class
 com\example\btms\service\scoreboard\ScoreboardHub$Board.class
+com\example\btms\ui\db\DbConnectionFrame$1.class
 com\example\btms\ui\db\DbConnectionSelection$DbType.class
 com\example\btms\util\ui\ButtonFactory.class
 com\example\btms\util\report\RegistrationPdfExporter$Row.class
@@ -23,6 +23,7 @@ com\example\btms\ui\club\CauLacBoManagementPanel$2.class
 com\example\btms\ui\player\DangKyCaNhanImportPanel$3.class
 com\example\btms\util\seeding\Seeding.class
 com\example\btms\service\bracket\SoDoDoiService.class
+com\example\btms\ui\db\DbConnectionFrame$SectionPanel.class
 com\example\btms\ui\control\BadmintonControlPanel$1.class
 com\example\btms\ui\tools\DbBackupFrame.class
 com\example\btms\config\ConnectionConfig.class
@@ -34,7 +35,6 @@ com\example\btms\util\uuid\UuidV7.class
 com\example\btms\repository\player\DangKiCaNhanRepository.class
 com\example\btms\ui\cateoftuornament\DangKyNoiDungPanel$4.class
 com\example\btms\ui\result\TongSapHuyChuongPanel$ReportPageEvent.class
-com\example\btms\ui\auth\LoginTab.class
 com\example\btms\BadmintonTournamentManagementSystemApplication.class
 com\example\btms\service\team\DoiService.class
 com\example\btms\service\result\KetQuaCaNhanService.class
@@ -44,6 +44,7 @@ com\example\btms\service\db\DatabaseService.class
 com\example\btms\ui\control\MultiCourtControlPanel.class
 com\example\btms\ui\control\MultiCourtControlPanel$2.class
 com\example\btms\model\club\CauLacBo.class
+com\example\btms\ui\tournament\TournamentManagementComponent.class
 com\example\btms\ui\report\BaoCaoPdfPanel.class
 com\example\btms\service\db\DbBackupService$BackupResult.class
 com\example\btms\ui\db\DbConnectionSelection.class
@@ -80,7 +81,6 @@ com\example\btms\model\bracket\SoDoDoi.class
 com\example\btms\ui\theme\UITheme.class
 com\example\btms\model\system\SettingsDetector.class
 com\example\btms\util\time\TimeUtil.class
-com\example\btms\ui\tournament\TournamentTabPanel.class
 com\example\btms\ui\control\MultiCourtControlPanel$1.class
 com\example\btms\ui\player\DangKyCaNhanPanel$1.class
 com\example\btms\repository\team\DoiRepository.class
@@ -93,13 +93,11 @@ com\example\btms\ui\main\MainFrame$ContentNode.class
 com\example\btms\controller\home\HomeController.class
 com\example\btms\ui\bracket\SoDoThiDauPanel$BracketCanvas.class
 com\example\btms\ui\control\ScoreboardAccessPanel.class
-com\example\btms\ui\screenshot\ScreenshotTab$ScreenshotItem.class
 com\example\btms\util\image\ImageResizer.class
 com\example\btms\repository\result\KetQuaDoiRepository.class
 com\example\btms\ui\log\LogTab$1.class
 com\example\btms\ui\player\DangKyCaNhanImportPanel$ImportResult.class
 com\example\btms\service\draw\BocThamDoiService.class
-com\example\btms\ui\auth\LoginTab$Role.class
 com\example\btms\ui\category\NoiDungDialog.class
 com\example\btms\ui\player\DangKyCaNhanPanel$2.class
 com\example\btms\config\ConnectionConfig$Mode.class
@@ -108,6 +106,7 @@ com\example\btms\service\match\MatchService.class
 com\example\btms\ui\monitor\MonitorTab$CardRenderer.class
 com\example\btms\model\match\ChiTietTranDau.class
 com\example\btms\service\category\NoiDungService.class
+com\example\btms\ui\auth\LoginFrame$Listener.class
 com\example\btms\ui\player\VanDongVienManagementPanel.class
 com\example\btms\ui\draw\BocThamThiDau$2.class
 com\example\btms\ui\scoreboard\BadmintonDisplayFrame.class
@@ -184,6 +183,7 @@ com\example\btms\model\tournament\GiaiDau.class
 com\example\btms\repository\team\DangKiDoiRepository.class
 com\example\btms\repository\draw\BocThamDoiRepository.class
 com\example\btms\ui\control\BadmintonControlPanel$5.class
+com\example\btms\ui\manager\UnifiedWindowManager.class
 com\example\btms\ui\main\MainFrame.class
 com\example\btms\ui\db\DbConnectionSelection$Mode.class
 com\example\btms\ui\team\DangKyDoiPanel.class
@@ -194,12 +194,15 @@ com\example\btms\repository\bracket\SoDoCaNhanRepository.class
 com\example\btms\service\db\DbBackupService$DbKind.class
 com\example\btms\util\image\ImageResizerMaven.class
 com\example\btms\service\match\ChiTietVanService.class
+com\example\btms\ui\manager\UnifiedWindowManager$1.class
 com\example\btms\ui\scoreboard\BadmintonDisplayHorizontalFrame.class
 com\example\btms\ui\category\ChangeCategoryTransferDialog$2.class
 com\example\btms\ui\result\TongSapHuyChuongPanel$2.class
+com\example\btms\ui\auth\LoginFrame$Role.class
 com\example\btms\model\match\BadmintonMatch$Action.class
 com\example\btms\ui\team\DangKyDoiDialog$1.class
 com\example\btms\ui\cateoftuornament\DangKyNoiDungPanel$2.class
+com\example\btms\ui\manager\UnifiedWindowManager$WindowType.class
 com\example\btms\ui\net\NetworkChooserPanel$ComboRenderer.class
 com\example\btms\ui\result\BienBanPanel$BracketRef.class
 com\example\btms\infrastructure\net\ScoreboardBroadcaster.class
@@ -208,16 +211,14 @@ com\example\btms\util\h2db\H2ScriptUtil.class
 com\example\btms\util\sound\SoundLibrary.class
 com\example\btms\infrastructure\net\ScoreboardBroadcaster$1.class
 com\example\btms\service\cateoftuornament\ChiTietGiaiDauService.class
-com\example\btms\service\scoreboard\ScreenshotReceiver.class
-com\example\btms\service\scoreboard\ScreenshotReceiver$ScreenshotListener.class
 com\example\btms\ui\monitor\MonitorTab$MonitorWindow.class
 com\example\btms\ui\monitor\MonitorTab.class
-com\example\btms\ui\tournament\GiaiDauSelectPanel$1.class
 com\example\btms\repository\cateoftuornament\ChiTietGiaiDauRepository.class
 com\example\btms\ui\result\RankEditorDialog.class
 com\example\btms\ui\screenshot\ScreenshotTab.class
 com\example\btms\util\report\RegistrationPdfExporter$HeaderEvent.class
 com\example\btms\ui\player\DangKyCaNhanDialog$2.class
+com\example\btms\ui\auth\LoginFrame.class
 com\example\btms\ui\draw\BocThamThiDau.class
 com\example\btms\util\ui\ButtonFactory$1.class
 com\example\btms\repository\player\VanDongVienRepository.class
@@ -230,11 +231,10 @@ com\example\btms\ui\result\BienBanPanel$1.class
 com\example\btms\util\report\RegistrationPdfExporter.class
 com\example\btms\model\db\ProbeOutcome.class
 com\example\btms\model\result\KetQuaCaNhan.class
-com\example\btms\ui\auth\LoginTab$Listener.class
 com\example\btms\ui\player\DangKyCaNhanImportPanel$2.class
 com\example\btms\ui\main\MainFrame$ExportMode.class
 com\example\btms\ui\player\DangKyCaNhanDialog.class
-com\example\btms\ui\main\MainFrame$5.class
+com\example\btms\ui\manager\UnifiedWindowManager$WindowConfig.class
 com\example\btms\util\ui\ButtonFactory$2.class
 com\example\btms\ui\monitor\MonitorTab$3.class
 com\example\btms\repository\tuornament\GiaiDauRepository.class
@@ -243,7 +243,6 @@ com\example\btms\ui\cateoftuornament\DangKyNoiDungPanel$3.class
 com\example\btms\ui\team\DangKyDoiPanel$2.class
 com\example\btms\repository\match\ChiTietVanRepository.class
 com\example\btms\ui\player\DangKyCaNhanImportPanel$1.class
-com\example\btms\ui\main\MainFrame$6.class
 com\example\btms\ui\monitor\MonitorTab$2.class
 com\example\btms\ui\control\BadmintonControlPanel$3.class
 com\example\btms\ui\db\DbConnectionFrame.class
