@@ -303,7 +303,7 @@ public class DbConnectionFrame extends JFrame {
                         loadExistingDbOptions();
                         rbLocalLan.setSelected(true);
                         cbDbType.setSelectedItem(DbType.H2);
-                        txtServer.setText(""); // file mode mặc định
+                        txtServer.setText("localhost"); // file mode mặc định
                         JOptionPane.showMessageDialog(this,
                                 "Đã khởi tạo DB H2 thành công. Hãy chuyển sang chế độ 'Sử dụng DB cục bộ / cùng mạng' và nhấn Kết nối để kết nối thủ công.",
                                 "Hoàn tất khởi tạo", JOptionPane.INFORMATION_MESSAGE);
