@@ -1,6 +1,8 @@
 package com.example.btms.controller.home;
 
 import java.sql.Connection;
+import java.time.LocalDate;
+
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,8 +46,8 @@ public class HomeController {
     public String home(
             Model model,
             @org.springframework.web.bind.annotation.RequestParam(name = "q", required = false) String q,
-            @org.springframework.web.bind.annotation.RequestParam(name = "from", required = false) java.time.LocalDate from,
-            @org.springframework.web.bind.annotation.RequestParam(name = "to", required = false) java.time.LocalDate to,
+            @org.springframework.web.bind.annotation.RequestParam(name = "from", required = false) LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam(name = "to", required = false) LocalDate to,
             @org.springframework.web.bind.annotation.RequestParam(name = "status", required = false, defaultValue = "ALL") String status,
             @org.springframework.web.bind.annotation.RequestParam(name = "page", required = false, defaultValue = "0") int page,
             @org.springframework.web.bind.annotation.RequestParam(name = "size", required = false, defaultValue = "9") int size) {
@@ -66,15 +68,15 @@ public class HomeController {
                 list.removeIf(gd -> gd.getTenGiai() == null || !gd.getTenGiai().toLowerCase().contains(query));
             }
             // Chuẩn hóa khoảng ngày (không gán lại tham số để dùng trong lambda)
-            java.time.LocalDate f = from;
-            java.time.LocalDate t = to;
+            LocalDate f = from;
+            LocalDate t = to;
             if (f != null && t != null && f.isAfter(t)) {
-                java.time.LocalDate tmp = f;
+                LocalDate tmp = f;
                 f = t;
                 t = tmp;
             }
-            final java.time.LocalDate ff = f;
-            final java.time.LocalDate tt = t;
+            final LocalDate ff = f;
+            final LocalDate tt = t;
             if (ff != null) {
                 list.removeIf(gd -> gd.getNgayBd() == null || gd.getNgayBd().isBefore(ff));
             }
@@ -84,23 +86,18 @@ public class HomeController {
 
             // Lọc theo trạng thái: UPCOMING (chưa diễn ra), ONGOING (đang diễn ra),
             // FINISHED (đã kết thúc), ALL.
-            java.time.LocalDate today = java.time.LocalDate.now();
+            LocalDate today = LocalDate.now();
             String st = status == null ? "UPCOMING" : status.trim().toUpperCase();
             switch (st) {
-                case "UPCOMING":
-                    list.removeIf(gd -> gd.getNgayBd() == null || !today.isBefore(gd.getNgayBd()));
-                    break;
-                case "ONGOING":
-                    list.removeIf(gd -> gd.getNgayBd() == null || gd.getNgayKt() == null
-                            || !((today.isEqual(gd.getNgayBd()) || today.isAfter(gd.getNgayBd()))
-                                    && (today.isBefore(gd.getNgayKt()) || today.isEqual(gd.getNgayKt()))));
-                    break;
-                case "FINISHED":
-                    list.removeIf(gd -> gd.getNgayKt() == null || !today.isAfter(gd.getNgayKt()));
-                    break;
-                default:
+                case "UPCOMING" -> list.removeIf(gd -> gd.getNgayBd() == null || !today.isBefore(gd.getNgayBd()));
+                case "ONGOING" -> list.removeIf(gd -> gd.getNgayBd() == null || gd.getNgayKt() == null
+                        || !((today.isEqual(gd.getNgayBd()) || today.isAfter(gd.getNgayBd()))
+                                && (today.isBefore(gd.getNgayKt()) || today.isEqual(gd.getNgayKt()))));
+                case "FINISHED" -> list.removeIf(gd -> gd.getNgayKt() == null || !today.isAfter(gd.getNgayKt()));
+                default -> {
                     // ALL: không lọc thêm
                     st = "UPCOMING";
+                }
             }
 
             // Phân trang thủ công

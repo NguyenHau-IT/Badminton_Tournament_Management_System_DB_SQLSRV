@@ -31,7 +31,7 @@ REST API (PIN)       ←→ ScoreboardPinController   (/api/court/**)
 REST API (No-PIN)    ←→ ScoreboardController      (/api/scoreboard/**)
 
 Real-time: SSE (SseEmitter)
-Screenshots: UDP Screenshot Receiver (port 2346)
+Screenshots: Ảnh được đọc từ thư mục nội bộ `screenshots` (đã bỏ UDP Receiver)
 ```
 
 ---

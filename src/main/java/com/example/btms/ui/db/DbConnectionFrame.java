@@ -1,12 +1,12 @@
 package com.example.btms.ui.db;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.io.File;
-import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -21,16 +21,22 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
+import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.border.TitledBorder;
 
 import com.example.btms.config.Prefs;
 import com.example.btms.ui.db.DbConnectionSelection.DbType;
@@ -39,127 +45,130 @@ import com.example.btms.util.h2db.H2ScriptUtil;
 
 public class DbConnectionFrame extends JFrame {
 
-    // ==== UI controls (giữ nguyên logic & tên biến) ====
-    private final JRadioButton rbLocalLan = new JRadioButton("Sử dụng DB cục bộ / cùng mạng");
-    private final JRadioButton rbInitNew = new JRadioButton("Khởi tạo mới");
-    private final JRadioButton rbOnline = new JRadioButton("Sử dụng online");
-    private final JRadioButton rbImport = new JRadioButton("Nhập từ file");
+    // ==== UI controls ====
+    private final JRadioButton rbLocalLan = new JRadioButton("Sử dụng local / mạng LAN");
+    private final JRadioButton rbInitNew = new JRadioButton("Sử dụng tích hợp");
+    private final JRadioButton rbOnline = new JRadioButton("Sử dụng Online");
+    private final JRadioButton rbImport = new JRadioButton("Nhập từ bản sao lưu");
 
     private final JComboBox<DbType> cbDbType = new JComboBox<>();
-    private final JTextField txtDbName = new JTextField(18);
+    private final JTextField txtDbName = new JTextField(22);
     private final JComboBox<String> cbExisting = new JComboBox<>();
-    private final JTextField txtServer = new JTextField(18);
-    private final JTextField txtPort = new JTextField(6);
-    private final JTextField txtUser = new JTextField(16);
-    private final JPasswordField txtPass = new JPasswordField(16);
-    private final JCheckBox chkRemember = new JCheckBox("Ghi nhớ đăng nhập");
+    private final JTextField txtServer = new JTextField(22);
+    private final JTextField txtPort = new JTextField(8);
+    private final JTextField txtUser = new JTextField(22);
+    private final JPasswordField txtPass = new JPasswordField(22);
+    private final JCheckBox chkRemember = new JCheckBox("Ghi nhớ thông tin kết nối");
 
     private DbConnectionSelection result;
     private Consumer<DbConnectionSelection> onOk;
     private Runnable onCancel;
 
-    public DbConnectionFrame() {
-        super("Thiết lập kết nối CSDL");
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout(0, 8));
-        ((JPanel) getContentPane()).setBorder(new EmptyBorder(10, 10, 10, 10));
+    // ==== H2 URL options (THÊM) ====
+    private static final String H2_BASE_OPTS = ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
+    private static final String H2_REQUIRE_EXISTS = ";IFEXISTS=TRUE";
 
-        JLabel title = new JLabel("Thiết lập kết nối CSDL");
-        title.putClientProperty("FlatLaf.style", "font: bold +2");
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        header.add(title);
+    public DbConnectionFrame() {
+        super("Database Connection Setup");
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLayout(new BorderLayout(0, 8));
+        ((JPanel) getContentPane()).setBorder(new EmptyBorder(10, 12, 12, 12));
+
+        // ===== Header =====
+        JPanel header = new JPanel(new BorderLayout());
+        JLabel headerLabel = new JLabel();
+        headerLabel.setHorizontalAlignment(JLabel.CENTER);
+        headerLabel.setVerticalAlignment(JLabel.CENTER);
+        var icon = loadBtmsIcon(110);
+        if (icon != null) {
+            headerLabel.setIcon(icon);
+        } else {
+            headerLabel.setText("Kết nối cơ sở dữ liệu");
+            headerLabel.putClientProperty("FlatLaf.style", "font: bold +1");
+        }
+        header.add(headerLabel, BorderLayout.CENTER);
         add(header, BorderLayout.NORTH);
 
+        // ===== FORM =====
         JPanel form = new JPanel(new GridBagLayout());
         add(form, BorderLayout.CENTER);
         GridBagConstraints gc = new GridBagConstraints();
-        gc.insets = new Insets(4, 4, 4, 4);
-        gc.anchor = GridBagConstraints.WEST;
         gc.gridx = 0;
         gc.gridy = 0;
+        gc.insets = new Insets(0, 0, 8, 0);
+        gc.fill = GridBagConstraints.HORIZONTAL;
+        gc.weightx = 1.0;
 
-        ButtonGroup grp = new ButtonGroup();
-        grp.add(rbLocalLan);
-        grp.add(rbInitNew);
-        grp.add(rbOnline);
-        grp.add(rbImport);
-        rbLocalLan.setSelected(true);
+        // --- Group: Connection ---
+        JPanel pnlConn = groupPanel("Connection");
 
-        form.add(new JLabel("Chế độ:"), gc);
-        gc.gridx = 1;
-        form.add(rbLocalLan, gc);
-        gc.gridx = 2;
-        form.add(rbInitNew, gc);
-        gc.gridx = 3;
-        form.add(rbOnline, gc);
-        gc.gridx = 4;
-        form.add(rbImport, gc);
+        // 1) Mode
+        {
+            ButtonGroup grp = new ButtonGroup();
+            JRadioButton[] radios = { rbLocalLan, rbInitNew, rbOnline, rbImport };
+            for (JRadioButton r : radios)
+                grp.add(r);
+            rbLocalLan.setSelected(true);
 
-        gc.gridx = 0;
+            JPanel grid = new JPanel(new GridBagLayout());
+            GridBagConstraints r = new GridBagConstraints();
+            r.insets = new Insets(2, 6, 2, 6);
+            r.anchor = GridBagConstraints.WEST;
+            r.fill = GridBagConstraints.HORIZONTAL;
+            r.weightx = 0.5;
+            int cols = 2;
+            for (int i = 0; i < radios.length; i++) {
+                r.gridx = i % cols;
+                r.gridy = i / cols;
+                grid.add(radios[i], r);
+            }
+            pnlConn.add(grid);
+        }
+
+        // 2) Database Type
+        pnlConn.add(rowOne(caption("Loại cơ sở dữ liệu"), comboDbType()));
+
+        // 3) Database (name + list)
+        pnlConn.add(rowTwo(caption("Cơ sở dữ liệu"), txtDbName, cbExisting, true));
+
+        // 4) Server | Port
+        pnlConn.add(rowTwo(caption("Máy chủ / Cổng"), txtServer, txtPort, false));
+
+        // 5) Username | Password
+        pnlConn.add(rowTwo(caption("Tài khoản / Mật khẩu"), txtUser, txtPass, false));
+
+        // 6) Remember
+        JPanel rememberRow = new JPanel(new GridBagLayout());
+        GridBagConstraints rr = new GridBagConstraints();
+        rr.gridx = 1;
+        rr.gridy = 0;
+        rr.weightx = 1;
+        rr.anchor = GridBagConstraints.WEST;
+        rr.insets = new Insets(2, 0, 0, 0);
+        rememberRow.add(chkRemember, rr);
+        pnlConn.add(rememberRow);
+
+        form.add(pnlConn, gc);
+
+        // separator
         gc.gridy++;
-        form.add(new JLabel("Kiểu DB:"), gc);
-        cbDbType.setModel(new DefaultComboBoxModel<>(DbType.values()));
-        cbDbType.setSelectedItem(DbType.SQLSRV);
-        gc.gridx = 1;
-        gc.gridwidth = 2;
-        form.add(cbDbType, gc);
-        gc.gridwidth = 1;
+        form.add(new JSeparator(), gc);
 
-        gc.gridx = 0;
-        gc.gridy++;
-        form.add(new JLabel("Tên DB:"), gc);
-        gc.gridx = 1;
-        gc.gridwidth = 2;
-        form.add(txtDbName, gc);
-        gc.gridwidth = 1;
-
-        gc.gridx = 0;
-        gc.gridy++;
-        form.add(new JLabel("Có sẵn:"), gc);
-        gc.gridx = 1;
-        gc.gridwidth = 3;
-        form.add(cbExisting, gc);
-        gc.gridwidth = 1;
-
-        gc.gridx = 0;
-        gc.gridy++;
-        form.add(new JLabel("Server:"), gc);
-        gc.gridx = 1;
-        gc.gridwidth = 2;
-        form.add(txtServer, gc);
-        gc.gridwidth = 1;
-
-        gc.gridx = 3;
-        form.add(new JLabel("Port:"), gc);
-        gc.gridx = 4;
-        form.add(txtPort, gc);
-
-        gc.gridx = 0;
-        gc.gridy++;
-        form.add(new JLabel("Username:"), gc);
-        gc.gridx = 1;
-        form.add(txtUser, gc);
-
-        gc.gridx = 2;
-        form.add(new JLabel("Password:"), gc);
-        gc.gridx = 3;
-        gc.gridwidth = 2;
-        form.add(txtPass, gc);
-        gc.gridwidth = 1;
-
-        gc.gridx = 1;
-        gc.gridy++;
-        form.add(chkRemember, gc);
-
-        JButton btnTest = new JButton("Test kết nối");
+        // ===== Footer =====
+        JButton btnTest = new JButton("Kiểm tra kết nối");
         JButton btnOk = new JButton("Kết nối");
         JButton btnCancel = new JButton("Hủy");
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 6));
         footer.add(btnTest);
         footer.add(btnOk);
         footer.add(btnCancel);
         add(footer, BorderLayout.SOUTH);
+        this.getRootPane().setDefaultButton(btnOk);
 
+        // ===== polish nhỏ =====
+        polishFields();
+
+        // ===== Logic giữ nguyên =====
         loadExistingDbOptions();
         loadPrefs();
 
@@ -174,10 +183,146 @@ public class DbConnectionFrame extends JFrame {
         applyUiHints();
 
         pack();
-        setLocationRelativeTo(null);
+        setSize(760, 560);
+        setLocationRelativeTo(null); // JFrame: không có owner, căn giữa màn hình
     }
 
-    // ==== API giống bản panel cũ ====
+    /** Thuận tiện như .show()/.open() */
+    public void open() {
+        setVisible(true);
+        toFront();
+        requestFocus();
+    }
+
+    // ---------- Helpers bố cục ----------
+    private JPanel rowOne(JLabel label, JComponent comp) {
+        JPanel row = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(0, 0, 0, 10);
+        c.gridx = 0;
+        c.gridy = 0;
+        row.add(label, c);
+        c.gridx = 1;
+        c.weightx = 1;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 0, 0, 0);
+        row.add(comp, c);
+        return row;
+    }
+
+    private JPanel rowTwo(JLabel label, JComponent left, JComponent right, boolean rightCompact) {
+        JPanel row = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+
+        c.gridx = 0;
+        c.gridy = 0;
+        c.insets = new Insets(0, 0, 0, 10);
+        row.add(label, c);
+
+        c.gridx = 1;
+        c.weightx = 0.5;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 0, 0, 6);
+        row.add(left, c);
+
+        c.gridx = 2;
+        c.weightx = 0.5;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.insets = new Insets(0, 6, 0, 0);
+        if (rightCompact && right instanceof JComboBox<?> comboAny) {
+            @SuppressWarnings("unchecked")
+            JComboBox<String> comboStr = (JComboBox<String>) comboAny;
+            comboStr.setPrototypeDisplayValue("Local H2 Databases...");
+        }
+        row.add(right, c);
+
+        return row;
+    }
+
+    private JComboBox<DbType> comboDbType() {
+        cbDbType.setModel(new DefaultComboBoxModel<>(DbType.values()));
+        return cbDbType;
+    }
+
+    private static JLabel caption(String text) {
+        JLabel l = new JLabel(text);
+        l.putClientProperty("FlatLaf.style", "font: small");
+        return l;
+    }
+
+    private static JPanel groupPanel(String title) {
+        JPanel p = new JPanel(new GridBagLayout());
+        Border inner = new EmptyBorder(8, 10, 8, 10);
+        Border line = new LineBorder(UIManager.getColor("Component.borderColor"), 1, true);
+        Border titled = (title == null) ? line
+                : new TitledBorder(line, title, TitledBorder.LEFT, TitledBorder.TOP);
+        p.setBorder(new CompoundBorder(titled, inner));
+        return new SectionPanel(p);
+    }
+
+    private static class SectionPanel extends JPanel {
+        private int nextRow = 0;
+
+        SectionPanel(JPanel base) {
+            super(new GridBagLayout());
+            setBorder(base.getBorder());
+            setOpaque(base.isOpaque());
+        }
+
+        @Override
+        public Component add(Component comp) {
+            GridBagConstraints c = new GridBagConstraints();
+            c.gridx = 0;
+            c.gridy = nextRow++;
+            c.weightx = 1;
+            c.fill = GridBagConstraints.HORIZONTAL;
+            c.insets = new Insets(4, 0, 4, 0);
+            super.add(comp, c);
+            return comp;
+        }
+    }
+
+    private void polishFields() {
+        setPlaceholder(txtDbName, "badminton_tournament");
+        setPlaceholder(txtServer, "localhost or 192.168.x.x");
+        setPlaceholder(txtPort, "1433 / 9092");
+        setPlaceholder(txtUser, "username");
+        setPlaceholder(txtPass, "password");
+        txtPort.setColumns(8);
+    }
+
+    private static void setPlaceholder(JComponent c, String text) {
+        try {
+            c.putClientProperty("JComponent.roundRect", Boolean.TRUE);
+            c.putClientProperty("JTextComponent.placeholderText", text);
+        } catch (Throwable ignore) {
+        }
+    }
+
+    private static javax.swing.ImageIcon loadBtmsIcon(int maxHeight) {
+        try {
+            java.awt.image.BufferedImage img = null;
+            java.net.URL res = DbConnectionFrame.class.getResource("/icons/btms.png");
+            if (res != null)
+                img = javax.imageio.ImageIO.read(res);
+            if (img == null) {
+                java.io.File f = new java.io.File("icons/btms.png");
+                if (f.isFile())
+                    img = javax.imageio.ImageIO.read(f);
+            }
+            if (img == null)
+                return null;
+            int h = Math.min(maxHeight, img.getHeight());
+            double scale = h / (double) img.getHeight();
+            int w = (int) Math.round(img.getWidth() * scale);
+            java.awt.Image scaled = img.getScaledInstance(w, h, java.awt.Image.SCALE_SMOOTH);
+            return new javax.swing.ImageIcon(scaled);
+        } catch (java.io.IOException ignore) {
+            return null;
+        }
+    }
+
+    // ==== API ====
     public void setOnOk(Consumer<DbConnectionSelection> onOk) {
         this.onOk = onOk;
     }
@@ -186,7 +331,11 @@ public class DbConnectionFrame extends JFrame {
         this.onCancel = onCancel;
     }
 
-    // ==== Logic giữ nguyên, chỉ sửa phần dispose/owner ====
+    public DbConnectionSelection getSelection() {
+        return result;
+    }
+
+    // ==== Test connection: H2 KHÔNG tự tạo mới ====
     private void onTestConnection(JButton... toDisable) {
         setBusy(true, toDisable);
         new Thread(() -> {
@@ -198,48 +347,51 @@ public class DbConnectionFrame extends JFrame {
                 String port = safe(txtPort.getText());
                 String user = safe(txtUser.getText());
                 char[] pw = txtPass.getPassword();
-
-                if (type == DbType.SQLSRV) {
-                    if (server.isBlank()) {
-                        showErrorLater("Vui lòng nhập Server.");
-                        return;
+                switch (type) {
+                    case SQLSRV -> {
+                        if (server.isBlank()) {
+                            showErrorLater("Please enter Server.");
+                            return;
+                        }
+                        StringBuilder url = new StringBuilder("jdbc:sqlserver://").append(server);
+                        if (!port.isBlank())
+                            url.append(":").append(port);
+                        if (!dbName.isBlank())
+                            url.append(";databaseName=").append(dbName);
+                        url.append(";encrypt=true;trustServerCertificate=true;loginTimeout=5");
+                        boolean useIntegrated = user.isBlank();
+                        if (useIntegrated) {
+                            url.append(";integratedSecurity=true");
+                            DriverManager.getConnection(url.toString()).close();
+                        } else {
+                            DriverManager.getConnection(url.toString(), user, new String(pw)).close();
+                        }
+                        showInfoLater("SQL Server connection OK.");
                     }
-
-                    StringBuilder url = new StringBuilder("jdbc:sqlserver://").append(server);
-                    if (!port.isBlank())
-                        url.append(":").append(port);
-                    if (!dbName.isBlank())
-                        url.append(";databaseName=").append(dbName);
-                    url.append(";encrypt=true;trustServerCertificate=true;loginTimeout=5");
-
-                    boolean useIntegrated = user.isBlank();
-                    if (useIntegrated) {
-                        url.append(";integratedSecurity=true");
-                        DriverManager.getConnection(url.toString()).close();
-                    } else {
-                        DriverManager.getConnection(url.toString(), user, new String(pw)).close();
+                    case H2 -> {
+                        if (dbName.isBlank()) {
+                            showErrorLater("Please enter Database name (H2).");
+                            return;
+                        }
+                        boolean isLocal = serverInput.isBlank()
+                                || serverInput.equalsIgnoreCase("localhost")
+                                || "127.0.0.1".equals(serverInput);
+                        String url = isLocal
+                                ? "jdbc:h2:file:./database/" + dbName + H2_BASE_OPTS + H2_REQUIRE_EXISTS
+                                : "jdbc:h2:tcp://" + server + ":9092/./database/" + dbName + H2_BASE_OPTS
+                                        + H2_REQUIRE_EXISTS;
+                        DriverManager.getConnection(url, "sa", "").close();
+                        showInfoLater("H2 connection OK.");
                     }
-                    showInfoLater("Kết nối SQL Server thành công.");
-                } else if (type == DbType.H2) {
-                    if (dbName.isBlank()) {
-                        showErrorLater("Vui lòng nhập Tên DB (H2).");
-                        return;
-                    }
-
-                    boolean isLocal = serverInput.isBlank() || serverInput.equalsIgnoreCase("localhost")
-                            || "127.0.0.1".equals(serverInput);
-                    String baseOpts = ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
-                    String url = isLocal
-                            ? "jdbc:h2:file:./database/" + dbName + baseOpts
-                            : "jdbc:h2:tcp://" + server + ":9092/./database/" + dbName + baseOpts;
-
-                    DriverManager.getConnection(url, "sa", "").close();
-                    showInfoLater("Kết nối H2 thành công.");
-                } else {
-                    showErrorLater("Kiểu DB không hợp lệ.");
+                    default -> showErrorLater("Unsupported DB type.");
                 }
-            } catch (Exception ex) {
-                showErrorLater("Kết nối thất bại: " + ex.getMessage());
+            } catch (java.sql.SQLException ex) {
+                String m = ex.getMessage();
+                if (m != null && m.toLowerCase().contains("not found")) {
+                    showErrorLater("H2 database not found. Please create it via 'Use integrated' first.");
+                } else {
+                    showErrorLater("Connection failed: " + m);
+                }
             } finally {
                 setBusy(false, toDisable);
             }
@@ -248,7 +400,8 @@ public class DbConnectionFrame extends JFrame {
 
     private void setBusy(boolean busy, JButton... buttons) {
         try {
-            setCursor(busy ? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR)
+            setCursor(busy
+                    ? java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR)
                     : java.awt.Cursor.getDefaultCursor());
         } catch (Exception ignore) {
         }
@@ -259,27 +412,25 @@ public class DbConnectionFrame extends JFrame {
     }
 
     private void showInfoLater(String msg) {
-        SwingUtilities.invokeLater(
-                () -> JOptionPane.showMessageDialog(this, msg, "Thông báo", JOptionPane.INFORMATION_MESSAGE));
+        SwingUtilities
+                .invokeLater(() -> JOptionPane.showMessageDialog(this, msg, "Info", JOptionPane.INFORMATION_MESSAGE));
     }
 
     private void showErrorLater(String msg) {
-        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, msg, "Lỗi", JOptionPane.ERROR_MESSAGE));
+        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, msg, "Error", JOptionPane.ERROR_MESSAGE));
     }
 
     private void onOk() {
-        // Khởi tạo H2 mới nhưng KHÔNG auto-connect/đóng ngay
         if (rbInitNew.isSelected() && cbDbType.getSelectedItem() == DbType.H2) {
             String dbName = safe(txtDbName.getText());
             if (dbName.isBlank()) {
-                JOptionPane.showMessageDialog(this, "Vui lòng nhập Tên DB (H2).",
-                        "Thiếu thông tin", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Please enter Database name (H2).",
+                        "Missing info", JOptionPane.WARNING_MESSAGE);
                 return;
             }
             if (dbName.contains("/") || dbName.contains("\\")) {
-                JOptionPane.showMessageDialog(this,
-                        "Tên DB không được chứa dấu / hoặc \\. Vui lòng nhập tên hợp lệ.",
-                        "Tên DB không hợp lệ", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Database name must not contain / or \\.",
+                        "Invalid name", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -289,27 +440,26 @@ public class DbConnectionFrame extends JFrame {
                     File dir = new File("database");
                     if (!dir.exists())
                         dir.mkdirs();
-                    String fileUrl = "jdbc:h2:file:./database/" + dbName
-                            + ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
+                    String fileUrl = "jdbc:h2:file:./database/" + dbName + H2_BASE_OPTS; // KHÔNG IFEXISTS ở chế độ tạo
                     DriverManager.getConnection(fileUrl, "sa", "").close();
 
                     try {
                         initH2DatabaseFromScript(dbName);
                     } catch (Exception initEx) {
-                        showErrorLater("Khởi tạo schema từ script thất bại: " + initEx.getMessage());
+                        showErrorLater("Init schema failed: " + initEx.getMessage());
                     }
 
                     SwingUtilities.invokeLater(() -> {
                         loadExistingDbOptions();
                         rbLocalLan.setSelected(true);
                         cbDbType.setSelectedItem(DbType.H2);
-                        txtServer.setText(""); // file mode mặc định
+                        txtServer.setText("localhost");
                         JOptionPane.showMessageDialog(this,
-                                "Đã khởi tạo DB H2 thành công. Hãy chuyển sang chế độ 'Sử dụng DB cục bộ / cùng mạng' và nhấn Kết nối để kết nối thủ công.",
-                                "Hoàn tất khởi tạo", JOptionPane.INFORMATION_MESSAGE);
+                                "H2 database created. Switch to 'Use local / network' and press Connect.",
+                                "Done", JOptionPane.INFORMATION_MESSAGE);
                     });
-                } catch (Exception ex) {
-                    showErrorLater("Không thể khởi tạo DB H2: " + ex.getMessage());
+                } catch (java.sql.SQLException ex) {
+                    showErrorLater("Cannot create H2 DB: " + ex.getMessage());
                 } finally {
                     setBusy(false);
                 }
@@ -337,51 +487,59 @@ public class DbConnectionFrame extends JFrame {
         }
         sel.setRemember(chkRemember.isSelected());
 
-        if (sel.getDbType() == DbType.H2) {
-            String serverInput = safe(txtServer.getText());
-            boolean isLocal = serverInput.isBlank() || serverInput.equalsIgnoreCase("localhost")
-                    || "127.0.0.1".equals(serverInput);
-            String baseOpts = ";DATABASE_TO_UPPER=FALSE;SCHEMA_SEARCH_PATH=PUBLIC;INIT=SET SCHEMA PUBLIC";
-            if (isLocal) {
-                sel.setJdbcUrl("jdbc:h2:file:./database/" + sel.getDbName() + baseOpts);
-            } else {
-                sel.setJdbcUrl("jdbc:h2:tcp://" + sel.getServer() + ":" + sel.getPort()
-                        + "/./database/" + sel.getDbName() + baseOpts);
+        switch (sel.getDbType()) {
+            case H2 -> {
+                String serverInput = safe(txtServer.getText());
+                boolean isLocal = serverInput.isBlank() || serverInput.equalsIgnoreCase("localhost")
+                        || "127.0.0.1".equals(serverInput);
+                boolean requireExists = sel.getMode() != Mode.INIT_NEW;
+                String suffix = H2_BASE_OPTS + (requireExists ? H2_REQUIRE_EXISTS : "");
+                if (isLocal)
+                    sel.setJdbcUrl("jdbc:h2:file:./database/" + sel.getDbName() + suffix);
+                else
+                    sel.setJdbcUrl("jdbc:h2:tcp://" + sel.getServer() + ":" + sel.getPort()
+                            + "/./database/" + sel.getDbName() + suffix);
             }
-        } else if (sel.getDbType() == DbType.SQLSRV) {
-            StringBuilder u = new StringBuilder("jdbc:sqlserver://").append(sel.getServer());
-            if (sel.getPort() != null && !sel.getPort().isBlank())
-                u.append(':').append(sel.getPort());
-            if (sel.getDbName() != null && !sel.getDbName().isBlank())
-                u.append(";databaseName=").append(sel.getDbName());
-            sel.setJdbcUrl(u.toString());
+            case SQLSRV -> {
+                StringBuilder u = new StringBuilder("jdbc:sqlserver://").append(sel.getServer());
+                if (sel.getPort() != null && !sel.getPort().isBlank())
+                    u.append(':').append(sel.getPort());
+                if (sel.getDbName() != null && !sel.getDbName().isBlank())
+                    u.append(";databaseName=").append(sel.getDbName());
+                sel.setJdbcUrl(u.toString());
+            }
+            default -> {
+            }
         }
 
-        // Preflight connect — nếu fail thì ở lại để sửa
         setBusy(true);
         new Thread(() -> {
             try {
-                if (sel.getDbType() == DbType.H2) {
-                    DriverManager.getConnection(sel.getJdbcUrl(), "sa", "").close();
-                } else if (sel.getDbType() == DbType.SQLSRV) {
-                    StringBuilder testUrl = new StringBuilder(sel.getJdbcUrl())
-                            .append(";encrypt=true;trustServerCertificate=true;loginTimeout=5");
-                    String user = nz(sel.getUsername());
-                    boolean useIntegrated = user.isBlank();
-                    if (useIntegrated) {
-                        testUrl.append(";integratedSecurity=true");
-                        DriverManager.getConnection(testUrl.toString()).close();
-                    } else {
-                        DriverManager.getConnection(testUrl.toString(), user,
-                                sel.getPassword() == null ? "" : new String(sel.getPassword())).close();
+                switch (sel.getDbType()) {
+                    case H2 -> DriverManager.getConnection(sel.getJdbcUrl(), "sa", "").close();
+                    case SQLSRV -> {
+                        StringBuilder testUrl = new StringBuilder(sel.getJdbcUrl())
+                                .append(";encrypt=true;trustServerCertificate=true;loginTimeout=5");
+                        String user = nz(sel.getUsername());
+                        boolean useIntegrated = user.isBlank();
+                        if (useIntegrated) {
+                            testUrl.append(";integratedSecurity=true");
+                            DriverManager.getConnection(testUrl.toString()).close();
+                        } else {
+                            DriverManager.getConnection(testUrl.toString(), user,
+                                    sel.getPassword() == null ? "" : new String(sel.getPassword())).close();
+                        }
                     }
-                } else {
-                    throw new IllegalStateException("Kiểu DB không hợp lệ.");
+                    default -> throw new IllegalStateException("Unsupported DB type.");
                 }
-
                 SwingUtilities.invokeLater(() -> completeSelectionAndClose(sel));
-            } catch (Exception ex) {
-                showErrorLater("Kết nối thất bại: " + ex.getMessage());
+            } catch (java.sql.SQLException ex) {
+                String m = ex.getMessage();
+                if (m != null && m.toLowerCase().contains("not found") && sel.getDbType() == DbType.H2) {
+                    showErrorLater("H2 database not found. Please create it via 'Use integrated' first.");
+                } else {
+                    showErrorLater("Connection failed: " + m);
+                }
             } finally {
                 setBusy(false);
             }
@@ -392,7 +550,7 @@ public class DbConnectionFrame extends JFrame {
         this.result = null;
         if (onCancel != null)
             onCancel.run();
-        dispose(); // JFrame: đóng thẳng frame
+        dispose();
     }
 
     private void completeSelectionAndClose(DbConnectionSelection sel) {
@@ -406,7 +564,7 @@ public class DbConnectionFrame extends JFrame {
 
     private void loadExistingDbOptions() {
         List<String> items = new ArrayList<>();
-        items.add("");
+        items.add("Local H2 Databases...");
         try {
             File dir = new File("database");
             if (dir.isDirectory()) {
@@ -416,7 +574,7 @@ public class DbConnectionFrame extends JFrame {
                         if (f.isFile())
                             items.add(f.getName());
             }
-        } catch (Exception ignore) {
+        } catch (java.lang.SecurityException ignore) {
         }
         cbExisting.setModel(new DefaultComboBoxModel<>(items.toArray(String[]::new)));
     }
@@ -426,12 +584,12 @@ public class DbConnectionFrame extends JFrame {
         String type = p.get("db.type", DbType.SQLSRV.name());
         try {
             cbDbType.setSelectedItem(DbType.valueOf(type));
-        } catch (Exception ignore) {
+        } catch (IllegalArgumentException ignore) {
             cbDbType.setSelectedItem(DbType.SQLSRV);
         }
         txtDbName.setText(p.get("db.name", ""));
         txtServer.setText(p.get("db.server", "localhost"));
-        txtPort.setText(p.get("db.port", "1433"));
+        txtPort.setText(p.get("db.port", cbDbType.getSelectedItem() == DbType.H2 ? "9092" : "1433"));
         txtUser.setText(p.get("db.user", ""));
         chkRemember.setSelected(p.getBool("db.remember", false));
     }
@@ -452,46 +610,6 @@ public class DbConnectionFrame extends JFrame {
         H2ScriptUtil.runSqlServerScriptOnH2FileDb(dbName, script);
     }
 
-    // giữ lại helper (nếu bạn không dùng có thể bỏ)
-    @SuppressWarnings("unused")
-    private static String readTextAuto(File file) throws IOException {
-        byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
-        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
-            return new String(bytes, 3, bytes.length - 3, java.nio.charset.StandardCharsets.UTF_8);
-        }
-        if (bytes.length >= 2) {
-            int b0 = bytes[0] & 0xFF, b1 = bytes[1] & 0xFF;
-            if (b0 == 0xFF && b1 == 0xFE) {
-                return new String(bytes, 2, bytes.length - 2, java.nio.charset.StandardCharsets.UTF_16LE);
-            }
-            if (b0 == 0xFE && b1 == 0xFF) {
-                return new String(bytes, 2, bytes.length - 2, java.nio.charset.StandardCharsets.UTF_16BE);
-            }
-        }
-        java.nio.charset.CharsetDecoder dec = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
-                .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
-        try {
-            return dec.decode(java.nio.ByteBuffer.wrap(bytes)).toString();
-        } catch (java.nio.charset.CharacterCodingException e) {
-            try {
-                return java.nio.charset.StandardCharsets.UTF_16LE.newDecoder()
-                        .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                        .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
-                        .decode(java.nio.ByteBuffer.wrap(bytes)).toString();
-            } catch (java.nio.charset.CharacterCodingException e2) {
-                try {
-                    return java.nio.charset.StandardCharsets.UTF_16BE.newDecoder()
-                            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
-                            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
-                            .decode(java.nio.ByteBuffer.wrap(bytes)).toString();
-                } catch (java.nio.charset.CharacterCodingException e3) {
-                    return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
-                }
-            }
-        }
-    }
-
     private static String safe(String s) {
         return s == null ? "" : s.trim();
     }
@@ -503,8 +621,8 @@ public class DbConnectionFrame extends JFrame {
     private void applyUiHints() {
         UIManager.put("Component.focusWidth", 1);
         UIManager.put("Component.innerFocusWidth", 0);
-        UIManager.put("Component.arc", 12);
-        UIManager.put("Button.arc", 12);
+        UIManager.put("Component.arc", 10);
+        UIManager.put("Button.arc", 10);
         UIManager.put("TextComponent.arc", 10);
     }
 
@@ -540,21 +658,22 @@ public class DbConnectionFrame extends JFrame {
             if (ifName == null || ifName.isBlank())
                 return null;
 
-            NetworkInterface ni = NetworkInterface.getByName(ifName);
+            NetworkInterface ni;
+            try {
+                ni = NetworkInterface.getByName(ifName);
+            } catch (java.net.SocketException e) {
+                return null;
+            }
             if (ni == null)
                 return null;
             for (Enumeration<InetAddress> e = ni.getInetAddresses(); e.hasMoreElements();) {
                 InetAddress addr = e.nextElement();
-                if (addr instanceof Inet4Address ipv4 && !addr.isLoopbackAddress()) {
-                    return ipv4.getHostAddress();
+                if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
+                    return addr.getHostAddress();
                 }
             }
-        } catch (Exception ignore) {
+        } catch (java.lang.SecurityException ignore) {
         }
         return null;
-    }
-
-    public DbConnectionSelection getSelection() {
-        return result;
     }
 }

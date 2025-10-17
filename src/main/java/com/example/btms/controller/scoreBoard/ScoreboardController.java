@@ -1,5 +1,7 @@
 package com.example.btms.controller.scoreBoard;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -51,17 +53,18 @@ public class ScoreboardController {
     String payload;
     try {
       payload = om.writeValueAsString(match.snapshot());
-    } catch (Exception e) {
+    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+      // Serialization failed; nothing to broadcast
       return;
     }
     for (SseEmitter c : clients) {
       try {
         c.send(SseEmitter.event().name("update").data(payload));
-      } catch (Exception ex) {
+      } catch (java.io.IOException | IllegalStateException ex) {
         clients.remove(c);
         try {
           c.complete();
-        } catch (Exception ignore) {
+        } catch (IllegalStateException ignore) {
         }
       }
     }
@@ -89,7 +92,7 @@ public class ScoreboardController {
     try {
       em.send(SseEmitter.event().name("init")
           .data(om.writeValueAsString(match.snapshot())));
-    } catch (Exception ignore) {
+    } catch (IOException | IllegalStateException ignore) {
     }
     em.onCompletion(() -> clients.remove(em));
     em.onTimeout(() -> clients.remove(em));
@@ -255,7 +258,7 @@ public class ScoreboardController {
           break; // gọi 1 panel là đủ
         }
       }
-    } catch (Exception ex) {
+    } catch (IllegalAccessException | java.lang.reflect.InvocationTargetException | SecurityException ex) {
       log.warn("CHI_TIET_VAN onPoint (web no-pin) failed: {}", ex.getMessage());
     }
   }
@@ -280,7 +283,7 @@ public class ScoreboardController {
           break;
         }
       }
-    } catch (Exception ex) {
+    } catch (IllegalAccessException | InvocationTargetException | SecurityException ex) {
       log.warn("CHI_TIET_VAN totalsOnly (web no-pin) failed: {}", ex.getMessage());
     }
   }
@@ -305,7 +308,7 @@ public class ScoreboardController {
           break;
         }
       }
-    } catch (Exception ex) {
+    } catch (IllegalAccessException | InvocationTargetException | SecurityException ex) {
       log.warn("CHI_TIET_VAN swap marker (web no-pin) failed: {}", ex.getMessage());
     }
   }

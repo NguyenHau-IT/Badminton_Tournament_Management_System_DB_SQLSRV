@@ -190,19 +190,8 @@ public class SettingsPanel extends JPanel {
         });
         panel.add(rowLabelWithComp("Logo báo cáo:", wrapTriple(lblReportLogo, btnPickLogo, btnClearLogo)), gc);
 
-        // ================== Header image (top bar) ==================
-        gc.gridy++;
-        JLabel lblHeaderLogo = new JLabel(getShortPath(prefs.get("ui.header.logo.path", "(chưa chọn)")));
-        JButton btnPickHeader = new JButton("Chọn...");
-        btnPickHeader.addActionListener(e -> chooseHeaderLogo(lblHeaderLogo));
-        JButton btnClearHeader = new JButton("Xóa");
-        btnClearHeader.addActionListener(e -> {
-            prefs.remove("ui.header.logo.path");
-            lblHeaderLogo.setText("(chưa chọn)");
-            // refresh main frame header
-            SwingUtilities.invokeLater(() -> mainFrame.refreshHeader());
-        });
-        panel.add(rowLabelWithComp("Ảnh header (Top):", wrapTriple(lblHeaderLogo, btnPickHeader, btnClearHeader)), gc);
+        // ================== Header image (ẩn vì đã bỏ header) ==================
+        // Đã ẩn phần cài đặt header logo vì không còn header bar
 
         // ================== Logo nhà tài trợ (PDF) ==================
         gc.gridy++;
@@ -398,33 +387,7 @@ public class SettingsPanel extends JPanel {
         }
     }
 
-    private void chooseHeaderLogo(JLabel target) {
-        JFileChooser fc = new JFileChooser();
-        fc.setDialogTitle("Chọn ảnh header (PNG/JPG)");
-        fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Ảnh (PNG, JPG)", "png", "jpg", "jpeg"));
-        String current = prefs.get("ui.header.logo.path", "");
-        if (current != null && !current.isBlank()) {
-            java.io.File cur = new java.io.File(current);
-            if (cur.getParentFile() != null && cur.getParentFile().exists()) {
-                fc.setCurrentDirectory(cur.getParentFile());
-            }
-        }
-        int r = fc.showOpenDialog(this);
-        if (r == JFileChooser.APPROVE_OPTION) {
-            var f = fc.getSelectedFile();
-            if (f != null && f.isFile()) {
-                String lower = f.getName().toLowerCase();
-                if (!(lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg"))) {
-                    javax.swing.JOptionPane.showMessageDialog(this, "Chỉ hỗ trợ PNG/JPG.", "Ảnh header",
-                            javax.swing.JOptionPane.WARNING_MESSAGE);
-                    return;
-                }
-                prefs.put("ui.header.logo.path", f.getAbsolutePath());
-                target.setText(getShortPath(f.getAbsolutePath()));
-                SwingUtilities.invokeLater(() -> mainFrame.refreshHeader());
-            }
-        }
-    }
+    // Đã xóa chooseHeaderLogo() vì không còn header
 
     private String getShortPath(String path) {
         if (path == null || path.isBlank())

@@ -9,14 +9,10 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Image;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.Robot;
-import java.awt.Toolkit;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.net.InetAddress;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -33,100 +29,28 @@ import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
-import com.example.btms.service.scoreboard.ScreenshotReceiver;
+// UDP receive disabled per requirement: read images from local folder only
 import com.example.btms.util.ui.ButtonFactory;
 
 /**
  * Tab để hiển thị screenshot từ các client
  */
-public class ScreenshotTab extends JPanel implements ScreenshotReceiver.ScreenshotListener {
+public class ScreenshotTab extends JPanel {
 
-    private ScreenshotReceiver receiver;
-    private JPanel screenshotPanel;
-    private JPanel adminScreenshotPanel;
     private JPanel historyScreenshotPanel; // Panel cho ảnh lịch sử
     private JTextArea logArea;
-    private JButton btnStartReceiver;
-    private JButton btnStopReceiver;
-    private JButton btnSaveAll;
-
-    private boolean isReceiverRunning = false;
 
     public ScreenshotTab() {
         setLayout(new BorderLayout(10, 10));
-        setBorder(new EmptyBorder(10, 10, 10, 10));
-
+        // Khởi tạo UI và load ảnh lịch sử
         buildUI();
-        startReceiver();
-
-        // Tự động load ảnh lịch sử sau khi UI được tạo
         SwingUtilities.invokeLater(() -> loadHistoryScreenshots());
     }
 
     private void buildUI() {
         // Header với controls
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBorder(BorderFactory.createTitledBorder("Điều khiển"));
-
-        JPanel controls = new JPanel(new GridLayout(1, 3, 10, 0));
-        btnStartReceiver = ButtonFactory.filled("▶ Khởi động", new Color(46, 204, 113), Color.WHITE,
-                new Dimension(120, 30), new Font("SansSerif", Font.BOLD, 12));
-        btnStopReceiver = ButtonFactory.filled("⏹ Dừng", new Color(231, 76, 60), Color.WHITE, new Dimension(120, 30),
-                new Font("SansSerif", Font.BOLD, 12));
-        btnSaveAll = ButtonFactory.outlined("💾 Lưu tất cả", new Color(30, 136, 229), new Dimension(120, 30),
-                new Font("SansSerif", Font.BOLD, 12));
-
-        btnStartReceiver.addActionListener(e -> startReceiver());
-        btnStopReceiver.addActionListener(e -> stopReceiver());
-        btnSaveAll.addActionListener(e -> saveAllScreenshots());
-
-        controls.add(btnStartReceiver);
-        controls.add(btnStopReceiver);
-        controls.add(btnSaveAll);
-
-        header.add(controls, BorderLayout.CENTER);
-
-        // Tạo tabbed pane để chia 2 phần
+        // Tạo tabbed pane chỉ cho phần lịch sử ảnh từ thư mục
         JTabbedPane tabbedPane = new JTabbedPane();
-
-        // Tab 1: Screenshot từ Client
-        JPanel clientTab = new JPanel(new BorderLayout());
-        clientTab.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        screenshotPanel = new JPanel(new GridLayout(0, 2, 10, 10));
-        screenshotPanel.setBorder(BorderFactory.createTitledBorder("Screenshot từ Client"));
-
-        JScrollPane clientScrollPane = new JScrollPane(screenshotPanel);
-        // Tăng tốc độ lăn chuột và cải thiện hiệu năng cuộn
-        clientScrollPane.getVerticalScrollBar().setUnitIncrement(48);
-        clientScrollPane.getViewport().setScrollMode(javax.swing.JViewport.BACKINGSTORE_SCROLL_MODE);
-        clientScrollPane.setPreferredSize(new Dimension(800, 500));
-        clientTab.add(clientScrollPane, BorderLayout.CENTER);
-
-        // Tab 2: Screenshot Admin tự chụp
-        JPanel adminTab = new JPanel(new BorderLayout());
-        adminTab.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        // Panel cho admin tự chụp
-        adminScreenshotPanel = new JPanel(new GridLayout(0, 2, 10, 10));
-        adminScreenshotPanel.setBorder(BorderFactory.createTitledBorder("Screenshot Admin tự chụp"));
-
-        // Nút chụp ảnh cho admin
-        JButton btnCaptureAdmin = ButtonFactory.filled("📸 Chụp ảnh màn hình", new Color(52, 152, 219), Color.WHITE,
-                new Dimension(200, 35), new Font("SansSerif", Font.BOLD, 14));
-        btnCaptureAdmin.addActionListener(e -> captureAdminScreenshot());
-
-        JPanel adminControls = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        adminControls.setOpaque(false);
-        adminControls.add(btnCaptureAdmin);
-
-        adminTab.add(adminControls, BorderLayout.NORTH);
-
-        JScrollPane adminScrollPane = new JScrollPane(adminScreenshotPanel);
-        adminScrollPane.getVerticalScrollBar().setUnitIncrement(48);
-        adminScrollPane.getViewport().setScrollMode(javax.swing.JViewport.BACKINGSTORE_SCROLL_MODE);
-        adminScrollPane.setPreferredSize(new Dimension(800, 500));
-        adminTab.add(adminScrollPane, BorderLayout.CENTER);
 
         // Tab 3: Ảnh các trận đã thi đấu từ folder screenshots
         JPanel historyTab = new JPanel(new BorderLayout());
@@ -175,10 +99,8 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
         historyScrollPane.setPreferredSize(new Dimension(800, 500));
         historyTab.add(historyScrollPane, BorderLayout.CENTER);
 
-        // Thêm 3 tabs
+        // Thêm tab lịch sử
         tabbedPane.addTab("📚 Lịch sử trận đấu", new ImageIcon(), historyTab);
-        // tabbedPane.addTab("📱 Từ Client", new ImageIcon(), clientTab);
-        // tabbedPane.addTab("🖥️ Admin tự chụp", new ImageIcon(), adminTab);
 
         // Log area
         logArea = new JTextArea();
@@ -188,95 +110,9 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
 
         JScrollPane logScrollPane = new JScrollPane(logArea);
         logScrollPane.setBorder(BorderFactory.createTitledBorder("Log hoạt động"));
-
-        // Layout
-        // add(header, BorderLayout.NORTH);
         add(tabbedPane, BorderLayout.CENTER);
         add(logScrollPane, BorderLayout.SOUTH);
 
-        updateButtonStates();
-    }
-
-    private void startReceiver() {
-        if (isReceiverRunning)
-            return;
-
-        try {
-            receiver = new ScreenshotReceiver(this);
-            receiver.start();
-            isReceiverRunning = true;
-            log("ScreenshotReceiver đã khởi động trên port 2346");
-            updateButtonStates();
-        } catch (RuntimeException ex) {
-            log("Lỗi khi khởi động receiver: " + ex.getMessage());
-        }
-    }
-
-    private void stopReceiver() {
-        if (!isReceiverRunning)
-            return;
-
-        try {
-            if (receiver != null) {
-                receiver.stop();
-                receiver = null;
-            }
-            isReceiverRunning = false;
-            log("ScreenshotReceiver đã dừng");
-            updateButtonStates();
-        } catch (RuntimeException ex) {
-            log("Lỗi khi dừng receiver: " + ex.getMessage());
-        }
-    }
-
-    private void updateButtonStates() {
-        btnStartReceiver.setEnabled(!isReceiverRunning);
-        btnStopReceiver.setEnabled(isReceiverRunning);
-        // Bật nút lưu nếu có screenshot từ client hoặc admin
-        btnSaveAll.setEnabled(screenshotPanel.getComponentCount() > 0 || adminScreenshotPanel.getComponentCount() > 0);
-    }
-
-    private void saveAllScreenshots() {
-        try {
-            File saveDir = new File("received_screenshots");
-            if (!saveDir.exists()) {
-                saveDir.mkdirs();
-            }
-
-            int savedCount = 0;
-
-            // Lưu screenshot từ client
-            for (int i = 0; i < screenshotPanel.getComponentCount(); i++) {
-                ScreenshotItem item = (ScreenshotItem) screenshotPanel.getComponent(i);
-                if (item.getImage() != null) {
-                    String fileName = "client_screenshot_" + System.currentTimeMillis() + "_" + i + ".png";
-                    File outputFile = new File(saveDir, fileName);
-                    ImageIO.write(item.getImage(), "PNG", outputFile);
-                    savedCount++;
-                }
-            }
-
-            // Lưu screenshot admin tự chụp
-            for (int i = 0; i < adminScreenshotPanel.getComponentCount(); i++) {
-                ScreenshotItem item = (ScreenshotItem) adminScreenshotPanel.getComponent(i);
-                if (item.getImage() != null) {
-                    String fileName = "admin_screenshot_" + System.currentTimeMillis() + "_" + i + ".png";
-                    File outputFile = new File(saveDir, fileName);
-                    ImageIO.write(item.getImage(), "PNG", outputFile);
-                    savedCount++;
-                }
-            }
-
-            if (savedCount > 0) {
-                JOptionPane.showMessageDialog(this,
-                        "Đã lưu " + savedCount + " screenshot vào thư mục: " + saveDir.getAbsolutePath(),
-                        "Lưu thành công",
-                        JOptionPane.INFORMATION_MESSAGE);
-            }
-
-        } catch (java.io.IOException ex) {
-            log("Lỗi khi lưu screenshot: " + ex.getMessage());
-        }
     }
 
     private void log(String message) {
@@ -288,29 +124,8 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
         });
     }
 
-    @Override
-    public void onScreenshotReceived(String fileName, String matchInfo, BufferedImage image,
-            InetAddress clientAddress) {
-        SwingUtilities.invokeLater(() -> {
-            // Tạo item mới để hiển thị screenshot
-            ScreenshotItem item = new ScreenshotItem(fileName, matchInfo, image, clientAddress);
-            screenshotPanel.add(item);
-
-            // Cập nhật layout
-            screenshotPanel.revalidate();
-            screenshotPanel.repaint();
-
-            // Log
-            log("Nhận screenshot từ " + clientAddress.getHostAddress() + ": " + fileName);
-            log("Thông tin: " + matchInfo);
-
-            // Cập nhật button states
-            updateButtonStates();
-        });
-    }
-
     public void cleanup() {
-        stopReceiver();
+        // No background receiver anymore
     }
 
     /**
@@ -451,51 +266,7 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
         }
     }
 
-    /**
-     * Chụp ảnh màn hình cho admin
-     */
-    private void captureAdminScreenshot() {
-        try {
-            // Chụp toàn bộ màn hình
-            Robot robot = new Robot();
-            Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-            BufferedImage screenshot = robot.createScreenCapture(screenRect);
-
-            // Tạo tên file với timestamp
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-            String timestamp = sdf.format(new Date());
-            String fileName = String.format("admin_screenshot_%s.png", timestamp);
-
-            // Tạo thông tin
-            String adminInfo = String.format("Admin tự chụp | Thời gian: %s | Kích thước: %dx%d",
-                    new SimpleDateFormat("HH:mm:ss").format(new Date()),
-                    screenshot.getWidth(), screenshot.getHeight());
-
-            // Tạo item hiển thị
-            ScreenshotItem item = new ScreenshotItem(fileName, adminInfo, screenshot, null);
-            adminScreenshotPanel.add(item);
-
-            // Cập nhật layout
-            adminScreenshotPanel.revalidate();
-            adminScreenshotPanel.repaint();
-
-            // Log
-            log("Admin đã chụp ảnh màn hình: " + fileName);
-
-            // Hiển thị thông báo
-            JOptionPane.showMessageDialog(this,
-                    "Đã chụp ảnh màn hình!\n" + fileName,
-                    "Chụp ảnh thành công",
-                    JOptionPane.INFORMATION_MESSAGE);
-
-        } catch (java.awt.AWTException | SecurityException ex) {
-            log("Lỗi khi chụp ảnh màn hình: " + ex.getMessage());
-            JOptionPane.showMessageDialog(this,
-                    "Lỗi khi chụp ảnh: " + ex.getMessage(),
-                    "Lỗi chụp ảnh",
-                    JOptionPane.ERROR_MESSAGE);
-        }
-    }
+    // Đã bỏ tính năng admin tự chụp
 
     // Panel bo góc vẽ nền + viền để giao diện mềm mại hơn
     private static class RoundedPanel extends JPanel {
@@ -537,47 +308,7 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
     /**
      * Component để hiển thị một screenshot
      */
-    private static class ScreenshotItem extends RoundedPanel {
-        private final BufferedImage image;
-
-        public ScreenshotItem(String fileName, String matchInfo, BufferedImage image, InetAddress clientAddress) {
-            this.image = image;
-
-            setLayout(new BorderLayout(6, 6));
-            setBorder(new EmptyBorder(8, 8, 8, 8));
-            String clientTitle = (clientAddress != null)
-                    ? ("Screenshot từ " + clientAddress.getHostAddress())
-                    : "Screenshot (Admin)";
-            JLabel title = new JLabel(clientTitle);
-            title.setFont(title.getFont().deriveFont(Font.BOLD));
-            JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-            header.setOpaque(false);
-            header.add(title);
-
-            // Hiển thị ảnh
-            ImageIcon icon = new ImageIcon(image);
-            Image scaledImage = icon.getImage().getScaledInstance(300, 200, Image.SCALE_SMOOTH);
-            JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
-            imageLabel.setHorizontalAlignment(JLabel.CENTER);
-
-            // Thông tin
-            JTextArea infoArea = new JTextArea();
-            String clientText = (clientAddress != null) ? clientAddress.getHostAddress() : "ADMIN";
-            infoArea.setText("File: " + fileName + "\n" + matchInfo + "\nClient: " + clientText);
-            infoArea.setEditable(false);
-            infoArea.setLineWrap(true);
-            infoArea.setWrapStyleWord(true);
-            infoArea.setRows(4);
-
-            add(header, BorderLayout.NORTH);
-            add(imageLabel, BorderLayout.CENTER);
-            add(infoArea, BorderLayout.SOUTH);
-        }
-
-        public BufferedImage getImage() {
-            return image;
-        }
-    }
+    // Đã bỏ ScreenshotItem vì không còn panel admin/client
 
     /**
      * Component để hiển thị một ảnh lịch sử từ folder screenshots
@@ -614,7 +345,7 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
             JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
             imageLabel.setHorizontalAlignment(JLabel.CENTER);
 
-            // Thông tin file
+            // Thông tin file (khởi tạo trước để tái sử dụng)
             JTextArea infoArea = new JTextArea();
             infoArea.setText(fileInfo);
             infoArea.setEditable(false);
@@ -638,6 +369,8 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
 
             add(topBar, BorderLayout.NORTH);
             add(imageLabel, BorderLayout.CENTER);
+
+            // Thêm thông tin file ở dưới cùng
             add(infoArea, BorderLayout.SOUTH);
         }
 
@@ -663,4 +396,5 @@ public class ScreenshotTab extends JPanel implements ScreenshotReceiver.Screensh
             return imageFile;
         }
     }
+
 }

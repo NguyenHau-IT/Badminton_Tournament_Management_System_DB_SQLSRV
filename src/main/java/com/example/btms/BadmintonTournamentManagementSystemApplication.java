@@ -48,29 +48,30 @@ public class BadmintonTournamentManagementSystemApplication {
 		SwingUtilities.invokeLater(() -> {
 			// Áp dụng theme (bo góc + FlatLaf) trước khi tạo bất kỳ frame/dialog nào
 			UITheme.init();
+
+			// Bước 1: Chọn network (không tạo thêm cửa sổ nào khác)
 			NetworkChooserDialog dlg = new NetworkChooserDialog(null);
 			dlg.setVisible(true);
 			NetworkConfig cfg = dlg.getSelected();
 			if (cfg == null) {
-				// No network configuration selected. GUI will not be launched. Backend
-				// continues.
+				// Người dùng hủy: không mở UI
 				return;
 			}
-			// Lưu lựa chọn interface của người dùng vào Preferences để các màn khác dùng
-			// lại
+
+			// Lưu interface đã chọn để các màn khác dùng lại
 			try {
 				if (cfg.ifName() != null && !cfg.ifName().isBlank()) {
 					Prefs p = new Prefs();
 					p.put("net.ifName", cfg.ifName());
-					// Giữ thêm một alias phổ biến để tương thích các nơi khác nếu có
 					p.put("ui.network.ifName", cfg.ifName());
 				}
 			} catch (Throwable ignore) {
 			}
+
+			// Tạo MainFrame nhưng KHÔNG hiển thị; MainFrame sẽ tự hiển thị sau khi
+			// hoàn tất kết nối DB + đăng nhập + chọn giải.
 			MainFrame mf = new MainFrame(cfg, dbCfg);
 			IconUtil.applyTo(mf);
-			// Không hiển thị frame ngay; MainFrame sẽ hiển thị sau khi kết nối DB + đăng
-			// nhập + chọn giải
 		});
 	}
 }
