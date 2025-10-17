@@ -35,6 +35,7 @@ public class TournamentManagementComponent extends JPanel {
         this.databaseService = databaseService;
         this.selectionMode = selectionMode;
         setLayout(new BorderLayout(10, 10));
+        setPreferredSize(new java.awt.Dimension(1200, 600));
         updateConnection();
         setupDoubleClickSelection();
     }
@@ -51,6 +52,8 @@ public class TournamentManagementComponent extends JPanel {
         removeAll();
         if (giaiDauService != null) {
             managementPanel = new GiaiDauManagementPanel(giaiDauService, selectionMode);
+            managementPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Quản lý giải đấu"));
+            managementPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 20, 10, 20));
             add(managementPanel, BorderLayout.CENTER);
 
             if (selectionMode) {

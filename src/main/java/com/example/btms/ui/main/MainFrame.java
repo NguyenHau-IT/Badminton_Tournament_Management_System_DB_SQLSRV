@@ -74,8 +74,8 @@ import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.ui.log.LogTab;
-import com.example.btms.ui.manager.BracketWindowManager;
-import com.example.btms.ui.manager.PlayWindowManager;
+import com.example.btms.ui.manager.UnifiedWindowManager;
+import com.example.btms.ui.manager.UnifiedWindowManager.WindowType;
 import com.example.btms.ui.monitor.MonitorTab;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.report.BaoCaoPdfPanel;
@@ -110,9 +110,8 @@ public class MainFrame extends JFrame {
     private BaoCaoPdfPanel baoCaoPdfPanel;
     // Trang biên bản (kết quả dạng log set/điểm)
     private com.example.btms.ui.result.BienBanPanel bienBanPanel;
-    // Managers tách riêng phần cửa sổ nổi
-    private final BracketWindowManager bracketWindowManager = new BracketWindowManager();
-    private final PlayWindowManager playWindowManager = new PlayWindowManager();
+    // Unified window manager thay thế BracketWindowManager và PlayWindowManager
+    private final UnifiedWindowManager windowManager = new UnifiedWindowManager();
 
     private final NetworkConfig netCfg; // cấu hình interface đã chọn
     private final SQLSRVConnectionManager manager = new SQLSRVConnectionManager();
@@ -302,11 +301,7 @@ public class MainFrame extends JFrame {
                 } catch (Exception ignore) {
                 }
                 try {
-                    bracketWindowManager.closeWindow();
-                } catch (Exception ignore) {
-                }
-                try {
-                    playWindowManager.closeWindow();
+                    windowManager.reset(); // Đóng tất cả windows
                 } catch (Exception ignore) {
                 }
                 System.exit(0);
@@ -319,11 +314,7 @@ public class MainFrame extends JFrame {
                 } catch (Exception ignored) {
                 }
                 try {
-                    bracketWindowManager.closeWindow();
-                } catch (Exception ignored) {
-                }
-                try {
-                    playWindowManager.closeWindow();
+                    windowManager.reset(); // Đóng tất cả windows
                 } catch (Exception ignored) {
                 }
                 try {
@@ -974,7 +965,7 @@ public class MainFrame extends JFrame {
             // Làm mới Sơ đồ thi đấu: tab đang mở reloadData(); danh sách trong cây cũng
             // được rebuild
             try {
-                bracketWindowManager.reloadOpenTabs();
+                windowManager.reloadOpenTabs(WindowType.BRACKET);
             } catch (Throwable ignore) {
             }
             // Làm mới cây điều hướng (bao gồm lọc Sơ đồ theo bốc thăm đã có)
@@ -1085,7 +1076,7 @@ public class MainFrame extends JFrame {
                 }
                 // Đóng cửa sổ Sơ đồ thi đấu (nếu đang mở) để lần mở sau build tabs theo giải
                 // mới
-                bracketWindowManager.reset();
+                windowManager.reset();
                 updateNavigationRootTitleFromSelection();
                 if (navModel != null)
                     navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
@@ -1824,7 +1815,7 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem miRefreshSoDo = new javax.swing.JMenuItem("Làm mới tất cả sơ đồ đang mở");
                     miRefreshSoDo.addActionListener(ev -> {
                         try {
-                            bracketWindowManager.reloadOpenTabs();
+                            windowManager.reloadOpenTabs(WindowType.BRACKET);
                         } catch (Exception ex) {
                         }
                     });
@@ -2084,10 +2075,10 @@ public class MainFrame extends JFrame {
         try {
             if (!doAutoDrawSave(cn.idNoiDung))
                 return;
-            bracketWindowManager.openWindow(service, this,
+            windowManager.openBracketWindow(service, this,
                     (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
-            bracketWindowManager.ensureTab(service, cn.idNoiDung, cn.label, this);
-            com.example.btms.ui.bracket.SoDoThiDauPanel p = bracketWindowManager.getPanelByNoiDungId(cn.idNoiDung);
+            windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
+            com.example.btms.ui.bracket.SoDoThiDauPanel p = windowManager.getBracketPanelByNoiDungId(cn.idNoiDung);
             if (p != null) {
                 p.selectNoiDungById(cn.idNoiDung);
                 p.autoSeedFromDrawAndSave();
@@ -2240,9 +2231,9 @@ public class MainFrame extends JFrame {
                     showView("Danh sách đăng kí");
                 }
             } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
-                bracketWindowManager.openWindow(service, this,
+                windowManager.openBracketWindow(service, this,
                         (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
-                bracketWindowManager.ensureTab(service, cn.idNoiDung, cn.label, this);
+                windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
             } else if ("Nội dung của giải".equals(parentLabel)) {
                 if (dangKyNoiDungPanel != null) {
                     ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
@@ -2257,7 +2248,7 @@ public class MainFrame extends JFrame {
         }
         if (uo instanceof String label) {
             if ("Sơ đồ thi đấu".equals(label)) {
-                bracketWindowManager.openWindow(service, this,
+                windowManager.openBracketWindow(service, this,
                         (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
                 return;
             }
@@ -2314,11 +2305,11 @@ public class MainFrame extends JFrame {
         if (confirm != JOptionPane.YES_OPTION)
             return;
         try {
-            bracketWindowManager.closeWindow();
+            windowManager.closeWindow(WindowType.BRACKET);
         } catch (Exception ignore) {
         }
         try {
-            playWindowManager.closeWindow();
+            windowManager.closeWindow(WindowType.PLAY);
         } catch (Exception ignore) {
         }
         try {
@@ -2429,12 +2420,12 @@ public class MainFrame extends JFrame {
     /** Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại. */
     @SuppressWarnings("unused")
     private void showSoDoTabForNoiDung(Integer idNoiDung) {
-        // Method kept for compatibility; delegate to window manager
-        bracketWindowManager.openWindow(service, this,
+        // Method kept for compatibility; delegate to unified window manager
+        windowManager.openBracketWindow(service, this,
                 (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
         if (idNoiDung != null) {
             // Focus if already exists; creation requires a title which we don't have here
-            var p = bracketWindowManager.getPanelByNoiDungId(idNoiDung);
+            var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
             // no-op: window is brought to front by openWindow; focusing is handled by user
         }
     }
@@ -2505,7 +2496,7 @@ public class MainFrame extends JFrame {
      * Dùng chung CourtManagerService nên có thể mở song song với tab nếu cần.
      */
     private void openThiDauWindow() {
-        playWindowManager.open(
+        windowManager.openPlayWindow(
                 service,
                 this,
                 currentRole,
