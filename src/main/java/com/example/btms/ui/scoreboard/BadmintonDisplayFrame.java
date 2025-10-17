@@ -6,6 +6,7 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.IOException;
 
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
@@ -31,14 +32,15 @@ public class BadmintonDisplayFrame extends JFrame implements PropertyChangeListe
                     java.net.URL url = new java.net.URL(apiUrl);
                     java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("GET");
-                    java.io.BufferedReader in = new java.io.BufferedReader(
-                            new java.io.InputStreamReader(conn.getInputStream()));
-                    StringBuilder content = new StringBuilder();
-                    String inputLine;
-                    while ((inputLine = in.readLine()) != null) {
-                        content.append(inputLine);
+                    StringBuilder content;
+                    try (java.io.BufferedReader in = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(conn.getInputStream()))) {
+                        content = new StringBuilder();
+                        String inputLine;
+                        while ((inputLine = in.readLine()) != null) {
+                            content.append(inputLine);
+                        }
                     }
-                    in.close();
                     conn.disconnect();
 
                     // Đọc JSON điểm số
@@ -59,7 +61,7 @@ public class BadmintonDisplayFrame extends JFrame implements PropertyChangeListe
                     javax.swing.SwingUtilities.invokeLater(() -> {
                         match.setScore(finalA, finalB);
                     });
-                } catch (Exception e) {
+                } catch (IOException | NumberFormatException e) {
                     // Có thể log lỗi nếu cần
                 }
             }
@@ -81,7 +83,8 @@ public class BadmintonDisplayFrame extends JFrame implements PropertyChangeListe
     public BadmintonDisplayFrame(BadmintonMatch match) {
         super("Badminton Scoreboard");
         this.match = match;
-        this.match.addPropertyChangeListener(this);
+        // Register listener after construction to avoid leaking 'this' from the constructor.
+        javax.swing.SwingUtilities.invokeLater(() -> this.match.addPropertyChangeListener(this));
 
         setLayout(new BorderLayout());
         JPanel top = new JPanel(new GridLayout(1, 3));
@@ -153,7 +156,8 @@ public class BadmintonDisplayFrame extends JFrame implements PropertyChangeListe
         setExtendedState(JFrame.MAXIMIZED_BOTH); // Mở rộng toàn màn hình khi chạy
         setLocationRelativeTo(null);
         setAlwaysOnTop(true); // Luôn hiển thị trên cùng
-        refresh();
+        // Avoid calling an overridable method from the constructor; run refresh after construction on the EDT
+        javax.swing.SwingUtilities.invokeLater(() -> refresh());
     }
 
     /**
@@ -336,31 +340,6 @@ public class BadmintonDisplayFrame extends JFrame implements PropertyChangeListe
                     +
                     htmlPreserveSpaces(text) + "</marquee>";
         }
-    }
-
-    /**
-     * Tìm điểm chia tối ưu cho tên đội
-     */
-    private int findOptimalSplitPoint(String name) {
-        if (name.length() <= 15) {
-            // Tên ngắn, chia ở giữa
-            return name.length() / 2;
-        }
-
-        // Tìm dấu cách đầu tiên
-        int firstSpace = name.indexOf(' ');
-        if (firstSpace > 0 && firstSpace < name.length() - 1) {
-            return firstSpace;
-        }
-
-        // Tìm dấu gạch ngang
-        int firstDash = name.indexOf('-');
-        if (firstDash > 0 && firstDash < name.length() - 1) {
-            return firstDash;
-        }
-
-        // Tìm điểm chia cân bằng (khoảng 60% chiều dài)
-        return (int) (name.length() * 0.6);
     }
 
     /**

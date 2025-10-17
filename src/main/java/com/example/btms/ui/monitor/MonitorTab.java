@@ -17,6 +17,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -361,16 +362,12 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                             ms.setNetworkInterface(loop);
                             ms.joinGroup(new InetSocketAddress(group, PORT), loop);
                         } else {
-                            @SuppressWarnings("deprecation")
-                            var __unused = 0;
                             ms.joinGroup(group);
                         }
-                    } catch (Exception ex) {
+                    } catch (IOException ex) {
                         try {
-                            @SuppressWarnings("deprecation")
-                            var __unused = 0;
                             ms.joinGroup(group);
-                        } catch (Exception ignore3) {
+                        } catch (IOException ignore3) {
                         }
                     }
                 }
@@ -384,8 +381,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                 String json = new String(pkt.getData(), pkt.getOffset(), pkt.getLength(), StandardCharsets.UTF_8);
                 handleJson(json);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
         } finally {
             if (ms != null)
                 try {
@@ -686,7 +682,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     private static int parseInt(String s) {
         try {
             return Integer.parseInt(s);
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return 0;
         }
     }
@@ -694,7 +690,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
     private static long parseLong(String s) {
         try {
             return Long.parseLong(s);
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return 0L;
         }
     }
@@ -796,10 +792,8 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                         try {
                             originalParent.add(floatingPlaceholder, originalCardName);
                         } catch (Exception ex2) {
-                            ex2.printStackTrace();
                         }
                     } catch (Exception ex) {
-                        ex.printStackTrace();
                     }
                     originalParent.revalidate();
                     originalParent.repaint();
@@ -897,13 +891,10 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                 break;
             }
             if (c instanceof java.awt.Container cont) {
-                for (Component ch : cont.getComponents())
-                    stack.add(ch);
+                stack.addAll(Arrays.asList(cont.getComponents()));
             }
         }
-        if (!hasList)
-            return true;
-        return false;
+        return !hasList;
     }
 
     // Tạo frame mirror: không remove MonitorTab; build UI nhẹ để hiển thị danh sách
@@ -1534,18 +1525,18 @@ public class MonitorTab extends JPanel implements AutoCloseable {
 
         private void apply() {
             switch (status) {
-                case OK:
+                case OK -> {
                     setBackground(new Color(0, 170, 100, 200)); // Tăng độ đậm
                     setForeground(Color.WHITE); // Chữ trắng để dễ nhìn trên nền đen
-                    break;
-                case WARN:
+                }
+                case WARN -> {
                     setBackground(new Color(255, 165, 0, 200)); // Tăng độ đậm
                     setForeground(Color.WHITE); // Chữ trắng để dễ nhìn trên nền đen
-                    break;
-                case STALE:
+                }
+                case STALE -> {
                     setBackground(new Color(255, 0, 0, 200)); // Tăng độ đậm
                     setForeground(Color.WHITE); // Chữ trắng để dễ nhìn trên nền đen
-                    break;
+                }
             }
         }
     }
@@ -1635,7 +1626,7 @@ public class MonitorTab extends JPanel implements AutoCloseable {
                     scaleFontsRecursively(c, mul);
                 }
             }
-        } catch (Exception ignore) {
+        } catch (SecurityException ignore) {
         }
     }
 

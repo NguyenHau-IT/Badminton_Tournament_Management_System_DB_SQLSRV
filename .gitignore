@@ -28,5 +28,7 @@ src/main/resources/application.properties
 target/classes/application.properties
 
 #database
-*.mv.db
 *.trace.db
+
+#target folder
+target/

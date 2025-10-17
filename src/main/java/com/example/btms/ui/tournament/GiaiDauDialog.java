@@ -3,8 +3,10 @@ package com.example.btms.ui.tournament;
 import java.awt.BorderLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.Window;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
@@ -57,9 +59,17 @@ public class GiaiDauDialog extends JDialog {
         // Date chooser chỉ có ngày
         ngayBdChooser = new JDateChooser();
         ngayBdChooser.setDateFormatString("dd/MM/yyyy");
+        // Chỉ không cho chọn ngày trong quá khứ khi thêm mới
+        if (!isEditMode) {
+            ngayBdChooser.setMinSelectableDate(new java.util.Date());
+        }
 
         ngayKtChooser = new JDateChooser();
         ngayKtChooser.setDateFormatString("dd/MM/yyyy");
+        // Chỉ không cho chọn ngày trong quá khứ khi thêm mới
+        if (!isEditMode) {
+            ngayKtChooser.setMinSelectableDate(new java.util.Date());
+        }
 
         btnSave = new JButton(isEditMode ? "Cập nhật" : "Thêm mới");
         btnCancel = new JButton("Hủy");
@@ -117,6 +127,20 @@ public class GiaiDauDialog extends JDialog {
     private void setupEventHandlers() {
         btnSave.addActionListener(e -> saveGiaiDau());
         btnCancel.addActionListener(e -> dispose());
+
+        // Cập nhật ngày tối thiểu cho ngày kết thúc khi chọn ngày bắt đầu
+        ngayBdChooser.addPropertyChangeListener("date", e -> {
+            java.util.Date selectedDate = ngayBdChooser.getDate();
+            if (selectedDate != null) {
+                // Ngày kết thúc phải từ ngày bắt đầu trở đi
+                ngayKtChooser.setMinSelectableDate(selectedDate);
+                // Nếu ngày kết thúc hiện tại nhỏ hơn ngày bắt đầu thì clear nó
+                java.util.Date currentEndDate = ngayKtChooser.getDate();
+                if (currentEndDate != null && currentEndDate.before(selectedDate)) {
+                    ngayKtChooser.setDate(null);
+                }
+            }
+        });
     }
 
     private void loadData() {
@@ -177,6 +201,21 @@ public class GiaiDauDialog extends JDialog {
                 return;
             }
 
+            // 5) Validate ngày không được trong quá khứ (chỉ khi thêm mới)
+            if (!isEditMode) {
+                LocalDate today = LocalDate.now();
+                if (ngayBd != null && ngayBd.isBefore(today)) {
+                    JOptionPane.showMessageDialog(this, "Ngày bắt đầu không thể là ngày trong quá khứ!",
+                            "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                if (ngayKt != null && ngayKt.isBefore(today)) {
+                    JOptionPane.showMessageDialog(this, "Ngày kết thúc không thể là ngày trong quá khứ!",
+                            "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+
             // 5) Lưu
             if (isEditMode) {
                 originalGiaiDau.setTenGiai(tenGiai);
@@ -196,11 +235,16 @@ public class GiaiDauDialog extends JDialog {
             } else {
                 // Giả định service nhận LocalDate
                 GiaiDau newGiaiDau = giaiDauService.createGiaiDau(tenGiai, ngayBd, ngayKt, idUser);
-                JOptionPane.showMessageDialog(this, "Thêm giải đấu thành công!\nID: ",
-                        "Thành công", JOptionPane.INFORMATION_MESSAGE);
-                dispose();
+                if (newGiaiDau != null) {
+                    JOptionPane.showMessageDialog(this, "Thêm giải đấu thành công!",
+                            "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Không thể thêm giải đấu!",
+                            "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
             }
-        } catch (Exception e) {
+        } catch (HeadlessException | SQLException e) {
             JOptionPane.showMessageDialog(this, "Lỗi: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }

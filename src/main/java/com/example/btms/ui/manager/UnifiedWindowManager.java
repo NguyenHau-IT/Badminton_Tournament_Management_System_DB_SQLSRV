@@ -2,6 +2,7 @@ package com.example.btms.ui.manager;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.HeadlessException;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.NetworkInterface;
@@ -113,21 +114,34 @@ public class UnifiedWindowManager {
             }
 
             JFrame frame = createWindow(type, config, tournamentTitle, parent);
-            setupWindowContent(type, frame, config, conn);
+            setupWindowContent(type, frame, config);
             windows.put(type, frame);
 
             frame.setVisible(true);
-        } catch (Exception ex) {
+        } catch (HeadlessException ex) {
             JOptionPane.showMessageDialog(parent,
                     "Không thể mở " + type.getDefaultTitle() + ": " + ex.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
 
+    // Store NetworkInterface cho BRACKET window
+    private NetworkInterface bracketNetworkInterface;
+
     /**
      * Phương thức thuận tiện cho Bracket window
      */
     public void openBracketWindow(DatabaseService service, JFrame parent, String tournamentTitle) {
+        openBracketWindow(service, parent, tournamentTitle, null);
+    }
+
+    /**
+     * Phương thức thuận tiện cho Bracket window với NetworkInterface
+     */
+    public void openBracketWindow(DatabaseService service, JFrame parent, String tournamentTitle,
+            NetworkInterface nic) {
+        // Lưu NetworkInterface để sử dụng khi tạo tabs
+        this.bracketNetworkInterface = nic;
         WindowConfig config = new WindowConfig()
                 .title(WindowType.BRACKET.getDefaultTitle() +
                         (tournamentTitle != null ? " - " + tournamentTitle : ""));
@@ -221,7 +235,7 @@ public class UnifiedWindowManager {
         return frame;
     }
 
-    private void setupWindowContent(WindowType type, JFrame frame, WindowConfig config, Connection conn) {
+    private void setupWindowContent(WindowType type, JFrame frame, WindowConfig config) {
         if (type.supportsTabs()) {
             // Setup tabbed interface (for BRACKET)
             JTabbedPane tabs = new JTabbedPane();
@@ -257,6 +271,10 @@ public class UnifiedWindowManager {
 
         SoDoThiDauPanel panel = new SoDoThiDauPanel(conn);
         try {
+            // Set NetworkInterface nếu có
+            if (bracketNetworkInterface != null) {
+                panel.setNetworkInterface(bracketNetworkInterface);
+            }
             panel.selectNoiDungById(idNoiDung);
             panel.setNoiDungLabelMode(true);
             panel.reloadData();

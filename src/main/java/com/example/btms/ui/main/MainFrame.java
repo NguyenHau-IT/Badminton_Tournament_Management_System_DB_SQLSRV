@@ -6,14 +6,17 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.HeadlessException;
 
 import java.awt.SecondaryLoop;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.lang.reflect.InvocationTargetException;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.LinkedHashMap; // still used earlier? (kept for backward compatibility but theme menu removed)
 import java.util.List;
@@ -33,6 +36,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -168,7 +172,6 @@ public class MainFrame extends JFrame {
         super("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
         this.netCfg = cfg;
         this.dbCfg = dbCfg;
-
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
         // Startup hygiene: do NOT carry over last selected tournament between app runs.
@@ -184,12 +187,12 @@ public class MainFrame extends JFrame {
         if (darkPref) {
             try {
                 UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatDarkLaf());
-            } catch (Exception ignored) {
+            } catch (UnsupportedLookAndFeelException ignored) {
             }
         } else {
             try {
                 UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatLightLaf());
-            } catch (Exception ignored) {
+            } catch (UnsupportedLookAndFeelException ignored) {
             }
         }
         Ui.installModernUi();
@@ -221,9 +224,9 @@ public class MainFrame extends JFrame {
                     controlPanel.setNetworkInterface(ni);
                     multiCourtPanel.setNetworkInterface(ni);
                 }
-                statusHost.setText("IF: " + netCfg.ifName());
+                statusHost.setText("IF: " + netCfg.ifName() + ", IP: " + netCfg.ipv4Address());
             } catch (SocketException ignored) {
-                statusHost.setText("IF: " + netCfg.ifName());
+                statusHost.setText("IF: " + netCfg.ifName() + ", IP: " + netCfg.ipv4Address());
             }
         }
 
@@ -261,7 +264,7 @@ public class MainFrame extends JFrame {
                         }
                         return; // nếu chọn NO thì giữ ứng dụng mở
                     }
-                } catch (Throwable ignore) {
+                } catch (HeadlessException ignore) {
                 }
                 // Nếu không còn sân nào mở thì cho phép dispose
                 try {
@@ -378,7 +381,7 @@ public class MainFrame extends JFrame {
             else
                 UIManager.setLookAndFeel(new FlatLightLaf());
             SwingUtilities.updateComponentTreeUI(this);
-        } catch (Exception ignored) {
+        } catch (UnsupportedLookAndFeelException ignored) {
         } finally {
             FlatAnimatedLafChange.hideSnapshotWithAnimation();
         }
@@ -490,7 +493,7 @@ public class MainFrame extends JFrame {
                 } catch (Exception ignore) {
                 }
                 onDatabaseConnected(conn);
-            } catch (Exception ex) {
+            } catch (SQLException ex) {
                 JOptionPane.showMessageDialog(this, "Kết nối CSDL thất bại: " + ex.getMessage(),
                         "Lỗi", JOptionPane.ERROR_MESSAGE);
                 statusConn.setText("Lỗi kết nối");
@@ -567,6 +570,15 @@ public class MainFrame extends JFrame {
             // Bốc thăm thi đấu (0-based order)
             bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
             soDoThiDauPanel = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
+            // Set network interface cho soDoThiDauPanel từ multiCourtPanel đã được set
+            // trước đó
+            try {
+                NetworkInterface ni = multiCourtPanel.getNetworkInterface();
+                if (ni != null) {
+                    soDoThiDauPanel.setNetworkInterface(ni);
+                }
+            } catch (Exception ignored) {
+            }
             // Báo cáo PDF – tổng hợp eksport
             try {
                 baoCaoPdfPanel = new BaoCaoPdfPanel(conn);
@@ -1161,7 +1173,7 @@ public class MainFrame extends JFrame {
                             contentParticipantsPanel.refreshAll();
                         JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân của nội dung.",
                                 "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                    } catch (Exception ex) {
+                    } catch (HeadlessException ex) {
                         JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                 JOptionPane.ERROR_MESSAGE);
                     }
@@ -1199,7 +1211,7 @@ public class MainFrame extends JFrame {
                             contentParticipantsPanel.refreshAll();
                         JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội của nội dung.",
                                 "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                    } catch (Exception ex) {
+                    } catch (HeadlessException ex) {
                         JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                 JOptionPane.ERROR_MESSAGE);
                     }
@@ -1243,7 +1255,7 @@ public class MainFrame extends JFrame {
                         JOptionPane.showMessageDialog(this,
                                 "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams + " đội của nội dung.",
                                 "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                    } catch (Exception ex) {
+                    } catch (HeadlessException ex) {
                         JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                 JOptionPane.ERROR_MESSAGE);
                     }
@@ -1350,7 +1362,7 @@ public class MainFrame extends JFrame {
                                 JOptionPane.showMessageDialog(this,
                                         "Đã xóa " + deleted + " đăng ký cá nhân của nội dung.",
                                         "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                            } catch (Exception ex) {
+                            } catch (HeadlessException ex) {
                                 JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                         JOptionPane.ERROR_MESSAGE);
                             }
@@ -1389,7 +1401,7 @@ public class MainFrame extends JFrame {
                                     contentParticipantsPanel.refreshAll();
                                 JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội của nội dung.",
                                         "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                            } catch (Exception ex) {
+                            } catch (HeadlessException ex) {
                                 JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                         JOptionPane.ERROR_MESSAGE);
                             }
@@ -1436,7 +1448,7 @@ public class MainFrame extends JFrame {
                                         "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams
                                                 + " đội của nội dung.",
                                         "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                            } catch (Exception ex) {
+                            } catch (HeadlessException ex) {
                                 JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                         JOptionPane.ERROR_MESSAGE);
                             }
@@ -1521,7 +1533,7 @@ public class MainFrame extends JFrame {
                                 dangKyCaNhanPanel.refreshAll();
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                        } catch (Exception ex) {
+                        } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -1557,7 +1569,7 @@ public class MainFrame extends JFrame {
                                 dangKyDoiPanel.refreshAll();
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                        } catch (Exception ex) {
+                        } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -1599,7 +1611,7 @@ public class MainFrame extends JFrame {
                             JOptionPane.showMessageDialog(this,
                                     "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams + " đội.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                        } catch (Exception ex) {
+                        } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -1650,7 +1662,7 @@ public class MainFrame extends JFrame {
                                 dangKyDoiPanel.refreshAll();
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                        } catch (Exception ex) {
+                        } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -1696,7 +1708,7 @@ public class MainFrame extends JFrame {
                                 dangKyCaNhanPanel.refreshAll();
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
-                        } catch (Exception ex) {
+                        } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Xóa tất cả thất bại: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -1753,7 +1765,7 @@ public class MainFrame extends JFrame {
                             else
                                 JOptionPane.showMessageDialog(this, "Không thể xuất PDF.", "Lỗi",
                                         JOptionPane.ERROR_MESSAGE);
-                        } catch (Exception ex) {
+                        } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -1787,7 +1799,7 @@ public class MainFrame extends JFrame {
                             else
                                 JOptionPane.showMessageDialog(this, "Không có nội dung để xuất.", "Thông báo",
                                         JOptionPane.INFORMATION_MESSAGE);
-                        } catch (Exception ex) {
+                        } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -1876,8 +1888,8 @@ public class MainFrame extends JFrame {
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
-                "Bạn có chắc muốn xoá toàn bộ sơ đồ, kết quả huy chương và danh sách bốc thăm của nội dung này?\n\n" +
-                        "Hành động này sẽ xoá dữ liệu trong CSDL và không thể hoàn tác.",
+                "Bạn có chắc muốn xoá ?\n\n" +
+                        "Hành động này sẽ xoá dữ liệu và không thể hoàn tác.",
                 "Xác nhận xoá", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm != JOptionPane.YES_OPTION) {
             return;
@@ -1889,7 +1901,7 @@ public class MainFrame extends JFrame {
         try {
             var ndOpt = new NoiDungService(new NoiDungRepository(conn)).getNoiDungById(cn.idNoiDung);
             isTeam = ndOpt.isPresent() && Boolean.TRUE.equals(ndOpt.get().getTeam());
-        } catch (Exception ex) {
+        } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this, "Không xác định được loại nội dung: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
             return;
@@ -1965,10 +1977,13 @@ public class MainFrame extends JFrame {
     /** Bốc thăm + lưu và mở sơ đồ, auto seed + lưu sơ đồ. */
     private void doAutoDrawSaveAndOpenForContent(ContentNode cn) {
         try {
+            NetworkInterface ni = (netCfg != null && netCfg.ifName() != null)
+                    ? NetworkInterface.getByName(netCfg.ifName())
+                    : null;
             if (!doAutoDrawSave(cn.idNoiDung))
                 return;
             windowManager.openBracketWindow(service, this,
-                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
+                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
             windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
             com.example.btms.ui.bracket.SoDoThiDauPanel p = windowManager.getBracketPanelByNoiDungId(cn.idNoiDung);
             if (p != null) {
@@ -2108,48 +2123,61 @@ public class MainFrame extends JFrame {
      * listener & mouse).
      */
     private void activateNavNode(DefaultMutableTreeNode node) {
-        if (node == null)
-            return;
-        if (node.getChildCount() > 0)
-            return; // chỉ xử lý leaf items
-        Object uo = node.getUserObject();
-        if (uo instanceof ContentNode cn) {
-            DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
-            String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
-            if ("Danh sách đăng kí".equals(parentLabel)) {
-                if (contentParticipantsPanel != null) {
-                    ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
-                    contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
-                    showView("Danh sách đăng kí");
-                }
-            } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
-                windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
-            } else if ("Nội dung của giải".equals(parentLabel)) {
-                if (dangKyNoiDungPanel != null) {
-                    ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
-                    try {
-                        dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
-                    } catch (Throwable ignore) {
+        try {
+            NetworkInterface ni = (netCfg != null && netCfg.ifName() != null)
+                    ? NetworkInterface.getByName(netCfg.ifName())
+                    : null;
+            if (node == null)
+                return;
+            if (node.getChildCount() > 0)
+                return; // chỉ xử lý leaf items
+            Object uo = node.getUserObject();
+            if (uo instanceof ContentNode cn) {
+                DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
+                String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
+                if (null != parentLabel)
+                    switch (parentLabel) {
+                        case "Danh sách đăng kí" -> {
+                            if (contentParticipantsPanel != null) {
+                                ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
+                                contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
+                                showView("Danh sách đăng kí");
+                            }
+                        }
+                        case "Sơ đồ thi đấu" -> {
+                            windowManager.openBracketWindow(service, this,
+                                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+                            windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
+                        }
+                        case "Nội dung của giải" -> {
+                            if (dangKyNoiDungPanel != null) {
+                                ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
+                                try {
+                                    dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
+                                } catch (Throwable ignore) {
+                                }
+                                showView("Nội dung của giải");
+                            }
+                        }
+                        default -> {
+                        }
                     }
-                    showView("Nội dung của giải");
-                }
-            }
-            return;
-        }
-        if (uo instanceof String label) {
-            if ("Sơ đồ thi đấu".equals(label)) {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
                 return;
             }
-            if ("Bốc thăm thi đấu".equals(label)) {
-                if (bocThamThiDauPanel != null)
-                    ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+            if (uo instanceof String label) {
+                if ("Sơ đồ thi đấu".equals(label)) {
+                    windowManager.openBracketWindow(service, this,
+                            (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+                    return;
+                }
+                if ("Bốc thăm thi đấu".equals(label)) {
+                    if (bocThamThiDauPanel != null)
+                        ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+                }
+                if (views.containsKey(label))
+                    showView(label);
             }
-            if (views.containsKey(label))
-                showView(label);
+        } catch (SocketException ignored) {
         }
     }
 
@@ -2240,7 +2268,8 @@ public class MainFrame extends JFrame {
         try {
             java.lang.reflect.Method m = monitorTab.getClass().getMethod("setColumns", int.class);
             m.invoke(monitorTab, cols);
-        } catch (Exception ignore) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                | InvocationTargetException ignore) {
         }
     }
 
@@ -2258,7 +2287,7 @@ public class MainFrame extends JFrame {
                 monitorTab.refreshAllViewerSettings();
             } catch (Exception ignore) {
             }
-        } catch (Exception ignore) {
+        } catch (SecurityException ignore) {
         }
     }
 
@@ -2312,13 +2341,32 @@ public class MainFrame extends JFrame {
     /** Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại. */
     @SuppressWarnings("unused")
     private void showSoDoTabForNoiDung(Integer idNoiDung) {
-        // Method kept for compatibility; delegate to unified window manager
-        windowManager.openBracketWindow(service, this,
-                (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
-        if (idNoiDung != null) {
-            // Focus if already exists; creation requires a title which we don't have here
-            var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
-            // no-op: window is brought to front by openWindow; focusing is handled by user
+        NetworkInterface ni;
+        try {
+            ni = (netCfg != null && netCfg.ifName() != null)
+                    ? NetworkInterface.getByName(netCfg.ifName())
+                    : null;
+            // Method kept for compatibility; delegate to unified window manager
+            if (ni != null) {
+                windowManager.openBracketWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+            } else {
+                // Open without network interface if none available
+                windowManager.openBracketWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+            }
+            if (idNoiDung != null) {
+                // Focus if already exists; creation requires a title which we don't have here
+                var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
+                // no-op: window is brought to front by openWindow; focusing is handled by user
+            }
+        } catch (SocketException ignored) {
+            // If we cannot resolve the network interface, open window without it.
+            try {
+                windowManager.openBracketWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+            } catch (Exception ignore) {
+            }
         }
     }
 
@@ -2336,7 +2384,7 @@ public class MainFrame extends JFrame {
             }
             int idGiai;
             if (selectedGiaiDau != null && selectedGiaiDau.getId() != null) {
-                idGiai = selectedGiaiDau.getId().intValue();
+                idGiai = selectedGiaiDau.getId();
             } else {
                 idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
             }
@@ -2399,7 +2447,20 @@ public class MainFrame extends JFrame {
     /* -------------------- Inline dialogs -------------------- */
 
     private GiaiDau showTournamentSelectDialog() {
-        return com.example.btms.ui.tournament.TournamentManagementComponent.showSelectionDialog(this, service);
+        // Lấy userId từ Preferences nếu có
+        Integer currentUserId = null;
+        try {
+            com.example.btms.config.Prefs prefs = new com.example.btms.config.Prefs();
+            int userId = prefs.getInt("userId", -1);
+            if (userId != -1) {
+                currentUserId = userId;
+            }
+        } catch (Exception e) {
+            // Không có user ID hoặc lỗi, hiển thị tất cả giải đấu
+        }
+
+        return com.example.btms.ui.tournament.TournamentManagementComponent.showSelectionDialog(this, service,
+                currentUserId);
     }
 
     // Normalize a string to a safe ASCII filename using underscores as separator
