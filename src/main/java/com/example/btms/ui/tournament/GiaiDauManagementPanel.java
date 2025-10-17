@@ -10,6 +10,7 @@ import java.util.Optional;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
+import com.example.btms.config.Prefs;
 import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.service.tournament.GiaiDauService;
 
@@ -18,12 +19,14 @@ import com.example.btms.service.tournament.GiaiDauService;
 public class GiaiDauManagementPanel extends JPanel {
     private final GiaiDauService giaiDauService;
     private final boolean selectionOnly;
+    private Integer currentUserId; // ID người dùng hiện tại để filter giải đấu
 
     private JTable giaiDauTable;
     private DefaultTableModel tableModel;
     private JTextField searchField;
     private JComboBox<String> statusFilter;
     private JButton btnRefresh, btnAdd, btnEdit, btnDelete, btnSearch;
+    private JLabel lblUserInfo; // Hiển thị thông tin user hiện tại
 
     public GiaiDauManagementPanel(GiaiDauService giaiDauService) {
         this(giaiDauService, false);
@@ -32,9 +35,40 @@ public class GiaiDauManagementPanel extends JPanel {
     public GiaiDauManagementPanel(GiaiDauService giaiDauService, boolean selectionOnly) {
         this.giaiDauService = giaiDauService;
         this.selectionOnly = selectionOnly;
+
+        // Tự động lấy userId từ Preferences nếu đã đăng nhập
+        try {
+            Prefs prefs = new Prefs();
+            this.currentUserId = prefs.getInt("userId", -1);
+            if (this.currentUserId == -1) {
+                this.currentUserId = null; // Không có user đăng nhập
+            }
+        } catch (Exception e) {
+            this.currentUserId = null;
+        }
+
         initializeComponents();
         setupLayout();
         loadData();
+    }
+
+    /**
+     * Set ID người dùng hiện tại để filter giải đấu theo user
+     * 
+     * @param userId ID người dùng, null để hiển thị tất cả giải đấu
+     */
+    public void setCurrentUserId(Integer userId) {
+        this.currentUserId = userId;
+        loadData(); // Reload dữ liệu với user ID mới
+    }
+
+    /**
+     * Lấy ID người dùng hiện tại
+     * 
+     * @return ID người dùng hoặc null nếu hiển thị tất cả
+     */
+    public Integer getCurrentUserId() {
+        return currentUserId;
     }
 
     private void initializeComponents() {
@@ -63,6 +97,9 @@ public class GiaiDauManagementPanel extends JPanel {
         btnDelete = new JButton("Xóa");
         btnSearch = new JButton("Tìm kiếm");
 
+        // User info label
+        lblUserInfo = new JLabel();
+
         // events
         btnRefresh.addActionListener(e -> loadData());
         btnAdd.addActionListener(e -> showAddDialog());
@@ -79,22 +116,28 @@ public class GiaiDauManagementPanel extends JPanel {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
 
+        // Row 0: User info
         gbc.gridx = 0;
         gbc.gridy = 0;
+        gbc.gridwidth = 5;
+        gbc.anchor = GridBagConstraints.WEST;
+        top.add(lblUserInfo, gbc);
+
+        // Row 1: Search controls
+        gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        gbc.gridx = 0;
         top.add(new JLabel("Tìm kiếm:"), gbc);
         gbc.gridx = 1;
-        gbc.gridy = 0;
         top.add(searchField, gbc);
         gbc.gridx = 2;
-        gbc.gridy = 0;
         top.add(btnSearch, gbc);
         gbc.gridx = 3;
-        gbc.gridy = 0;
         top.add(new JLabel("Lọc theo:"), gbc);
         gbc.gridx = 4;
-        gbc.gridy = 0;
         top.add(statusFilter, gbc);
 
+        // Row 2: Action buttons
         JPanel btns = new JPanel();
         btns.add(btnRefresh);
         if (!selectionOnly) {
@@ -103,7 +146,7 @@ public class GiaiDauManagementPanel extends JPanel {
             btns.add(btnDelete);
         }
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.gridwidth = 5;
         top.add(btns, gbc);
 
@@ -113,9 +156,20 @@ public class GiaiDauManagementPanel extends JPanel {
 
     private void loadData() {
         try {
-            updateTable(giaiDauService.getAllGiaiDau());
+            List<GiaiDau> giaiDauList;
+
+            if (currentUserId != null) {
+                // Load giải đấu theo user ID
+                giaiDauList = giaiDauService.getGiaiDauByUserId(currentUserId.longValue());
+            } else {
+                // Load tất cả giải đấu (chế độ admin hoặc chưa đăng nhập)
+                giaiDauList = giaiDauService.getAllGiaiDau();
+            }
+
+            updateTable(giaiDauList);
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Lỗi khi tải dữ liệu: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this,
+                    "Lỗi khi tải dữ liệu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -198,10 +252,32 @@ public class GiaiDauManagementPanel extends JPanel {
     private void searchGiaiDau() {
         String q = searchField.getText().trim();
         try {
-            updateTable(q.isEmpty() ? giaiDauService.getAllGiaiDau()
-                    : giaiDauService.searchGiaiDauByName(q));
+            List<GiaiDau> searchResults;
+
+            if (q.isEmpty()) {
+                // Nếu không có từ khóa tìm kiếm, load theo user ID
+                if (currentUserId != null) {
+                    searchResults = giaiDauService.getGiaiDauByUserId(currentUserId.longValue());
+                } else {
+                    searchResults = giaiDauService.getAllGiaiDau();
+                }
+            } else {
+                // Tìm kiếm theo tên và filter theo user nếu cần
+                List<GiaiDau> allSearchResults = giaiDauService.searchGiaiDauByName(q);
+                if (currentUserId != null) {
+                    // Filter kết quả search theo user ID
+                    searchResults = allSearchResults.stream()
+                            .filter(gd -> currentUserId.equals(gd.getIdUser()))
+                            .toList();
+                } else {
+                    searchResults = allSearchResults;
+                }
+            }
+
+            updateTable(searchResults);
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Lỗi khi tìm kiếm: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this,
+                    "Lỗi khi tìm kiếm: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -209,15 +285,31 @@ public class GiaiDauManagementPanel extends JPanel {
     private void filterByStatus() {
         String s = (String) statusFilter.getSelectedItem();
         try {
-            List<GiaiDau> list = switch (s) {
+            List<GiaiDau> allResults = switch (s) {
                 case "Đang hoạt động" -> giaiDauService.getActiveGiaiDau();
                 case "Sắp tới" -> giaiDauService.getUpcomingGiaiDau();
                 case "Đã kết thúc" -> giaiDauService.getFinishedGiaiDau();
-                default -> giaiDauService.getAllGiaiDau();
+                default -> {
+                    if (currentUserId != null) {
+                        yield giaiDauService.getGiaiDauByUserId(currentUserId.longValue());
+                    } else {
+                        yield giaiDauService.getAllGiaiDau();
+                    }
+                }
             };
-            updateTable(list);
+
+            // Filter theo user ID nếu cần (trừ trường hợp "Tất cả" đã được handle ở trên)
+            if (currentUserId != null && s != null && !s.equals("Tất cả")) {
+                List<GiaiDau> userFilteredResults = allResults.stream()
+                        .filter(gd -> currentUserId.equals(gd.getIdUser()))
+                        .toList();
+                updateTable(userFilteredResults);
+            } else {
+                updateTable(allResults);
+            }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Lỗi khi lọc dữ liệu: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this,
+                    "Lỗi khi lọc dữ liệu: " + e.getMessage(),
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -242,6 +334,24 @@ public class GiaiDauManagementPanel extends JPanel {
     public void refreshData() {
         giaiDauService.refreshRepository();
         loadData();
+    }
+
+    /**
+     * Refresh data with updated user ID from Preferences
+     * Gọi khi cần cập nhật user ID từ session mới
+     */
+    public void refreshWithCurrentUser() {
+        try {
+            Prefs prefs = new Prefs();
+            Integer newUserId = prefs.getInt("userId", -1);
+            if (newUserId == -1) {
+                newUserId = null;
+            }
+            setCurrentUserId(newUserId);
+        } catch (Exception e) {
+            // Giữ nguyên currentUserId hiện tại nếu có lỗi
+            loadData();
+        }
     }
 
     /** Lấy entity đang chọn trong bảng (nếu cần) */

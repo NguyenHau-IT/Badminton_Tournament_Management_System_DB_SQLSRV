@@ -168,7 +168,6 @@ public class MainFrame extends JFrame {
         super("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
         this.netCfg = cfg;
         this.dbCfg = dbCfg;
-
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
         // Startup hygiene: do NOT carry over last selected tournament between app runs.
@@ -221,9 +220,9 @@ public class MainFrame extends JFrame {
                     controlPanel.setNetworkInterface(ni);
                     multiCourtPanel.setNetworkInterface(ni);
                 }
-                statusHost.setText("IF: " + netCfg.ifName());
+                statusHost.setText("IF: " + netCfg.ifName() + ", IP: " + netCfg.ipv4Address());
             } catch (SocketException ignored) {
-                statusHost.setText("IF: " + netCfg.ifName());
+                statusHost.setText("IF: " + netCfg.ifName() + ", IP: " + netCfg.ipv4Address());
             }
         }
 
@@ -567,6 +566,15 @@ public class MainFrame extends JFrame {
             // Bốc thăm thi đấu (0-based order)
             bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
             soDoThiDauPanel = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
+            // Set network interface cho soDoThiDauPanel từ multiCourtPanel đã được set
+            // trước đó
+            try {
+                NetworkInterface ni = multiCourtPanel.getNetworkInterface();
+                if (ni != null) {
+                    soDoThiDauPanel.setNetworkInterface(ni);
+                }
+            } catch (Exception ignored) {
+            }
             // Báo cáo PDF – tổng hợp eksport
             try {
                 baoCaoPdfPanel = new BaoCaoPdfPanel(conn);
@@ -1965,10 +1973,13 @@ public class MainFrame extends JFrame {
     /** Bốc thăm + lưu và mở sơ đồ, auto seed + lưu sơ đồ. */
     private void doAutoDrawSaveAndOpenForContent(ContentNode cn) {
         try {
+            NetworkInterface ni = (netCfg != null && netCfg.ifName() != null)
+                    ? NetworkInterface.getByName(netCfg.ifName())
+                    : null;
             if (!doAutoDrawSave(cn.idNoiDung))
                 return;
             windowManager.openBracketWindow(service, this,
-                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
+                    (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
             windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
             com.example.btms.ui.bracket.SoDoThiDauPanel p = windowManager.getBracketPanelByNoiDungId(cn.idNoiDung);
             if (p != null) {
@@ -2108,48 +2119,54 @@ public class MainFrame extends JFrame {
      * listener & mouse).
      */
     private void activateNavNode(DefaultMutableTreeNode node) {
-        if (node == null)
-            return;
-        if (node.getChildCount() > 0)
-            return; // chỉ xử lý leaf items
-        Object uo = node.getUserObject();
-        if (uo instanceof ContentNode cn) {
-            DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
-            String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
-            if ("Danh sách đăng kí".equals(parentLabel)) {
-                if (contentParticipantsPanel != null) {
-                    ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
-                    contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
-                    showView("Danh sách đăng kí");
-                }
-            } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
-                windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
-            } else if ("Nội dung của giải".equals(parentLabel)) {
-                if (dangKyNoiDungPanel != null) {
-                    ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
-                    try {
-                        dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
-                    } catch (Throwable ignore) {
+        try {
+            NetworkInterface ni = (netCfg != null && netCfg.ifName() != null)
+                    ? NetworkInterface.getByName(netCfg.ifName())
+                    : null;
+            if (node == null)
+                return;
+            if (node.getChildCount() > 0)
+                return; // chỉ xử lý leaf items
+            Object uo = node.getUserObject();
+            if (uo instanceof ContentNode cn) {
+                DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
+                String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
+                if ("Danh sách đăng kí".equals(parentLabel)) {
+                    if (contentParticipantsPanel != null) {
+                        ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
+                        contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
+                        showView("Danh sách đăng kí");
                     }
-                    showView("Nội dung của giải");
+                } else if ("Sơ đồ thi đấu".equals(parentLabel)) {
+                    windowManager.openBracketWindow(service, this,
+                            (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+                    windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
+                } else if ("Nội dung của giải".equals(parentLabel)) {
+                    if (dangKyNoiDungPanel != null) {
+                        ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
+                        try {
+                            dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
+                        } catch (Throwable ignore) {
+                        }
+                        showView("Nội dung của giải");
+                    }
                 }
-            }
-            return;
-        }
-        if (uo instanceof String label) {
-            if ("Sơ đồ thi đấu".equals(label)) {
-                windowManager.openBracketWindow(service, this,
-                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
                 return;
             }
-            if ("Bốc thăm thi đấu".equals(label)) {
-                if (bocThamThiDauPanel != null)
-                    ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+            if (uo instanceof String label) {
+                if ("Sơ đồ thi đấu".equals(label)) {
+                    windowManager.openBracketWindow(service, this,
+                            (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+                    return;
+                }
+                if ("Bốc thăm thi đấu".equals(label)) {
+                    if (bocThamThiDauPanel != null)
+                        ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+                }
+                if (views.containsKey(label))
+                    showView(label);
             }
-            if (views.containsKey(label))
-                showView(label);
+        } catch (SocketException ignored) {
         }
     }
 
@@ -2312,13 +2329,32 @@ public class MainFrame extends JFrame {
     /** Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại. */
     @SuppressWarnings("unused")
     private void showSoDoTabForNoiDung(Integer idNoiDung) {
-        // Method kept for compatibility; delegate to unified window manager
-        windowManager.openBracketWindow(service, this,
-                (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null));
-        if (idNoiDung != null) {
-            // Focus if already exists; creation requires a title which we don't have here
-            var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
-            // no-op: window is brought to front by openWindow; focusing is handled by user
+        NetworkInterface ni = null;
+        try {
+            ni = (netCfg != null && netCfg.ifName() != null)
+                    ? NetworkInterface.getByName(netCfg.ifName())
+                    : null;
+            // Method kept for compatibility; delegate to unified window manager
+            if (ni != null) {
+                windowManager.openBracketWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
+            } else {
+                // Open without network interface if none available
+                windowManager.openBracketWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+            }
+            if (idNoiDung != null) {
+                // Focus if already exists; creation requires a title which we don't have here
+                var p = windowManager.getBracketPanelByNoiDungId(idNoiDung);
+                // no-op: window is brought to front by openWindow; focusing is handled by user
+            }
+        } catch (SocketException ignored) {
+            // If we cannot resolve the network interface, open window without it.
+            try {
+                windowManager.openBracketWindow(service, this,
+                        (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), null);
+            } catch (Exception ignore) {
+            }
         }
     }
 
@@ -2399,7 +2435,20 @@ public class MainFrame extends JFrame {
     /* -------------------- Inline dialogs -------------------- */
 
     private GiaiDau showTournamentSelectDialog() {
-        return com.example.btms.ui.tournament.TournamentManagementComponent.showSelectionDialog(this, service);
+        // Lấy userId từ Preferences nếu có
+        Integer currentUserId = null;
+        try {
+            com.example.btms.config.Prefs prefs = new com.example.btms.config.Prefs();
+            int userId = prefs.getInt("userId", -1);
+            if (userId != -1) {
+                currentUserId = userId;
+            }
+        } catch (Exception e) {
+            // Không có user ID hoặc lỗi, hiển thị tất cả giải đấu
+        }
+
+        return com.example.btms.ui.tournament.TournamentManagementComponent.showSelectionDialog(this, service,
+                currentUserId);
     }
 
     // Normalize a string to a safe ASCII filename using underscores as separator
