@@ -6,7 +6,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridLayout;
+
 import java.awt.SecondaryLoop;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
@@ -133,10 +133,7 @@ public class MainFrame extends JFrame {
 
     private AuthService authService;
 
-    // UI fields
-    private final JLabel lblAppTitle = new JLabel("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
-    private final JLabel lblVersion = new JLabel();
-    // Bỏ toggle ở header; chuyển qua menu. (Giữ method switchTheme)
+    // UI fields (đã xóa lblAppTitle và lblVersion vì không còn header)
     private final JLabel statusConn = new JLabel("Chưa kết nối");
     private final JLabel statusHost = new JLabel("-");
     private final JLabel statusMem = new JLabel();
@@ -165,30 +162,7 @@ public class MainFrame extends JFrame {
         this(null, null);
     }
 
-    /**
-     * Rebuild and replace the header bar. Call this after changing header image
-     * pref.
-     */
-    public void refreshHeader() {
-        try {
-            java.awt.Container root = getContentPane();
-            // remove existing NORTH component and add a fresh one
-            java.awt.Component old = null;
-            for (java.awt.Component c : root.getComponents()) {
-                if (BorderLayout.NORTH.equals(((BorderLayout) root.getLayout()).getConstraints(c))) {
-                    old = c;
-                    break;
-                }
-            }
-            if (old != null)
-                root.remove(old);
-            JPanel headerBar = buildHeaderBar();
-            root.add(headerBar, BorderLayout.NORTH);
-            root.revalidate();
-            root.repaint();
-        } catch (Exception ignore) {
-        }
-    }
+    // Đã xóa refreshHeader() vì không còn header
 
     public MainFrame(NetworkConfig cfg, ConnectionConfig dbCfg) {
         super("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
@@ -224,20 +198,14 @@ public class MainFrame extends JFrame {
         root.setLayout(new BorderLayout());
         root.setBorder(new EmptyBorder(5, 5, 5, 5));
 
-        // headerBar stored so it can be refreshed at runtime when settings change
-        JPanel headerBar = buildHeaderBar();
         JPanel status = buildStatusBar();
-
-        // (Old tab configuration removed)
-
-        // Không dùng Login như một trang trong main nữa; đăng nhập qua dialog
 
         // Khởi tạo trang cài đặt sớm để luôn truy cập được
         settingsPanel = new SettingsPanel(this);
         ensureViewPresent("Cài đặt", settingsPanel);
         // Chưa hiển thị view nào cho đến khi đăng nhập và chọn giải
 
-        root.add(headerBar, BorderLayout.NORTH);
+        // Không add headerBar nữa
         // Left navigation tree
         JScrollPane nav = buildNavigationTreePanel();
         root.add(nav, BorderLayout.WEST);
@@ -347,11 +315,7 @@ public class MainFrame extends JFrame {
         // constructor'
         SwingUtilities.invokeLater(() -> IconUtil.applyTo(this));
 
-        String implTitle = getClass().getPackage().getImplementationTitle();
-        String implVer = getClass().getPackage().getImplementationVersion();
-        if (implTitle != null)
-            lblAppTitle.setText(implTitle);
-        lblVersion.setText(implVer != null ? "v" + implVer : "");
+        // Đã xóa việc set title và version cho header vì không còn header
 
         ramTimer = new javax.swing.Timer(1000, ae -> updateMemory());
         ramTimer.start();
@@ -370,79 +334,7 @@ public class MainFrame extends JFrame {
 
     /* -------------------- UI Builders -------------------- */
 
-    private JPanel buildHeaderBar() {
-        JPanel bar = new JPanel(new BorderLayout());
-        bar.setBorder(new EmptyBorder(6, 10, 6, 10));
-        // Try to load a custom header image. Locations checked (in order):
-        // 1) Prefs key `ui.header.logo.path`
-        // 2) classpath resource `/icons/btms.png`
-        // 3) project file `icons/btms.png`
-        javax.swing.JLabel headerImageLabel = null;
-        try {
-            String pathPref = new com.example.btms.config.Prefs().get("ui.header.logo.path", "");
-            java.awt.Image img = null;
-            if (pathPref != null && !pathPref.isBlank()) {
-                java.io.File f = new java.io.File(pathPref);
-                if (f.exists())
-                    img = javax.imageio.ImageIO.read(f);
-            }
-            if (img == null) {
-                java.net.URL res = MainFrame.class.getResource("/icons/btms.png");
-                if (res != null) {
-                    img = javax.imageio.ImageIO.read(res);
-                }
-            }
-            if (img == null) {
-                java.io.File f2 = new java.io.File("icons/btms.png");
-                if (f2.exists())
-                    img = javax.imageio.ImageIO.read(f2);
-            }
-            if (img != null) {
-                // scale to target height while keeping aspect ratio
-                // make header image larger (default 96px) to emphasize logo
-                int targetH = new com.example.btms.config.Prefs().getInt("ui.header.logo.height", 96);
-                int w = img.getWidth(null);
-                int h = img.getHeight(null);
-                if (w > 0 && h > 0) {
-                    int targetW = Math.max(1, (int) Math.round(w * (targetH / (double) h)));
-                    java.awt.Image scaled = img.getScaledInstance(targetW, targetH, java.awt.Image.SCALE_SMOOTH);
-                    headerImageLabel = new javax.swing.JLabel(new javax.swing.ImageIcon(scaled));
-                }
-            }
-        } catch (Exception ignore) {
-            headerImageLabel = null;
-        }
-
-        lblAppTitle.setFont(lblAppTitle.getFont().deriveFont(Font.BOLD, 18f));
-        lblVersion.setFont(lblAppTitle.getFont().deriveFont(Font.PLAIN, 12f));
-        lblVersion.setForeground(new Color(110, 110, 110));
-        lblAppTitle.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, lblAppTitle.getPreferredSize().height));
-
-        JPanel titleBox = new JPanel(new GridLayout(2, 1, 0, 0));
-        titleBox.setOpaque(false);
-        titleBox.add(lblAppTitle);
-        titleBox.add(lblVersion);
-
-        JPanel center = new JPanel();
-        center.setOpaque(false);
-        center.setLayout(new javax.swing.BoxLayout(center, javax.swing.BoxLayout.X_AXIS));
-        if (headerImageLabel != null) {
-            // When a custom header image is present we show the image prominently and
-            // hide the textual title to produce an icon-only header per user request.
-            center.add(headerImageLabel);
-            center.add(javax.swing.Box.createHorizontalGlue());
-        } else {
-            // fallback to old avatar if image not found
-            JLabel avatar = new JLabel(IconUtil.loadRoundAvatar(48));
-            center.add(avatar);
-            center.add(javax.swing.Box.createHorizontalStrut(10));
-            center.add(titleBox);
-        }
-        center.add(javax.swing.Box.createHorizontalGlue());
-
-        bar.add(center, BorderLayout.CENTER);
-        return bar;
-    }
+    // Đã xóa buildHeaderBar() vì không còn cần header
 
     private JPanel buildStatusBar() {
         JPanel bar = new JPanel(new BorderLayout());
