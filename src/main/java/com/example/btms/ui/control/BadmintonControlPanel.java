@@ -12,6 +12,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
@@ -20,6 +21,7 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.net.NetworkInterface;
 import java.sql.Connection;
 import java.text.SimpleDateFormat;
@@ -54,7 +56,8 @@ import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 
 import com.example.btms.config.Prefs;
-import com.example.btms.controller.scoreBoard.ScoreboardPinController;
+import com.example.btms.model.bracket.SoDoCaNhan;
+import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.model.player.VanDongVien;
 import com.example.btms.model.team.DangKiDoi;
@@ -77,6 +80,8 @@ import com.example.btms.util.net.NetworkUtil;
 import com.example.btms.util.qr.QRCodeUtil;
 import com.example.btms.util.swing.SelectionGuard;
 import com.example.btms.util.ui.ButtonFactory;
+import com.example.btms.web.controller.scoreBoard.ScoreboardPinController;
+import com.google.zxing.WriterException;
 
 public class BadmintonControlPanel extends JPanel implements PropertyChangeListener {
 
@@ -176,7 +181,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private static final Color COL_NEUTRAL = new Color(120, 120, 120);
 
     private static final Dimension BTN_CTRL = new Dimension(200, 30);
-    private static final Dimension BTN_CTRL_SMALL = new Dimension(150, 30);
     private static final Dimension BTN_SCORE = new Dimension(120, 46);
     private static final Dimension BTN_UTILITY = new Dimension(140, 46);
 
@@ -194,7 +198,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private void initializeMatch() {
         // Khởi tạo với shared match hoặc match của PIN nếu có
         if (courtPinCode != null && !courtPinCode.equals("0000")) {
-            BadmintonMatch pinMatch = ScoreboardPinController.getMatchByPin(courtPinCode);
+            BadmintonMatch pinMatch = ScoreboardPinController
+                    .getMatchByPin(courtPinCode);
             if (pinMatch != null) {
                 this.match = pinMatch;
                 return;
@@ -215,7 +220,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             }
         }
 
-        BadmintonMatch pinMatch = ScoreboardPinController.getMatchByPin(courtPinCode);
+        BadmintonMatch pinMatch = ScoreboardPinController
+                .getMatchByPin(courtPinCode);
         if (pinMatch != null) {
             this.match = pinMatch;
             logger.logTs("Switched to PIN match for PIN: %s", courtPinCode);
@@ -448,9 +454,6 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         bottom.setOpaque(false);
         doubles.setBorder(new EmptyBorder(0, 8, 0, 0));
         bottom.add(doubles, BorderLayout.WEST);
-        btnReloadLists = ButtonFactory.outlined("Tải danh sách", COL_PRIMARY, BTN_CTRL_SMALL, FONT_BTN);
-        btnReloadLists.addActionListener(e -> reloadListsFromDb());
-        bottom.add(btnReloadLists, BorderLayout.EAST);
         card.add(bottom, cFull);
 
         GridBagConstraints filler = new GridBagConstraints();
@@ -497,9 +500,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnStart = ButtonFactory.filled("Bắt đầu trận", COL_SUCCESS, Color.WHITE, BTN_CTRL, FONT_BTN);
         btnFinish = ButtonFactory.filled("Kết thúc trận", COL_DANGER, Color.WHITE, BTN_CTRL, FONT_BTN);
         btnFinish.setEnabled(false);
-        btnOpenDisplay = ButtonFactory.outlined("Mở bảng điểm (dọc)", COL_PRIMARY, BTN_CTRL, FONT_BTN);
+        btnOpenDisplay = ButtonFactory.outlined("Mở bảng dọc", COL_PRIMARY, BTN_CTRL, FONT_BTN);
         btnOpenDisplay.setEnabled(false);
-        btnOpenDisplayH = ButtonFactory.outlined("Mở bảng điểm (ngang)", COL_PRIMARY, BTN_CTRL, FONT_BTN);
+        btnOpenDisplayH = ButtonFactory.outlined("Mở bảng ngang", COL_PRIMARY, BTN_CTRL, FONT_BTN);
         btnOpenDisplayH.setEnabled(false);
         btnCloseDisplay = ButtonFactory.outlined("Đóng", COL_NEUTRAL, BTN_CTRL, FONT_BTN);
         btnCloseDisplay.setEnabled(false);
@@ -521,7 +524,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
 
         btnStart.addActionListener(e -> onStart());
-        btnFinish.addActionListener(e -> onFinish());
+        btnFinish.addActionListener(e -> onFinish(false));
         btnReset.addActionListener(e -> onReset());
         btnOpenDisplay.addActionListener(e -> openDisplayVertical());
         btnOpenDisplayH.addActionListener(e -> openDisplayHorizontal());
@@ -561,7 +564,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 java.lang.reflect.Method m = match.getClass().getDeclaredMethod("isManualPaused");
                 m.setAccessible(true);
                 manualPaused = (Boolean) m.invoke(match);
-            } catch (Exception ignore) {
+            } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                    | InvocationTargetException ignore) {
             }
 
             if (!manualPaused) {
@@ -570,7 +574,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     m.setAccessible(true);
                     m.invoke(match);
                     lblStatus.setText("Tạm dừng");
-                } catch (Exception ex) {
+                } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                        | InvocationTargetException ex) {
                     logger.logTs("Không thể tạm dừng: %s", ex.getMessage());
                 }
             } else {
@@ -579,13 +584,14 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     m.setAccessible(true);
                     m.invoke(match);
                     lblStatus.setText("Đang thi đấu");
-                } catch (Exception ex) {
+                } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                        | InvocationTargetException ex) {
                     logger.logTs("Không thể tiếp tục: %s", ex.getMessage());
                 }
             }
             updatePauseButtonText();
             updateControlsEnabledAccordingToState();
-        } catch (Exception ex) {
+        } catch (HeadlessException ex) {
             logger.logTs("Lỗi toggle pause: %s", ex.getMessage());
         }
     }
@@ -596,7 +602,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             java.lang.reflect.Method m = match.getClass().getDeclaredMethod("isManualPaused");
             m.setAccessible(true);
             manualPaused = (Boolean) m.invoke(match);
-        } catch (Exception ignore) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                | InvocationTargetException ignore) {
         }
         if (pauseResume != null)
             pauseResume.setText(manualPaused ? "Tiếp tục" : "Tạm dừng");
@@ -609,7 +616,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             java.lang.reflect.Method m = match.getClass().getDeclaredMethod("isManualPaused");
             m.setAccessible(true);
             manualPaused = (Boolean) m.invoke(match);
-        } catch (Exception ignore) {
+        } catch (IllegalAccessException | IllegalArgumentException | NoSuchMethodException | SecurityException
+                | InvocationTargetException ignore) {
         }
         boolean canScore = hasStarted && !s.matchFinished && !s.betweenGamesInterval && !manualPaused;
         setScoreButtonsEnabled(canScore);
@@ -1614,8 +1622,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 boolean needUpdate = false;
                 Integer curTheThuc = cur.getTheThuc();
                 Integer curSan = cur.getSan();
-                int newTheThuc = (curTheThuc != null) ? curTheThuc.intValue() : theThuc;
-                int newSan = (curSan != null) ? curSan.intValue() : san;
+                int newTheThuc = (curTheThuc != null) ? curTheThuc : theThuc;
+                int newSan = (curSan != null) ? curSan : san;
                 if (newTheThuc != theThuc) {
                     newTheThuc = theThuc; // align to current selection
                     needUpdate = true;
@@ -1708,13 +1716,18 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnReloadLists.setEnabled(true);
     }
 
-    private void onFinish() {
-        int ans = JOptionPane.showConfirmDialog(this,
-                "Kết thúc trận hiện tại và sẵn sàng cho trận mới?",
-                "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        if (ans != JOptionPane.YES_OPTION) {
-            btnFinish.setEnabled(true);
-            return;
+    // Removed unused no-arg onFinish() to avoid "never used" warning
+
+    // auto=true: gọi từ hẹn giờ khi trận đã kết thúc, bỏ qua xác nhận
+    private void onFinish(boolean auto) {
+        if (!auto) {
+            int ans = JOptionPane.showConfirmDialog(this,
+                    "Kết thúc trận hiện tại và sẵn sàng cho trận mới?",
+                    "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (ans != JOptionPane.YES_OPTION) {
+                btnFinish.setEnabled(true);
+                return;
+            }
         }
 
         closeDisplays();
@@ -1730,7 +1743,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 var cur = msvc.get(currentMatchId);
                 // Xác định ID VĐV thắng nếu là đơn, nếu không xác định được thì giữ giá trị cũ
                 Integer curWinner = cur.getIdVdvThang();
-                int idVdvThang = computeWinnerVdvIdOrDefault(curWinner != null ? curWinner.intValue() : 0);
+                int idVdvThang = computeWinnerVdvIdOrDefault(curWinner != null ? curWinner : 0);
                 msvc.update(currentMatchId, cur.getTheThuc(), idVdvThang, cur.getBatDau(), now,
                         cur.getSan());
 
@@ -1784,6 +1797,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         lblServer.setText("Giao cầu: A (R)");
 
         logger.finishMatch();
+
+        // Reset cờ auto-finish (nếu có) để tránh các lần gọi sau hiểu nhầm trạng thái
+        cancelFinishTimer();
     }
 
     /**
@@ -1853,11 +1869,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             int updatedA = 0, updatedB = 0;
             for (var r : rows) {
                 if (r.getIdTranDau() != null && r.getIdTranDau().equals(matchId)) {
-                    if (idVdvA != null && r.getIdVdv() != null && r.getIdVdv().intValue() == idVdvA.intValue()) {
+                    if (idVdvA != null && r.getIdVdv() != null && r.getIdVdv().equals(idVdvA)) {
                         ssvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemA);
                         updatedA++;
                     } else if (idVdvB != null && r.getIdVdv() != null
-                            && r.getIdVdv().intValue() == idVdvB.intValue()) {
+                            && r.getIdVdv().equals(idVdvB)) {
                         ssvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemB);
                         updatedB++;
                     }
@@ -2071,7 +2087,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     logger.logTs("Lỗi khi cập nhật link PIN: %s", ex.getMessage());
                 }
             });
-        } catch (Exception ex) {
+        } catch (WriterException ex) {
             lblRemoteUrl.setText("<html><b style='color:red;'>LỖI: " + ex.getMessage() + "</b></html>");
             lblRemoteQr.setIcon(null);
             lblRemoteQr.setText("");
@@ -2108,7 +2124,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     "Đã copy link vào clipboard!\n" + url,
                     "Copy thành công",
                     JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
+        } catch (HeadlessException ex) {
             logger.logTs("Lỗi khi copy link: %s", ex.getMessage());
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi copy link: " + ex.getMessage(),
@@ -2250,8 +2266,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
                     var cur = msvc.get(currentMatchId);
                     Integer curWinner = cur.getIdVdvThang();
-                    int idVdvThang = computeWinnerVdvIdOrDefault(curWinner != null ? curWinner.intValue() : 0);
-                    if (idVdvThang != (curWinner != null ? curWinner.intValue() : 0)) {
+                    int idVdvThang = computeWinnerVdvIdOrDefault(curWinner != null ? curWinner : 0);
+                    if (idVdvThang != (curWinner != null ? curWinner : 0)) {
                         // Không đổi thời gian ở đây, chỉ set người thắng; KET_THUC sẽ cập nhật trong
                         // onFinish()
                         msvc.update(currentMatchId, cur.getTheThuc(), idVdvThang, cur.getBatDau(), cur.getKetThuc(),
@@ -2279,7 +2295,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                 finishTimer = new javax.swing.Timer(3000, e -> {
                     logger.logWinner(s.games[0] > s.games[1] ? s.names[0] : s.names[1]);
                     cancelFinishTimer();
-                    onFinish();
+                    onFinish(true);
                 });
                 finishTimer.setRepeats(false);
                 finishTimer.start();
@@ -2766,9 +2782,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             for (Object o : rows) {
                 try {
                     int viTri;
-                    if (o instanceof com.example.btms.model.bracket.SoDoCaNhan r) {
+                    if (o instanceof SoDoCaNhan) {
+                        SoDoCaNhan r = (SoDoCaNhan) o;
                         viTri = r.getViTri();
-                    } else if (o instanceof com.example.btms.model.bracket.SoDoDoi r2) {
+                    } else if (o instanceof SoDoDoi) {
+                        SoDoDoi r2 = (SoDoDoi) o;
                         viTri = r2.getViTri();
                     } else {
                         continue;
@@ -2803,7 +2821,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         for (var r : rows) {
             Integer rid = r.getIdVdv();
             Integer soDo = r.getSoDo();
-            if (rid != null && rid.intValue() == idVdv && soDo != null && soDo.intValue() == col) {
+            if (rid != null && rid.equals(idVdv) && soDo != null && soDo.equals(col)) {
                 if (best == null || r.getViTri() < best.getViTri())
                     best = r;
             }
@@ -2819,7 +2837,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         for (var r : rows) {
             Integer soDo = r.getSoDo();
             if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(teamName)
-                    && soDo != null && soDo.intValue() == col) {
+                    && soDo != null && soDo.equals(col)) {
                 if (best == null || r.getViTri() < best.getViTri())
                     best = r;
             }
