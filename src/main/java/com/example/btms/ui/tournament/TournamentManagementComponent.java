@@ -275,14 +275,6 @@ public class TournamentManagementComponent extends JPanel {
         return showSelectionDialog(parent, databaseService, null);
     }
 
-    /**
-     * Static method to show a selection dialog with user filtering
-     * 
-     * @param parent          Parent window
-     * @param databaseService Database service
-     * @param userId          User ID to filter tournaments by, null for all
-     *                        tournaments
-     */
     public static GiaiDau showSelectionDialog(Window parent, DatabaseService databaseService, Integer userId) {
         // Check if there are no tournaments first
         try {

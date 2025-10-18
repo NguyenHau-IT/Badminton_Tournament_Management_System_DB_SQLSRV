@@ -47,7 +47,7 @@ public class DbConnectionFrame extends JFrame {
 
     // ==== UI controls ====
     private final JRadioButton rbLocalLan = new JRadioButton("Sử dụng local / mạng LAN");
-    private final JRadioButton rbInitNew = new JRadioButton("Sử dụng tích hợp");
+    private final JRadioButton rbInitNew = new JRadioButton("Sử dụng tạo mới (chỉ H2)");
     private final JRadioButton rbOnline = new JRadioButton("Sử dụng Online");
     private final JRadioButton rbImport = new JRadioButton("Nhập từ bản sao lưu");
 
