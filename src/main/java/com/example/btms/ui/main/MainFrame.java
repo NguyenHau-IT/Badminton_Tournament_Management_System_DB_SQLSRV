@@ -7,7 +7,6 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.HeadlessException;
-
 import java.awt.SecondaryLoop;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
@@ -47,18 +46,27 @@ import javax.swing.tree.TreeSelectionModel;
 import com.example.btms.config.ConnectionConfig;
 import com.example.btms.config.NetworkConfig;
 import com.example.btms.config.Prefs;
+import com.example.btms.desktop.controller.auth.LoginController;
+import com.example.btms.desktop.controller.category.ContentParticipantsController;
+import com.example.btms.desktop.controller.category.NoiDungManagementController;
+import com.example.btms.desktop.controller.cateoftuornament.DangKyNoiDungController;
+import com.example.btms.desktop.controller.club.CauLacBoManagementController;
 import com.example.btms.model.bracket.SoDoCaNhan;
 import com.example.btms.model.bracket.SoDoDoi;
 import com.example.btms.model.db.SQLSRVConnectionManager;
+import com.example.btms.model.role.Role;
 import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.repository.bracket.SoDoCaNhanRepository;
 import com.example.btms.repository.bracket.SoDoDoiRepository;
 import com.example.btms.repository.category.NoiDungRepository;
 import com.example.btms.repository.cateoftuornament.ChiTietGiaiDauRepository;
 import com.example.btms.repository.club.CauLacBoRepository;
+import com.example.btms.repository.player.DangKiCaNhanRepository;
 import com.example.btms.repository.player.VanDongVienRepository;
 import com.example.btms.repository.result.KetQuaCaNhanRepository;
 import com.example.btms.repository.result.KetQuaDoiRepository;
+import com.example.btms.repository.team.ChiTietDoiRepository;
+import com.example.btms.repository.team.DangKiDoiRepository;
 import com.example.btms.service.auth.AuthService;
 import com.example.btms.service.bracket.SoDoCaNhanService;
 import com.example.btms.service.bracket.SoDoDoiService;
@@ -66,25 +74,34 @@ import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.cateoftuornament.ChiTietGiaiDauService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.db.DatabaseService;
+import com.example.btms.service.player.DangKiCaNhanService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.result.KetQuaCaNhanService;
 import com.example.btms.service.result.KetQuaDoiService;
+import com.example.btms.service.team.ChiTietDoiService;
+import com.example.btms.service.team.DangKiDoiService;
+import com.example.btms.service.tournament.GiaiDauService;
 import com.example.btms.ui.auth.LoginFrame;
-import com.example.btms.ui.auth.LoginFrame.Role;
 import com.example.btms.ui.bracket.SoDoThiDauPanel;
+import com.example.btms.ui.category.ContentParticipantsPanel;
 import com.example.btms.ui.category.NoiDungManagementPanel;
 import com.example.btms.ui.cateoftuornament.DangKyNoiDungPanel;
 import com.example.btms.ui.club.CauLacBoManagementPanel;
 import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
+import com.example.btms.ui.draw.BocThamThiDau;
 import com.example.btms.ui.log.LogTab;
 import com.example.btms.ui.manager.UnifiedWindowManager;
 import com.example.btms.ui.manager.UnifiedWindowManager.WindowType;
 import com.example.btms.ui.monitor.MonitorTab;
+import com.example.btms.ui.player.DangKyCaNhanPanel;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.report.BaoCaoPdfPanel;
+import com.example.btms.ui.result.BienBanPanel;
+import com.example.btms.ui.result.TongSapHuyChuongPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;
+import com.example.btms.ui.team.DangKyDoiPanel;
 import com.example.btms.ui.tournament.TournamentManagementComponent;
 import com.example.btms.util.report.RegistrationPdfExporter;
 import com.example.btms.util.ui.IconUtil;
@@ -96,24 +113,34 @@ import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 
 @SuppressWarnings("all")
 public class MainFrame extends JFrame {
+
     // Lưu map font gốc để tránh nhân đôi khi đổi scale nhiều lần
     private static java.util.Map<Object, Font> baseUIFontMap;
 
     // Tạo sau khi có Connection
     private NoiDungService noiDungService;
+    private CauLacBoService cauLacBoService;
+    private VanDongVienService vdvService;
+    private DangKiCaNhanService dkCaNhanService;
+    private DangKiDoiService dkDoiService;
+    private ChiTietDoiService chiTietDoiService;
+    private ChiTietGiaiDauService chitietService;
+    private GiaiDauService giaiDauService;
+    private Connection conn;
+    private Prefs prefs;
     private NoiDungManagementPanel noiDungPanel;
     private CauLacBoManagementPanel cauLacBoPanel;
     private DangKyNoiDungPanel dangKyNoiDungPanel;
     private VanDongVienManagementPanel vanDongVienPanel;
-    private com.example.btms.ui.team.DangKyDoiPanel dangKyDoiPanel;
-    private com.example.btms.ui.player.DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
-    private com.example.btms.ui.category.ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
-    private com.example.btms.ui.draw.BocThamThiDau bocThamThiDauPanel; // bốc thăm thi đấu (đơn/đôi) 0-based
-    private com.example.btms.ui.bracket.SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
+    private DangKyDoiPanel dangKyDoiPanel;
+    private DangKyCaNhanPanel dangKyCaNhanPanel; // đăng ký cá nhân (đơn)
+    private ContentParticipantsPanel contentParticipantsPanel; // xem VDV/Đội theo nội dung
+    private BocThamThiDau bocThamThiDauPanel; // bốc thăm thi đấu (đơn/đôi) 0-based
+    private SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
     // Trang báo cáo PDF tổng hợp
     private BaoCaoPdfPanel baoCaoPdfPanel;
     // Trang biên bản (kết quả dạng log set/điểm)
-    private com.example.btms.ui.result.BienBanPanel bienBanPanel;
+    private BienBanPanel bienBanPanel;
     // Unified window manager thay thế BracketWindowManager và PlayWindowManager
     private final UnifiedWindowManager windowManager = new UnifiedWindowManager();
 
@@ -131,12 +158,16 @@ public class MainFrame extends JFrame {
     // Login UI is created on demand via LoginFrame
     // Dùng JPanel thay cho JFrame để nhúng vào MainFrame
     private final TournamentManagementComponent tournamentTabPanel = new TournamentManagementComponent(service, false); // full
-                                                                                                                        // management
-                                                                                                                        // mode
     private GiaiDau selectedGiaiDau; // giải đấu đã chọn sau đăng nhập
 
     private AuthService authService;
+    private ContentParticipantsController contentParticipantsController; // initialized after connection
 
+    private NoiDungManagementController noiDungMgmtController; // initialized after connection
+
+    private DangKyNoiDungController dangKyNoiDungController; // initialized after connection
+
+    private CauLacBoManagementController cauLacBoController; // initialized after connection
     // UI fields (đã xóa lblAppTitle và lblVersion vì không còn header)
     private final JLabel statusConn = new JLabel("Chưa kết nối");
     private final JLabel statusHost = new JLabel("-");
@@ -158,7 +189,6 @@ public class MainFrame extends JFrame {
 
     // Icons
     // (Icons kept if later needed for menu entries – currently omitted to simplify)
-
     private javax.swing.Timer ramTimer;
     // removed legacy select panel usage; selection is done via dialog now
 
@@ -167,7 +197,6 @@ public class MainFrame extends JFrame {
     }
 
     // Đã xóa refreshHeader() vì không còn header
-
     public MainFrame(NetworkConfig cfg, ConnectionConfig dbCfg) {
         super("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
         this.netCfg = cfg;
@@ -300,8 +329,9 @@ public class MainFrame extends JFrame {
                     logTab.cleanup();
                 } catch (Exception ignored) {
                 }
-                if (ramTimer != null)
+                if (ramTimer != null) {
                     ramTimer.stop();
+                }
                 service.disconnect();
                 try {
                     clearTournamentSelectionPrefs();
@@ -319,7 +349,6 @@ public class MainFrame extends JFrame {
         SwingUtilities.invokeLater(() -> IconUtil.applyTo(this));
 
         // Đã xóa việc set title và version cho header vì không còn header
-
         ramTimer = new javax.swing.Timer(1000, ae -> updateMemory());
         ramTimer.start();
 
@@ -336,9 +365,7 @@ public class MainFrame extends JFrame {
     }
 
     /* -------------------- UI Builders -------------------- */
-
     // Đã xóa buildHeaderBar() vì không còn cần header
-
     private JPanel buildStatusBar() {
         JPanel bar = new JPanel(new BorderLayout());
         bar.setBorder(new EmptyBorder(6, 8, 6, 8));
@@ -364,7 +391,6 @@ public class MainFrame extends JFrame {
     /* (Legacy tab helper methods removed after migration to CardLayout) */
 
     /* -------------------- Helpers -------------------- */
-
     private JComponent wrapCard(JComponent c) {
         JPanel p = new JPanel(new BorderLayout());
         p.setBorder(new EmptyBorder(3, 3, 3, 3));
@@ -376,10 +402,11 @@ public class MainFrame extends JFrame {
     private void switchTheme(boolean dark) {
         FlatAnimatedLafChange.showSnapshot();
         try {
-            if (dark)
+            if (dark) {
                 UIManager.setLookAndFeel(new FlatDarkLaf());
-            else
+            } else {
                 UIManager.setLookAndFeel(new FlatLightLaf());
+            }
             SwingUtilities.updateComponentTreeUI(this);
         } catch (UnsupportedLookAndFeelException ignored) {
         } finally {
@@ -395,7 +422,6 @@ public class MainFrame extends JFrame {
     }
 
     // (Removed loadIcon method – not needed for text-only menu navigation)
-
     public DatabaseService service() {
         return service;
     }
@@ -410,18 +436,29 @@ public class MainFrame extends JFrame {
      * --------------------
      */
     private boolean showLoginDialog() {
-        // Create the standalone login window
-        LoginFrame win = new LoginFrame();
-        win.setAuthService(this.authService);
+        // Tạo UI (view) thuần
+        LoginFrame view = new LoginFrame();
 
+        // Cờ kết quả
         AtomicBoolean accepted = new AtomicBoolean(false);
+
+        // SecondaryLoop để chờ đồng bộ (nếu đang chạy trên EDT)
         SecondaryLoop loop = Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
 
-        win.setListener((username, role) -> {
+        // Gắn controller (controller sẽ bật input + báo DB ready)
+        LoginController controller = new LoginController(
+                this.authService, view);
+
+        controller.setListener((username, role) -> {
             try {
-                currentRole = role;
+                // nếu dùng enum Role của controller:
+                // com.example.btms.controller.auth.LoginController.Role
+                currentRole = (role == LoginController.Role.ADMIN)
+                        ? Role.ADMIN
+                        : Role.CLIENT; // map sang enum Role bạn đang dùng ở app (nếu khác)
+
                 try {
-                    if (role == Role.ADMIN) {
+                    if (currentRole == Role.ADMIN) {
                         monitorTab.setAdminMode(true, null);
                         controlPanel.setClientName("ADMIN-" + username);
                     } else {
@@ -430,33 +467,46 @@ public class MainFrame extends JFrame {
                     }
                 } catch (Exception ignore) {
                 }
+
                 accepted.set(true);
             } finally {
                 try {
-                    win.dispose();
+                    view.dispose();
                 } catch (Exception ignore) {
                 }
                 loop.exit();
             }
         });
 
-        win.addWindowListener(new java.awt.event.WindowAdapter() {
+        // Nếu cửa sổ bị đóng mà chưa login thành công -> coi như cancel
+        view.addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosed(java.awt.event.WindowEvent e) {
-                // If closed without login, treat as cancel
-                if (!accepted.get())
+                if (!accepted.get()) {
                     loop.exit();
+                }
             }
         });
 
-        win.open();
-        loop.enter();
+        // Mở cửa sổ
+        view.open();
+
+        // Chỉ enter loop nếu đang trên EDT; nếu không, cứ return theo luồng gọi hiện
+        // tại
+        if (javax.swing.SwingUtilities.isEventDispatchThread()) {
+            loop.enter(); // chờ tới khi listener gọi loop.exit()
+        } else {
+            // Nếu gọi từ non-EDT, block tới khi đóng cửa sổ bằng CountDownLatch cũng được,
+            // nhưng ở đây SecondaryLoop vẫn ổn vì view.open() đã được gọi.
+            loop.enter();
+        }
+
         return accepted.get();
     }
 
     /**
-     * Bắt đầu flow cấu hình và kết nối CSDL: mở DbConnectionFrame, sau khi kết nối
-     * thành công sẽ khởi tạo các panel và buộc đăng nhập + chọn giải.
+     * Bắt đầu flow cấu hình và kết nối CSDL: mở DbConnectionFrame, sau khi kết
+     * nối thành công sẽ khởi tạo các panel và buộc đăng nhập + chọn giải.
      */
     private void startDatabaseSetupFlow() {
         com.example.btms.ui.db.DbConnectionFrame frame = new com.example.btms.ui.db.DbConnectionFrame();
@@ -476,10 +526,12 @@ public class MainFrame extends JFrame {
                 String url = nz(sel.getJdbcUrl());
                 ConnectionConfig runtimeCfg = new ConnectionConfig().mode(ConnectionConfig.Mode.NAME);
                 runtimeCfg.setUrl(url);
-                if (sel.getUsername() != null && !sel.getUsername().isBlank())
+                if (sel.getUsername() != null && !sel.getUsername().isBlank()) {
                     runtimeCfg.setUsername(sel.getUsername());
-                if (sel.getPassword() != null)
+                }
+                if (sel.getPassword() != null) {
                     runtimeCfg.setPassword(new String(sel.getPassword()));
+                }
 
                 service.setConfig(runtimeCfg);
                 Connection conn = service.connect();
@@ -531,47 +583,83 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Được gọi khi kết nối DB thành công. Khởi tạo các service/panel phụ thuộc DB,
-     * cập nhật trạng thái, dựng menu và ép người dùng đăng nhập + chọn giải.
+     * Được gọi khi kết nối DB thành công. Khởi tạo các service/panel phụ thuộc
+     * DB, cập nhật trạng thái, dựng menu và ép người dùng đăng nhập + chọn
+     * giải.
      */
     private void onDatabaseConnected(Connection conn) {
         try {
             controlPanel.setConnection(conn);
             multiCourtPanel.setConnection(conn);
-            // Ensure tournament panel binds to the new DB connection before using its
-            // service
             try {
                 tournamentTabPanel.updateConnection();
             } catch (Throwable ignore) {
             }
 
+            // ==== Services chung ====
             noiDungService = new NoiDungService(new NoiDungRepository(conn));
-            noiDungPanel = new NoiDungManagementPanel(noiDungService);
 
-            // CLB
+            // ---- CLB
+            // Service (giữ nguyên)
             CauLacBoService clbService = new CauLacBoService(new CauLacBoRepository(conn));
-            cauLacBoPanel = new CauLacBoManagementPanel(clbService);
-            // Vận động viên
+
+            // UI + Controller tách riêng
+            var clbView = new CauLacBoManagementPanel();
+            var clbController = new CauLacBoManagementController(
+                    clbView,
+                    clbService);
+
+            // Lưu lại view để hiển thị trong tab / main panel
+            this.cauLacBoPanel = clbView;
+
+            // Nếu dùng hệ thống ensureViewPresent() trong app chính:
+            ensureViewPresent("Quản lý câu lạc bộ", clbView);
+
+            // ---- Vận động viên
             VanDongVienService vdvService = new VanDongVienService(new VanDongVienRepository(conn));
             vanDongVienPanel = new VanDongVienManagementPanel(vdvService, clbService);
-            // Panel Nội dung của giải theo giải chọn trong Prefs
+
+            // ---- Chi tiết nội dung theo giải (tab đăng ký ND) — 1 UI + 1 Controller
             ChiTietGiaiDauService chiTietService = new ChiTietGiaiDauService(new ChiTietGiaiDauRepository(conn));
-            dangKyNoiDungPanel = new DangKyNoiDungPanel(
+            var dkNdView = new DangKyNoiDungPanel();
+            this.dangKyNoiDungPanel = dkNdView; // nếu field cũ tên vậy, đổi kiểu về View
+            this.dangKyNoiDungController = new DangKyNoiDungController(
+                    dkNdView,
                     noiDungService,
                     chiTietService,
-                    new com.example.btms.config.Prefs(),
-                    tournamentTabPanel.getGiaiDauService());
-            // Đăng ký đội (đôi)
-            dangKyDoiPanel = new com.example.btms.ui.team.DangKyDoiPanel(conn);
-            // Đăng ký cá nhân (đơn)
-            dangKyCaNhanPanel = new com.example.btms.ui.player.DangKyCaNhanPanel(conn);
-            // Panel xem người Danh sách đăng kí
-            contentParticipantsPanel = new com.example.btms.ui.category.ContentParticipantsPanel(conn);
-            // Bốc thăm thi đấu (0-based order)
-            bocThamThiDauPanel = new com.example.btms.ui.draw.BocThamThiDau(conn);
-            soDoThiDauPanel = new com.example.btms.ui.bracket.SoDoThiDauPanel(conn);
-            // Set network interface cho soDoThiDauPanel từ multiCourtPanel đã được set
-            // trước đó
+                    new Prefs(),
+                    tournamentTabPanel.getGiaiDauService() // có thể null
+            );
+            ensureViewPresent("Đăng ký nội dung", dkNdView);
+
+            // ==== NOIDUNG MANAGEMENT — 1 UI + 1 Controller
+            var noiDungView = new NoiDungManagementPanel();
+            this.noiDungPanel = noiDungView; // đổi kiểu field sang View
+            this.noiDungMgmtController = new NoiDungManagementController(
+                    noiDungView, noiDungService);
+            ensureViewPresent("Quản lý nội dung", noiDungView);
+
+            // ==== CONTENT PARTICIPANTS — 1 UI + 1 Controller
+            var dkCaNhanService = new DangKiCaNhanService(
+                    new DangKiCaNhanRepository(conn));
+            var doiRepo = new DangKiDoiRepository(conn);
+            var doiService = new DangKiDoiService(doiRepo);
+            var chiTietDoiService = new ChiTietDoiService(
+                    conn, doiRepo, new ChiTietDoiRepository(conn));
+
+            var cpView = new ContentParticipantsPanel();
+            this.contentParticipantsPanel = cpView; // đổi kiểu field sang View
+            this.contentParticipantsController = new ContentParticipantsController(
+                    cpView, conn, new Prefs(),
+                    noiDungService, vdvService, dkCaNhanService, doiService, chiTietDoiService, clbService);
+            ensureViewPresent("Người tham gia theo nội dung", cpView);
+
+            // ==== Các màn khác giữ nguyên ====
+            dangKyDoiPanel = new DangKyDoiPanel(conn);
+            dangKyCaNhanPanel = new DangKyCaNhanPanel(conn);
+
+            bocThamThiDauPanel = new BocThamThiDau(conn);
+            soDoThiDauPanel = new SoDoThiDauPanel(conn);
             try {
                 NetworkInterface ni = multiCourtPanel.getNetworkInterface();
                 if (ni != null) {
@@ -579,21 +667,18 @@ public class MainFrame extends JFrame {
                 }
             } catch (Exception ignored) {
             }
-            // Báo cáo PDF – tổng hợp eksport
+
             try {
                 baoCaoPdfPanel = new BaoCaoPdfPanel(conn);
             } catch (Exception ignore) {
             }
-            // Tổng sắp huy chương (kết quả toàn đoàn)
             try {
-                com.example.btms.ui.result.TongSapHuyChuongPanel tongSapHuyChuongPanel = new com.example.btms.ui.result.TongSapHuyChuongPanel(
-                        conn, clbService);
+                var tongSapHuyChuongPanel = new TongSapHuyChuongPanel(conn, clbService);
                 ensureViewPresent("Tổng sắp huy chương", tongSapHuyChuongPanel);
             } catch (Throwable ignore) {
             }
-            // Trang biên bản
             try {
-                bienBanPanel = new com.example.btms.ui.result.BienBanPanel(conn);
+                bienBanPanel = new BienBanPanel(conn);
                 ensureViewPresent("Trang biên bản", bienBanPanel);
             } catch (Throwable ignore) {
             }
@@ -603,16 +688,16 @@ public class MainFrame extends JFrame {
             statusConn.setText("Đã kết nối");
             statusConn.setForeground(new Color(46, 204, 113));
 
-            // Flow theo yêu cầu: Chỉ chọn giải, ẩn dialog, rồi mở trang chủ.
-            // Mặc định coi như ADMIN để hiển thị đầy đủ tính năng (bỏ bước đăng nhập).
             try {
                 monitorTab.setAdminMode(true, null);
                 controlPanel.setClientName("ADMIN");
             } catch (Exception ignore) {
             }
+
             currentRole = Role.ADMIN;
             buildMenuBar();
             startTournamentOnlyFlow();
+
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Lỗi cập nhật UI: " + e.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -655,8 +740,9 @@ public class MainFrame extends JFrame {
         try {
             if (!isVisible()) {
                 try {
-                    if (getWidth() == 0 || getHeight() == 0)
+                    if (getWidth() == 0 || getHeight() == 0) {
                         pack();
+                    }
                 } catch (Throwable ignore) {
                 }
                 setLocationRelativeTo(null);
@@ -676,12 +762,14 @@ public class MainFrame extends JFrame {
      * --------------------
      */
     private void ensureViewPresent(String name, Component comp) {
-        if (name == null || comp == null)
+        if (name == null || comp == null) {
             return;
+        }
         if (!views.containsKey(name)) {
             try { // gắn tên card để component tự biết khi floating
-                if (comp instanceof JComponent jc)
+                if (comp instanceof JComponent jc) {
                     jc.putClientProperty("cardName", name);
+                }
             } catch (Exception ignore) {
             }
             cardPanel.add(comp, name);
@@ -690,16 +778,18 @@ public class MainFrame extends JFrame {
     }
 
     private void showView(String name) {
-        if (!views.containsKey(name))
+        if (!views.containsKey(name)) {
             return;
+        }
         ((CardLayout) cardPanel.getLayout()).show(cardPanel, name);
         setTitle("Badminton Event Technology - " + name);
         // Update nav root with tournament name if available
         if (navModel != null) {
             updateNavigationRootTitleFromSelection();
             navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
-            for (int i = 0; i < navTree.getRowCount(); i++)
+            for (int i = 0; i < navTree.getRowCount(); i++) {
                 navTree.expandRow(i);
+            }
         }
     }
 
@@ -728,8 +818,9 @@ public class MainFrame extends JFrame {
             // Nếu chưa chọn giải -> chỉ hiện chọn giải và cài đặt
             if (selectedGiaiDau == null) {
                 JMenu mManage = new JMenu("Quản lý");
-                if (currentRole == Role.ADMIN)
+                if (currentRole == Role.ADMIN) {
                     mManage.add(menuSelectTournament());
+                }
                 mb.add(mManage);
 
                 JMenu mOther = new JMenu("Khác");
@@ -737,8 +828,9 @@ public class MainFrame extends JFrame {
                 mb.add(mOther);
             } else {
                 JMenu mManage = new JMenu("Quản lý");
-                if (currentRole == Role.ADMIN)
+                if (currentRole == Role.ADMIN) {
                     mManage.add(menuSelectTournament());
+                }
                 mManage.add(menuItem("Giải đấu"));
                 if (currentRole == Role.ADMIN) {
                     mManage.add(menuItem("Nội dung"));
@@ -757,24 +849,28 @@ public class MainFrame extends JFrame {
                 if (currentRole == Role.ADMIN) {
                     JMenuItem miThiDau = new JMenuItem("Thi đấu");
                     miThiDau.addActionListener(e -> openThiDauWindow());
-                    if (!views.containsKey("Thi đấu"))
+                    if (!views.containsKey("Thi đấu")) {
                         miThiDau.setEnabled(false);
+                    }
                     mPlay.add(miThiDau);
                 } else {
                     JMenuItem miNhieuSan = new JMenuItem("Nhiều sân");
                     miNhieuSan.addActionListener(e -> openThiDauWindow());
-                    if (!views.containsKey("Nhiều sân"))
+                    if (!views.containsKey("Nhiều sân")) {
                         miNhieuSan.setEnabled(false);
+                    }
                     mPlay.add(miNhieuSan);
                 }
                 mPlay.add(menuItem("Giám sát"));
-                if (currentRole == Role.ADMIN)
+                if (currentRole == Role.ADMIN) {
                     mPlay.add(menuItem("Kết quả đã thi đấu"));
+                }
                 mb.add(mPlay);
 
                 JMenu mOther = new JMenu("Khác");
-                if (currentRole == Role.ADMIN)
+                if (currentRole == Role.ADMIN) {
                     mOther.add(menuItem("Logs"));
+                }
                 mOther.add(menuItem("Cài đặt"));
                 // Backup DB tool
                 JMenuItem miBackup = new JMenuItem("Sao lưu CSDL...");
@@ -814,66 +910,88 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Làm mới dữ liệu toàn ứng dụng dựa trên kết nối và giải hiện tại, không yêu
-     * cầu login/chọn lại.
-     * - Cập nhật TournamentTabPanel connection.
-     * - Yêu cầu các panel tự reload.
-     * - Làm mới cây điều hướng và tiêu đề.
+     * Làm mới dữ liệu toàn ứng dụng dựa trên kết nối và giải hiện tại, không
+     * yêu cầu login/chọn lại. - Cập nhật TournamentTabPanel connection. - Yêu
+     * cầu các panel tự reload. - Làm mới cây điều hướng và tiêu đề.
      */
     private void refreshApplicationData() {
         try {
             // Cập nhật tiêu đề root theo giải đang chọn
             updateNavigationRootTitleFromSelection();
+
             // Cập nhật connection cho panel giải đấu
             try {
                 tournamentTabPanel.updateConnection();
             } catch (Throwable ignore) {
             }
-            // Gọi refreshAll cho các panel quản lý (nếu có)
+
+            // === Gọi refreshAll cho các phần ===
+            // Quản lý Nội dung (đã tách 1 UI + 1 Controller)
             try {
-                if (noiDungPanel != null)
-                    noiDungPanel.refreshAll();
+                if (noiDungMgmtController != null) {
+                    noiDungMgmtController.refreshAll();
+                }
             } catch (Throwable ignore) {
             }
+
+            // CLB (giữ như cũ nếu chưa tách)
             try {
-                if (cauLacBoPanel != null)
-                    cauLacBoPanel.refreshAll();
+                if (cauLacBoController != null) {
+                    cauLacBoController.refreshAll();
+                }
             } catch (Throwable ignore) {
             }
+
+            // Vận động viên (giữ như cũ nếu chưa tách)
             try {
-                if (vanDongVienPanel != null)
+                if (vanDongVienPanel != null) {
                     vanDongVienPanel.refreshAll();
+                }
             } catch (Throwable ignore) {
             }
+
+            // Đăng ký nội dung theo giải (giữ như cũ)
             try {
-                if (dangKyNoiDungPanel != null)
-                    dangKyNoiDungPanel.refreshAll();
+                if (dangKyNoiDungController != null) {
+                    dangKyNoiDungController.refreshAll();
+                }
             } catch (Throwable ignore) {
             }
+
+            // Đăng ký đội (giữ như cũ)
             try {
-                if (dangKyDoiPanel != null)
+                if (dangKyDoiPanel != null) {
                     dangKyDoiPanel.refreshAll();
+                }
             } catch (Throwable ignore) {
             }
+
+            // Đăng ký cá nhân (giữ như cũ)
             try {
-                if (dangKyCaNhanPanel != null)
+                if (dangKyCaNhanPanel != null) {
                     dangKyCaNhanPanel.refreshAll();
+                }
             } catch (Throwable ignore) {
             }
-            // Làm mới Nội dung đăng ký hiển thị theo nội dung (nếu đang mở)
+
+            // Người tham gia theo nội dung (đã tách 1 UI + 1 Controller)
             try {
-                if (contentParticipantsPanel != null)
-                    contentParticipantsPanel.refreshAll();
+                if (contentParticipantsController != null) {
+                    contentParticipantsController.refreshAll();
+                }
             } catch (Throwable ignore) {
             }
+
             // Làm mới Sơ đồ thi đấu: tab đang mở reloadData(); danh sách trong cây cũng
             // được rebuild
             try {
                 windowManager.reloadOpenTabs(WindowType.BRACKET);
             } catch (Throwable ignore) {
             }
-            // Làm mới cây điều hướng (bao gồm lọc Sơ đồ theo bốc thăm đã có)
+
+            // Làm mới cây điều hướng
             rebuildNavigationTree();
+
         } catch (Throwable ex) {
             JOptionPane.showMessageDialog(this, "Lỗi làm mới dữ liệu: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
@@ -881,8 +999,8 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Force the user to login and then select a tournament before entering the main
-     * UI.
+     * Force the user to login and then select a tournament before entering the
+     * main UI.
      */
     private void forceLoginAndTournamentSelection() {
         // 1) Đăng nhập bằng dialog nội bộ
@@ -951,12 +1069,14 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Thi đấu", multiCourtPanel);
             ensureViewPresent("Giám sát", monitorTab);
             ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
-            if (bienBanPanel != null)
+            if (bienBanPanel != null) {
                 ensureViewPresent("Trang biên bản", bienBanPanel);
+            }
             ensureViewPresent("Logs", logTab);
             ensureViewPresent("Cài đặt", settingsPanel);
-            if (baoCaoPdfPanel != null)
+            if (baoCaoPdfPanel != null) {
                 ensureViewPresent("Báo cáo (PDF)", baoCaoPdfPanel);
+            }
         } else {
             ensureViewPresent("Giải đấu", tournamentTabPanel);
             ensureViewPresent("Nhiều sân", multiCourtPanel);
@@ -982,8 +1102,9 @@ public class MainFrame extends JFrame {
                 // mới
                 windowManager.reset();
                 updateNavigationRootTitleFromSelection();
-                if (navModel != null)
+                if (navModel != null) {
                     navModel.nodeChanged((DefaultMutableTreeNode) navModel.getRoot());
+                }
                 rebuildNavigationTree();
                 // Làm mới toàn bộ để áp dụng giải mới
                 refreshApplicationData();
@@ -993,8 +1114,8 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Build the left navigation tree with high-level sections and map leaf nodes to
-     * views.
+     * Build the left navigation tree with high-level sections and map leaf
+     * nodes to views.
      */
     private JScrollPane buildNavigationTreePanel() {
         DefaultMutableTreeNode root = new DefaultMutableTreeNode("Giải đấu hiện tại");
@@ -1004,8 +1125,9 @@ public class MainFrame extends JFrame {
         navTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         navTree.addTreeSelectionListener((TreeSelectionEvent e) -> {
             Object comp = navTree.getLastSelectedPathComponent();
-            if (!(comp instanceof DefaultMutableTreeNode node))
+            if (!(comp instanceof DefaultMutableTreeNode node)) {
                 return;
+            }
             activateNavNode(node);
             // Ghi nhớ nội dung đang chọn nếu nó nằm dưới "Danh sách đăng kí"
             try {
@@ -1025,18 +1147,22 @@ public class MainFrame extends JFrame {
         navTree.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getButton() != java.awt.event.MouseEvent.BUTTON1)
+                if (e.getButton() != java.awt.event.MouseEvent.BUTTON1) {
                     return;
+                }
                 int row = navTree.getRowForLocation(e.getX(), e.getY());
-                if (row < 0)
+                if (row < 0) {
                     return;
+                }
                 javax.swing.tree.TreePath path = navTree.getPathForRow(row);
-                if (path == null)
+                if (path == null) {
                     return;
+                }
                 // Chỉ kích hoạt khi click lại đúng node đang được chọn để tránh kích hoạt 2 lần
                 javax.swing.tree.TreePath selected = navTree.getSelectionPath();
-                if (selected == null || !selected.equals(path))
+                if (selected == null || !selected.equals(path)) {
                     return;
+                }
                 Object comp = path.getLastPathComponent();
                 if (comp instanceof DefaultMutableTreeNode node) {
                     activateNavNode(node);
@@ -1050,8 +1176,9 @@ public class MainFrame extends JFrame {
                 int row = navTree.getRowForLocation(e.getX(), e.getY());
                 if (row >= 0) {
                     javax.swing.tree.TreePath path = navTree.getPathForRow(row);
-                    if (path != null)
+                    if (path != null) {
                         navTree.setSelectionPath(path);
+                    }
                 }
             }
 
@@ -1109,15 +1236,19 @@ public class MainFrame extends JFrame {
         return sp;
     }
 
-    /** Hiển thị menu chuột phải theo node hiện tại trong cây điều hướng. */
+    /**
+     * Hiển thị menu chuột phải theo node hiện tại trong cây điều hướng.
+     */
     private void showTreeContextMenu(java.awt.event.MouseEvent e) {
         try {
             javax.swing.tree.TreePath selPath = navTree.getSelectionPath();
-            if (selPath == null)
+            if (selPath == null) {
                 return;
+            }
             Object last = selPath.getLastPathComponent();
-            if (!(last instanceof DefaultMutableTreeNode node))
+            if (!(last instanceof DefaultMutableTreeNode node)) {
                 return;
+            }
             Object uo = node.getUserObject();
             javax.swing.JPopupMenu pm = new javax.swing.JPopupMenu();
 
@@ -1158,19 +1289,22 @@ public class MainFrame extends JFrame {
                             return;
                         }
                         int c = JOptionPane.showConfirmDialog(this,
-                                "Xóa TẤT CẢ đăng ký cá nhân của nội dung này trong giải\n" +
-                                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                        "Hành động này không thể hoàn tác.",
+                                "Xóa TẤT CẢ đăng ký cá nhân của nội dung này trong giải\n"
+                                        + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                        + "Hành động này không thể hoàn tác.",
                                 "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                        if (c != JOptionPane.YES_OPTION)
+                        if (c != JOptionPane.YES_OPTION) {
                             return;
+                        }
                         var svc = new com.example.btms.service.player.DangKiCaNhanService(
                                 new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
                         int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
-                        if (dangKyCaNhanPanel != null)
+                        if (dangKyCaNhanPanel != null) {
                             dangKyCaNhanPanel.refreshAll();
-                        if (contentParticipantsPanel != null)
-                            contentParticipantsPanel.refreshAll();
+                        }
+                        if (contentParticipantsPanel != null) {
+                            contentParticipantsController.refreshAll();
+                        }
                         JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân của nội dung.",
                                 "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                     } catch (HeadlessException ex) {
@@ -1194,21 +1328,23 @@ public class MainFrame extends JFrame {
                             return;
                         }
                         int c = JOptionPane.showConfirmDialog(this,
-                                "Xóa TẤT CẢ đăng ký đội của nội dung này trong giải\n" +
-                                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                        "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
-                                        +
-                                        "Hành động này không thể hoàn tác.",
+                                "Xóa TẤT CẢ đăng ký đội của nội dung này trong giải\n"
+                                        + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                        + "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                        + "Hành động này không thể hoàn tác.",
                                 "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                        if (c != JOptionPane.YES_OPTION)
+                        if (c != JOptionPane.YES_OPTION) {
                             return;
+                        }
                         var svc = new com.example.btms.service.team.DangKiDoiService(
                                 new com.example.btms.repository.team.DangKiDoiRepository(conn));
                         int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
-                        if (dangKyDoiPanel != null)
+                        if (dangKyDoiPanel != null) {
                             dangKyDoiPanel.refreshAll();
-                        if (contentParticipantsPanel != null)
-                            contentParticipantsPanel.refreshAll();
+                        }
+                        if (contentParticipantsPanel != null) {
+                            contentParticipantsController.refreshAll();
+                        }
                         JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội của nội dung.",
                                 "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                     } catch (HeadlessException ex) {
@@ -1232,26 +1368,29 @@ public class MainFrame extends JFrame {
                             return;
                         }
                         int c = JOptionPane.showConfirmDialog(this,
-                                "Xóa TẤT CẢ đăng ký (cá nhân + đội) của nội dung này trong giải\n" +
-                                        (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                        "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
-                                        +
-                                        "Hành động này không thể hoàn tác.",
+                                "Xóa TẤT CẢ đăng ký (cá nhân + đội) của nội dung này trong giải\n"
+                                        + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                        + "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                        + "Hành động này không thể hoàn tác.",
                                 "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                        if (c != JOptionPane.YES_OPTION)
+                        if (c != JOptionPane.YES_OPTION) {
                             return;
+                        }
                         var teamSvc = new com.example.btms.service.team.DangKiDoiService(
                                 new com.example.btms.repository.team.DangKiDoiRepository(conn));
                         var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
                                 new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
                         int delTeams = teamSvc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
                         int delSingles = singSvc.deleteAllByGiaiAndNoiDung(idGiai, cn.idNoiDung);
-                        if (dangKyDoiPanel != null)
+                        if (dangKyDoiPanel != null) {
                             dangKyDoiPanel.refreshAll();
-                        if (dangKyCaNhanPanel != null)
+                        }
+                        if (dangKyCaNhanPanel != null) {
                             dangKyCaNhanPanel.refreshAll();
-                        if (contentParticipantsPanel != null)
-                            contentParticipantsPanel.refreshAll();
+                        }
+                        if (contentParticipantsPanel != null) {
+                            contentParticipantsController.refreshAll();
+                        }
                         JOptionPane.showMessageDialog(this,
                                 "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams + " đội của nội dung.",
                                 "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
@@ -1275,8 +1414,9 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem miRefresh = new javax.swing.JMenuItem("Làm mới danh sách");
                     miRefresh.addActionListener(ev -> {
                         try {
-                            if (contentParticipantsPanel != null)
-                                contentParticipantsPanel.refreshAll();
+                            if (contentParticipantsPanel != null) {
+                                contentParticipantsController.refreshAll();
+                            }
                         } catch (Exception ex) {
                         }
                     });
@@ -1284,8 +1424,9 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem mi1 = new javax.swing.JMenuItem("Bốc thăm theo nội dung đang chọn");
                     mi1.setEnabled(lastSelectedRegListContent != null);
                     mi1.addActionListener(ev -> {
-                        if (lastSelectedRegListContent == null)
+                        if (lastSelectedRegListContent == null) {
                             return;
+                        }
                         try {
                             boolean ok = doAutoDrawSave(lastSelectedRegListContent.idNoiDung);
                             if (ok) {
@@ -1309,8 +1450,9 @@ public class MainFrame extends JFrame {
                                 if (ch instanceof DefaultMutableTreeNode cnode) {
                                     Object cuo = cnode.getUserObject();
                                     if (cuo instanceof ContentNode ccn) {
-                                        if (doAutoDrawSave(ccn.idNoiDung))
+                                        if (doAutoDrawSave(ccn.idNoiDung)) {
                                             okCount++;
+                                        }
                                     }
                                 }
                             }
@@ -1345,20 +1487,23 @@ public class MainFrame extends JFrame {
                                     return;
                                 }
                                 int c = JOptionPane.showConfirmDialog(this,
-                                        "Xóa TẤT CẢ đăng ký cá nhân của nội dung này trong giải\n" +
-                                                (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                                "Hành động này không thể hoàn tác.",
+                                        "Xóa TẤT CẢ đăng ký cá nhân của nội dung này trong giải\n"
+                                                + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                                + "Hành động này không thể hoàn tác.",
                                         "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                                if (c != JOptionPane.YES_OPTION)
+                                if (c != JOptionPane.YES_OPTION) {
                                     return;
+                                }
                                 var svc = new com.example.btms.service.player.DangKiCaNhanService(
                                         new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
                                 int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai,
                                         lastSelectedRegListContent.idNoiDung);
-                                if (dangKyCaNhanPanel != null)
+                                if (dangKyCaNhanPanel != null) {
                                     dangKyCaNhanPanel.refreshAll();
-                                if (contentParticipantsPanel != null)
-                                    contentParticipantsPanel.refreshAll();
+                                }
+                                if (contentParticipantsPanel != null) {
+                                    contentParticipantsController.refreshAll();
+                                }
                                 JOptionPane.showMessageDialog(this,
                                         "Đã xóa " + deleted + " đăng ký cá nhân của nội dung.",
                                         "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
@@ -1383,22 +1528,24 @@ public class MainFrame extends JFrame {
                                     return;
                                 }
                                 int c = JOptionPane.showConfirmDialog(this,
-                                        "Xóa TẤT CẢ đăng ký đội của nội dung này trong giải\n" +
-                                                (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                                "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
-                                                +
-                                                "Hành động này không thể hoàn tác.",
+                                        "Xóa TẤT CẢ đăng ký đội của nội dung này trong giải\n"
+                                                + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                                + "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                                + "Hành động này không thể hoàn tác.",
                                         "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                                if (c != JOptionPane.YES_OPTION)
+                                if (c != JOptionPane.YES_OPTION) {
                                     return;
+                                }
                                 var svc = new com.example.btms.service.team.DangKiDoiService(
                                         new com.example.btms.repository.team.DangKiDoiRepository(conn));
                                 int deleted = svc.deleteAllByGiaiAndNoiDung(idGiai,
                                         lastSelectedRegListContent.idNoiDung);
-                                if (dangKyDoiPanel != null)
+                                if (dangKyDoiPanel != null) {
                                     dangKyDoiPanel.refreshAll();
-                                if (contentParticipantsPanel != null)
-                                    contentParticipantsPanel.refreshAll();
+                                }
+                                if (contentParticipantsPanel != null) {
+                                    contentParticipantsController.refreshAll();
+                                }
                                 JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội của nội dung.",
                                         "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                             } catch (HeadlessException ex) {
@@ -1422,14 +1569,14 @@ public class MainFrame extends JFrame {
                                     return;
                                 }
                                 int c = JOptionPane.showConfirmDialog(this,
-                                        "Xóa TẤT CẢ đăng ký (cá nhân + đội) của nội dung này trong giải\n" +
-                                                (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                                "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
-                                                +
-                                                "Hành động này không thể hoàn tác.",
+                                        "Xóa TẤT CẢ đăng ký (cá nhân + đội) của nội dung này trong giải\n"
+                                                + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                                + "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                                + "Hành động này không thể hoàn tác.",
                                         "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                                if (c != JOptionPane.YES_OPTION)
+                                if (c != JOptionPane.YES_OPTION) {
                                     return;
+                                }
                                 var teamSvc = new com.example.btms.service.team.DangKiDoiService(
                                         new com.example.btms.repository.team.DangKiDoiRepository(conn));
                                 var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
@@ -1438,12 +1585,15 @@ public class MainFrame extends JFrame {
                                         lastSelectedRegListContent.idNoiDung);
                                 int delSingles = singSvc.deleteAllByGiaiAndNoiDung(idGiai,
                                         lastSelectedRegListContent.idNoiDung);
-                                if (dangKyDoiPanel != null)
+                                if (dangKyDoiPanel != null) {
                                     dangKyDoiPanel.refreshAll();
-                                if (dangKyCaNhanPanel != null)
+                                }
+                                if (dangKyCaNhanPanel != null) {
                                     dangKyCaNhanPanel.refreshAll();
-                                if (contentParticipantsPanel != null)
-                                    contentParticipantsPanel.refreshAll();
+                                }
+                                if (contentParticipantsPanel != null) {
+                                    contentParticipantsController.refreshAll();
+                                }
                                 JOptionPane.showMessageDialog(this,
                                         "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams
                                                 + " đội của nội dung.",
@@ -1463,9 +1613,10 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem miRefreshNdg = new javax.swing.JMenuItem("Làm mới danh sách nội dung");
                     miRefreshNdg.addActionListener(ev -> {
                         try {
-                            if (dangKyNoiDungPanel != null)
-                                dangKyNoiDungPanel.refreshAll();
-                        } catch (Exception ex) {
+                            if (dangKyNoiDungController != null) {
+                                dangKyNoiDungController.refreshAll();
+                            }
+                        } catch (Throwable ignore) {
                         }
                         try {
                             rebuildNavigationTree();
@@ -1479,13 +1630,15 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem miRefreshRegs = new javax.swing.JMenuItem("Làm mới các bảng đăng ký");
                     miRefreshRegs.addActionListener(ev -> {
                         try {
-                            if (dangKyDoiPanel != null)
+                            if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
+                            }
                         } catch (Exception ex) {
                         }
                         try {
-                            if (dangKyCaNhanPanel != null)
+                            if (dangKyCaNhanPanel != null) {
                                 dangKyCaNhanPanel.refreshAll();
+                            }
                         } catch (Exception ex) {
                         }
                     });
@@ -1520,17 +1673,19 @@ public class MainFrame extends JFrame {
                                 return;
                             }
                             int c = JOptionPane.showConfirmDialog(this,
-                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký cá nhân của giải\n" +
-                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                            "Hành động này không thể hoàn tác.",
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký cá nhân của giải\n"
+                                            + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                            + "Hành động này không thể hoàn tác.",
                                     "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                            if (c != JOptionPane.YES_OPTION)
+                            if (c != JOptionPane.YES_OPTION) {
                                 return;
+                            }
                             var svc = new com.example.btms.service.player.DangKiCaNhanService(
                                     new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
                             int deleted = svc.deleteAllByGiai(idGiai);
-                            if (dangKyCaNhanPanel != null)
+                            if (dangKyCaNhanPanel != null) {
                                 dangKyCaNhanPanel.refreshAll();
+                            }
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                         } catch (HeadlessException ex) {
@@ -1554,19 +1709,20 @@ public class MainFrame extends JFrame {
                                 return;
                             }
                             int c = JOptionPane.showConfirmDialog(this,
-                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký đội của giải\n" +
-                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                            "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
-                                            +
-                                            "Hành động này không thể hoàn tác.",
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký đội của giải\n"
+                                            + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                            + "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                            + "Hành động này không thể hoàn tác.",
                                     "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                            if (c != JOptionPane.YES_OPTION)
+                            if (c != JOptionPane.YES_OPTION) {
                                 return;
+                            }
                             var svc = new com.example.btms.service.team.DangKiDoiService(
                                     new com.example.btms.repository.team.DangKiDoiRepository(conn));
                             int deleted = svc.deleteAllByGiai(idGiai);
-                            if (dangKyDoiPanel != null)
+                            if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
+                            }
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                         } catch (HeadlessException ex) {
@@ -1590,24 +1746,26 @@ public class MainFrame extends JFrame {
                                 return;
                             }
                             int c = JOptionPane.showConfirmDialog(this,
-                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký (cá nhân + đội) của giải\n" +
-                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                            "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
-                                            +
-                                            "Hành động này không thể hoàn tác.",
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký (cá nhân + đội) của giải\n"
+                                            + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                            + "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                            + "Hành động này không thể hoàn tác.",
                                     "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                            if (c != JOptionPane.YES_OPTION)
+                            if (c != JOptionPane.YES_OPTION) {
                                 return;
+                            }
                             var teamSvc = new com.example.btms.service.team.DangKiDoiService(
                                     new com.example.btms.repository.team.DangKiDoiRepository(conn));
                             var singSvc = new com.example.btms.service.player.DangKiCaNhanService(
                                     new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
                             int delTeams = teamSvc.deleteAllByGiai(idGiai);
                             int delSingles = singSvc.deleteAllByGiai(idGiai);
-                            if (dangKyDoiPanel != null)
+                            if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
-                            if (dangKyCaNhanPanel != null)
+                            }
+                            if (dangKyCaNhanPanel != null) {
                                 dangKyCaNhanPanel.refreshAll();
+                            }
                             JOptionPane.showMessageDialog(this,
                                     "Đã xóa " + delSingles + " đăng ký cá nhân và " + delTeams + " đội.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
@@ -1625,8 +1783,9 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem miRefreshDoi = new javax.swing.JMenuItem("Làm mới danh sách đội");
                     miRefreshDoi.addActionListener(ev -> {
                         try {
-                            if (dangKyDoiPanel != null)
+                            if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
+                            }
                         } catch (Exception ex) {
                         }
                     });
@@ -1647,19 +1806,20 @@ public class MainFrame extends JFrame {
                                 return;
                             }
                             int c = JOptionPane.showConfirmDialog(this,
-                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký đội của giải\n" +
-                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                            "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
-                                            +
-                                            "Hành động này không thể hoàn tác.",
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký đội của giải\n"
+                                            + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                            + "Lưu ý: Nếu CHI_TIET_DOI không có FK ON DELETE CASCADE, thành viên đội có thể còn lại.\n"
+                                            + "Hành động này không thể hoàn tác.",
                                     "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                            if (c != JOptionPane.YES_OPTION)
+                            if (c != JOptionPane.YES_OPTION) {
                                 return;
+                            }
                             var svc = new com.example.btms.service.team.DangKiDoiService(
                                     new com.example.btms.repository.team.DangKiDoiRepository(conn));
                             int deleted = svc.deleteAllByGiai(idGiai);
-                            if (dangKyDoiPanel != null)
+                            if (dangKyDoiPanel != null) {
                                 dangKyDoiPanel.refreshAll();
+                            }
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đội.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                         } catch (HeadlessException ex) {
@@ -1673,8 +1833,9 @@ public class MainFrame extends JFrame {
                     javax.swing.JMenuItem miRefreshCaNhan = new javax.swing.JMenuItem("Làm mới danh sách cá nhân");
                     miRefreshCaNhan.addActionListener(ev -> {
                         try {
-                            if (dangKyCaNhanPanel != null)
+                            if (dangKyCaNhanPanel != null) {
                                 dangKyCaNhanPanel.refreshAll();
+                            }
                         } catch (Exception ex) {
                         }
                     });
@@ -1695,17 +1856,19 @@ public class MainFrame extends JFrame {
                                 return;
                             }
                             int c = JOptionPane.showConfirmDialog(this,
-                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký cá nhân của giải\n" +
-                                            (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "") +
-                                            "Hành động này không thể hoàn tác.",
+                                    "Bạn có chắc muốn xóa TẤT CẢ đăng ký cá nhân của giải\n"
+                                            + (tenGiai != null && !tenGiai.isBlank() ? ("- " + tenGiai + "\n") : "")
+                                            + "Hành động này không thể hoàn tác.",
                                     "Xác nhận", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                            if (c != JOptionPane.YES_OPTION)
+                            if (c != JOptionPane.YES_OPTION) {
                                 return;
+                            }
                             var svc = new com.example.btms.service.player.DangKiCaNhanService(
                                     new com.example.btms.repository.player.DangKiCaNhanRepository(conn));
                             int deleted = svc.deleteAllByGiai(idGiai);
-                            if (dangKyCaNhanPanel != null)
+                            if (dangKyCaNhanPanel != null) {
                                 dangKyCaNhanPanel.refreshAll();
+                            }
                             JOptionPane.showMessageDialog(this, "Đã xóa " + deleted + " đăng ký cá nhân.",
                                     "Hoàn tất", JOptionPane.INFORMATION_MESSAGE);
                         } catch (HeadlessException ex) {
@@ -1742,7 +1905,6 @@ public class MainFrame extends JFrame {
                             fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF", "pdf"));
                             String tour = (selectedGiaiDau != null && selectedGiaiDau.getTenGiai() != null
                                     && !selectedGiaiDau.getTenGiai().isBlank())
-
                                             ? selectedGiaiDau.getTenGiai()
                                             : new com.example.btms.config.Prefs().get("selectedGiaiDauName",
                                                     "giai-dau");
@@ -1750,21 +1912,24 @@ public class MainFrame extends JFrame {
                             String safe = normalizeFileNameUnderscore(tour);
                             fc.setSelectedFile(new java.io.File(safe + "_so_do_thi_dau.pdf"));
                             int r = fc.showSaveDialog(this);
-                            if (r != javax.swing.JFileChooser.APPROVE_OPTION)
+                            if (r != javax.swing.JFileChooser.APPROVE_OPTION) {
                                 return;
+                            }
                             java.io.File f = fc.getSelectedFile();
-                            if (f == null)
+                            if (f == null) {
                                 return;
+                            }
                             if (!f.getName().toLowerCase().endsWith(".pdf")) {
                                 f = new java.io.File(f.getAbsolutePath() + ".pdf");
                             }
                             boolean ok = p.exportAllBracketsToSinglePdf(f);
-                            if (ok)
+                            if (ok) {
                                 JOptionPane.showMessageDialog(this, "Đã xuất: " + f.getAbsolutePath(), "Thành công",
                                         JOptionPane.INFORMATION_MESSAGE);
-                            else
+                            } else {
                                 JOptionPane.showMessageDialog(this, "Không thể xuất PDF.", "Lỗi",
                                         JOptionPane.ERROR_MESSAGE);
+                            }
                         } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
@@ -1786,19 +1951,22 @@ public class MainFrame extends JFrame {
                             fc.setAcceptAllFileFilterUsed(false);
                             fc.setSelectedFile(new java.io.File(System.getProperty("user.home", ".")));
                             int r = fc.showSaveDialog(this);
-                            if (r != javax.swing.JFileChooser.APPROVE_OPTION)
+                            if (r != javax.swing.JFileChooser.APPROVE_OPTION) {
                                 return;
+                            }
                             java.io.File dir = fc.getSelectedFile();
-                            if (dir == null)
+                            if (dir == null) {
                                 return;
+                            }
                             int created = p.exportEachBracketToDirectory(dir);
-                            if (created > 0)
+                            if (created > 0) {
                                 JOptionPane.showMessageDialog(this,
                                         "Đã xuất " + created + " file vào: " + dir.getAbsolutePath(),
                                         "Thành công", JOptionPane.INFORMATION_MESSAGE);
-                            else
+                            } else {
                                 JOptionPane.showMessageDialog(this, "Không có nội dung để xuất.", "Thông báo",
                                         JOptionPane.INFORMATION_MESSAGE);
+                            }
                         } catch (HeadlessException ex) {
                             JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage(), "Lỗi",
                                     JOptionPane.ERROR_MESSAGE);
@@ -1810,15 +1978,18 @@ public class MainFrame extends JFrame {
                 }
             }
 
-            if (pm.getComponentCount() > 0)
+            if (pm.getComponentCount() > 0) {
                 pm.show(navTree, e.getX(), e.getY());
+            }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Không thể hiển thị menu: " + ex.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /** Bốc thăm + lưu (không mở sơ đồ). Trả về true nếu thành công. */
+    /**
+     * Bốc thăm + lưu (không mở sơ đồ). Trả về true nếu thành công.
+     */
     private boolean doAutoDrawSave(int idNoiDung) throws Exception {
         Connection conn = (service != null) ? service.current() : null;
         if (conn == null) {
@@ -1860,8 +2031,9 @@ public class MainFrame extends JFrame {
             var regs = dkSvc.listByGiaiAndNoiDung(idGiai, idNoiDung, null);
             java.util.Collections.shuffle(regs);
             var existed = bocSvc.list(idGiai, idNoiDung);
-            for (var r : existed)
+            for (var r : existed) {
                 bocSvc.delete(idGiai, idNoiDung, r.getIdVdv());
+            }
             for (int i = 0; i < regs.size(); i++) {
                 var r = regs.get(i);
                 bocSvc.create(idGiai, idNoiDung, r.getIdVdv(), i, 1);
@@ -1888,8 +2060,8 @@ public class MainFrame extends JFrame {
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
-                "Bạn có chắc muốn xoá ?\n\n" +
-                        "Hành động này sẽ xoá dữ liệu và không thể hoàn tác.",
+                "Bạn có chắc muốn xoá ?\n\n"
+                        + "Hành động này sẽ xoá dữ liệu và không thể hoàn tác.",
                 "Xác nhận xoá", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm != JOptionPane.YES_OPTION) {
             return;
@@ -1974,14 +2146,17 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /** Bốc thăm + lưu và mở sơ đồ, auto seed + lưu sơ đồ. */
+    /**
+     * Bốc thăm + lưu và mở sơ đồ, auto seed + lưu sơ đồ.
+     */
     private void doAutoDrawSaveAndOpenForContent(ContentNode cn) {
         try {
             NetworkInterface ni = (netCfg != null && netCfg.ifName() != null)
                     ? NetworkInterface.getByName(netCfg.ifName())
                     : null;
-            if (!doAutoDrawSave(cn.idNoiDung))
+            if (!doAutoDrawSave(cn.idNoiDung)) {
                 return;
+            }
             windowManager.openBracketWindow(service, this,
                     (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null), ni);
             windowManager.ensureBracketTab(service, cn.idNoiDung, cn.label, this);
@@ -1997,13 +2172,17 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /** Recreate the tree nodes according to current role and available views. */
+    /**
+     * Recreate the tree nodes according to current role and available views.
+     */
     private void rebuildNavigationTree() {
-        if (navModel == null)
+        if (navModel == null) {
             return;
+        }
         DefaultMutableTreeNode root = (DefaultMutableTreeNode) navModel.getRoot();
-        if (root == null)
+        if (root == null) {
             return;
+        }
         // Root title = tournament name if available
         updateNavigationRootTitleFromSelection();
         root.removeAllChildren();
@@ -2127,20 +2306,22 @@ public class MainFrame extends JFrame {
             NetworkInterface ni = (netCfg != null && netCfg.ifName() != null)
                     ? NetworkInterface.getByName(netCfg.ifName())
                     : null;
-            if (node == null)
+            if (node == null) {
                 return;
-            if (node.getChildCount() > 0)
+            }
+            if (node.getChildCount() > 0) {
                 return; // chỉ xử lý leaf items
+            }
             Object uo = node.getUserObject();
             if (uo instanceof ContentNode cn) {
                 DefaultMutableTreeNode parent = (DefaultMutableTreeNode) node.getParent();
                 String parentLabel = (parent != null && parent.getUserObject() instanceof String s) ? s : "";
-                if (null != parentLabel)
+                if (null != parentLabel) {
                     switch (parentLabel) {
                         case "Danh sách đăng kí" -> {
                             if (contentParticipantsPanel != null) {
                                 ensureViewPresent("Danh sách đăng kí", contentParticipantsPanel);
-                                contentParticipantsPanel.selectNoiDungById(cn.idNoiDung);
+                                contentParticipantsController.selectNoiDungById(cn.idNoiDung);
                                 showView("Danh sách đăng kí");
                             }
                         }
@@ -2153,7 +2334,9 @@ public class MainFrame extends JFrame {
                             if (dangKyNoiDungPanel != null) {
                                 ensureViewPresent("Nội dung của giải", dangKyNoiDungPanel);
                                 try {
-                                    dangKyNoiDungPanel.selectNoiDungById(cn.idNoiDung);
+                                    if (dangKyNoiDungController != null) {
+                                        dangKyNoiDungController.selectNoiDungById(cn.idNoiDung);
+                                    }
                                 } catch (Throwable ignore) {
                                 }
                                 showView("Nội dung của giải");
@@ -2162,6 +2345,7 @@ public class MainFrame extends JFrame {
                         default -> {
                         }
                     }
+                }
                 return;
             }
             if (uo instanceof String label) {
@@ -2171,11 +2355,13 @@ public class MainFrame extends JFrame {
                     return;
                 }
                 if ("Bốc thăm thi đấu".equals(label)) {
-                    if (bocThamThiDauPanel != null)
+                    if (bocThamThiDauPanel != null) {
                         ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
+                    }
                 }
-                if (views.containsKey(label))
+                if (views.containsKey(label)) {
                     showView(label);
+                }
             }
         } catch (SocketException ignored) {
         }
@@ -2183,6 +2369,7 @@ public class MainFrame extends JFrame {
 
     // Tree leaf model for "Danh sách đăng kí" -> Nội dung items
     private static final class ContentNode {
+
         final String label;
         final Integer idNoiDung;
 
@@ -2215,15 +2402,17 @@ public class MainFrame extends JFrame {
     private JMenuItem menuItem(String viewName) {
         JMenuItem mi = new JMenuItem(viewName);
         mi.addActionListener(e -> showView(viewName));
-        if (!views.containsKey(viewName))
+        if (!views.containsKey(viewName)) {
             mi.setEnabled(false);
+        }
         return mi;
     }
 
     private void doLogout() {
         int confirm = JOptionPane.showConfirmDialog(this, "Đăng xuất?", "Xác nhận", JOptionPane.YES_NO_OPTION);
-        if (confirm != JOptionPane.YES_OPTION)
+        if (confirm != JOptionPane.YES_OPTION) {
             return;
+        }
         try {
             windowManager.closeWindow(WindowType.BRACKET);
         } catch (Exception ignore) {
@@ -2243,7 +2432,9 @@ public class MainFrame extends JFrame {
         rebuildNavigationTree();
     }
 
-    /** Clear only transient tournament selection preferences on exit/logout. */
+    /**
+     * Clear only transient tournament selection preferences on exit/logout.
+     */
     private void clearTournamentSelectionPrefs() {
         try {
             com.example.btms.config.Prefs p = new com.example.btms.config.Prefs();
@@ -2253,7 +2444,9 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /** Public wrapper cho SettingsPanel gọi đổi theme và lưu Prefs. */
+    /**
+     * Public wrapper cho SettingsPanel gọi đổi theme và lưu Prefs.
+     */
     public void applyTheme(boolean dark) {
         // lưu Prefs ở SettingsPanel rồi, đây chỉ thực thi
         switchTheme(dark);
@@ -2263,7 +2456,9 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /** Được SettingsPanel gọi để đổi số cột monitor. */
+    /**
+     * Được SettingsPanel gọi để đổi số cột monitor.
+     */
     public void updateMonitorColumns(int cols) {
         try {
             java.lang.reflect.Method m = monitorTab.getClass().getMethod("setColumns", int.class);
@@ -2274,7 +2469,8 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Được SettingsPanel gọi để áp dụng always-on-top cho các viewer nổi (monitor).
+     * Được SettingsPanel gọi để áp dụng always-on-top cho các viewer nổi
+     * (monitor).
      */
     public void applyAlwaysOnTopFloating(boolean onTop) {
         try {
@@ -2333,12 +2529,13 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại.
-     * Nếu cửa sổ đã mở, sẽ đưa ra phía trước.
+     * Mở "Sơ đồ thi đấu" ở một cửa sổ riêng, tái sử dụng kết nối hiện tại. Nếu
+     * cửa sổ đã mở, sẽ đưa ra phía trước.
      */
     // Đã chuyển toàn bộ logic Sơ đồ thi đấu sang BracketWindowManager
-
-    /** Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại. */
+    /**
+     * Đưa cửa sổ ra trước, và focus tab tương ứng idNoiDung nếu tồn tại.
+     */
     @SuppressWarnings("unused")
     private void showSoDoTabForNoiDung(Integer idNoiDung) {
         NetworkInterface ni;
@@ -2400,17 +2597,22 @@ public class MainFrame extends JFrame {
             fc.setDialogTitle("Xuất PDF danh sách đăng ký đội");
             fc.setFileFilter(new FileNameExtensionFilter("PDF", "pdf"));
             String baseName = switch (mode) {
-                case ALL -> "dangky-doi_all";
-                case BY_CLUB -> "dangky-doi_theo-clb";
-                case BY_CONTENT -> "dangky-doi_theo-noidung";
+                case ALL ->
+                    "dangky-doi_all";
+                case BY_CLUB ->
+                    "dangky-doi_theo-clb";
+                case BY_CONTENT ->
+                    "dangky-doi_theo-noidung";
             };
             fc.setSelectedFile(new java.io.File(baseName + ".pdf"));
             int r = fc.showSaveDialog(this);
-            if (r != JFileChooser.APPROVE_OPTION)
+            if (r != JFileChooser.APPROVE_OPTION) {
                 return;
+            }
             java.io.File f = fc.getSelectedFile();
-            if (f == null)
+            if (f == null) {
                 return;
+            }
             if (!f.getName().toLowerCase().endsWith(".pdf")) {
                 f = new java.io.File(f.getAbsolutePath() + ".pdf");
             }
@@ -2432,8 +2634,8 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Mở trang "Thi đấu" (điều khiển nhiều sân) ở cửa sổ riêng.
-     * Dùng chung CourtManagerService nên có thể mở song song với tab nếu cần.
+     * Mở trang "Thi đấu" (điều khiển nhiều sân) ở cửa sổ riêng. Dùng chung
+     * CourtManagerService nên có thể mở song song với tab nếu cần.
      */
     private void openThiDauWindow() {
         windowManager.openPlayWindow(
@@ -2445,7 +2647,6 @@ public class MainFrame extends JFrame {
     }
 
     /* -------------------- Inline dialogs -------------------- */
-
     private GiaiDau showTournamentSelectDialog() {
         // Lấy userId từ Preferences nếu có
         Integer currentUserId = null;
@@ -2465,16 +2666,18 @@ public class MainFrame extends JFrame {
 
     // Normalize a string to a safe ASCII filename using underscores as separator
     private static String normalizeFileNameUnderscore(String s) {
-        if (s == null)
+        if (s == null) {
             return "giai-dau";
+        }
         String x = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
                 .replaceAll("[^a-zA-Z0-9]+", "_")
                 .replaceAll("_+", "_")
                 .replaceAll("(^_|_$)", "")
                 .toLowerCase();
-        if (x.isBlank())
+        if (x.isBlank()) {
             return "giai-dau";
+        }
         return x;
     }
 }
