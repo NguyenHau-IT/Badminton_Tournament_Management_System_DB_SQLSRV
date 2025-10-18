@@ -1,4 +1,4 @@
-package com.example.btms.controller.home;
+package com.example.btms.web.controller.home;
 
 import java.sql.Connection;
 import java.time.LocalDate;
