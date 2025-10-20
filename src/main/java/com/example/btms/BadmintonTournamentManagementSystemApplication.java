@@ -1,6 +1,7 @@
 package com.example.btms;
 
 import java.awt.GraphicsEnvironment;
+import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.SwingUtilities;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 
 import com.example.btms.config.ConnectionConfig;
@@ -30,6 +32,9 @@ public class BadmintonTournamentManagementSystemApplication {
 
 	@Autowired
 	private H2TcpServerConfig h2TcpServerConfig;
+
+	@Autowired
+	private ApplicationContext applicationContext;
 
 	public static void main(String[] args) {
 		// Tắt headless để cho phép mở Swing UI
@@ -76,14 +81,13 @@ public class BadmintonTournamentManagementSystemApplication {
 			try {
 				h2TcpServerConfig.startTcpServer(cfg);
 				System.out.println("✅ H2 TCP Server đã khởi động với IP: " + cfg.ipv4Address());
-			} catch (Exception e) {
+			} catch (SQLException e) {
 				System.err.println("❌ Không thể khởi động H2 TCP Server: " + e.getMessage());
-				e.printStackTrace();
 			}
 
 			// Tạo MainFrame nhưng KHÔNG hiển thị; MainFrame sẽ tự hiển thị sau khi
 			// hoàn tất kết nối DB + đăng nhập + chọn giải.
-			MainFrame mf = new MainFrame(cfg, dbCfg);
+			MainFrame mf = new MainFrame(cfg, dbCfg, applicationContext);
 			IconUtil.applyTo(mf);
 		});
 	}

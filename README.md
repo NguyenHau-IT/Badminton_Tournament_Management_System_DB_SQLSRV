@@ -2,8 +2,8 @@
 
 Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng điều khiển đa sân và giao diện web real-time.
 
-![Java](https://img.shields.io/badge/Java-17-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.6-brightgreen)
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.0-brightgreen)
 ![Maven](https://img.shields.io/badge/Maven-Build-red)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
@@ -22,8 +22,8 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 ### 📊 Thông tin kỹ thuật
 - **Phiên bản**: 2.0.0
 - **Tác giả**: Nguyen Viet Hau
-- **Ngôn ngữ**: Java 17
-- **Framework**: Spring Boot 3.2.6
+- **Ngôn ngữ**: Java 21
+- **Framework**: Spring Boot 3.4.0
 - **Cổng mặc định**: 2345
 - **Hỗ trợ**: Windows 10/11 64-bit
 
@@ -111,8 +111,8 @@ graph TB
 ### 🖥️ Backend & Core
 | Công nghệ | Phiên bản | Mục đích |
 |-----------|-----------|----------|
-| **Java** | 17 | Runtime platform |
-| **Spring Boot** | 3.2.6 | Application framework |
+| **Java** | 21 | Runtime platform |
+| **Spring Boot** | 3.4.0 | Application framework |
 | **Spring Web** | - | REST API & Web MVC |
 | **Spring Data JPA** | - | Database abstraction |
 | **Hibernate** | - | ORM implementation |
@@ -130,7 +130,7 @@ graph TB
 | Công nghệ | Phiên bản | Mục đích |
 |-----------|-----------|----------|
 | **SQL Server** | - | Primary database |
-| **H2 Database** | - | TCP server cho remote access |
+| **H2 Database** | 2.3.232 | TCP server cho remote access |
 | **HikariCP** | - | Connection pooling |
 | **JDBC Driver** | - | Database connectivity |
 
@@ -140,7 +140,7 @@ graph TB
 | **Maven** | - | Build & dependency management |
 | **ZXing** | 3.5.2 | QR Code generation |
 | **OkHttp** | - | HTTP client |
-| **H2** | - | TCP server cho remote DB access |
+| **H2** | 2.3.232 | TCP server cho remote DB access |
 | **Jackson** | - | JSON processing |
 | **JCalendar** | 1.4 | Date picker component |
 | **OpenPDF** | 1.3.39 | PDF generation |
@@ -148,21 +148,40 @@ graph TB
 ---
 ### 📋 Yêu cầu hệ thống
 - **OS**: Windows 10/11 64-bit
+- **Java**: Java 21+ LTS (Required for enhanced threading features)
 
 ### 🚀 Chạy ứng dụng
 
-#### Từ source code (Windows CMD):
+#### 🎯 Quick Start (Recommended):
+```bat
+:: Setup Java 21 environment (run as Administrator)
+setup-java21-env.bat
+
+:: Build với Java 21 optimizations
+build-java21.bat
+
+:: Run với enhanced threading
+run-java21.bat
+```
+
+#### Từ source code (Manual):
 ```bat
 :: Clone repository
 git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
 cd Badminton_Tournament_Management_System_DB_SQLSRV
 
-:: Build và chạy
-mvn clean package -DskipTests
-java -jar target\btms-2.0.0.jar
+:: Ensure Java 21 is active
+java -version
 
-:: Hoặc chạy trực tiếp với Maven
-mvn spring-boot:run
+:: Build với Java 21
+mvn clean package -DskipTests
+
+:: Run với enhanced JVM settings
+"C:\Program Files\Java\jdk-21\bin\java.exe" ^
+    -Xmx4g ^
+    -XX:+UseG1GC ^
+    -XX:+UseStringDeduplication ^
+    -jar target\btms-2.0.0.jar
 ```
 
 #### Từ MSI installer:
@@ -440,27 +459,33 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 - Thay đổi default port nếu cần thiết
 - Monitor network traffic và access logs
 
-### ⚡ Tối ưu hiệu năng
+### ⚡ Tối ưu hiệu năng (Java 21 Enhanced)
 - **HikariCP**: Connection pool với max 10 connections
-- **Thread Pool**: 8 threads cho SSE broadcasting
-- **Memory Management**: G1GC recommended với 4GB+ heap
+- **Enhanced Threading**: Multi-tier thread pools cho optimal performance
+- **Real-time Monitoring**: Performance metrics và auto-cleanup
+- **Smart Task Management**: Separated I/O, CPU và SSE workloads
+- **Memory Management**: G1GC + proactive GC suggestions
 - **Client-side Throttling**: 80ms minimum interval cho SSE events
 
-#### 🚀 JVM Tuning
+#### 🚀 JVM Tuning (Java 21 Optimized)
 ```bash
-# Recommended JVM settings
+# Enhanced JVM settings cho Java 21
 java -Xmx4g \
      -XX:+UseG1GC \
      -XX:+UseStringDeduplication \
      -XX:MaxGCPauseMillis=200 \
+     -XX:G1HeapRegionSize=16m \
+     --add-opens java.base/java.lang=ALL-UNNAMED \
      -jar btms-2.0.0.jar
 ```
 
-#### 📊 Performance Monitoring
-- RAM usage tracker trong status bar
-- Real-time connection monitoring
-- Database connection pool metrics
-- SSE connection count và health status
+#### 📊 Performance Monitoring (Enhanced)
+- **Real-time Status Bar**: Memory usage, thread count với visual indicators
+- **Performance Service**: Automatic monitoring và alerting
+- **Thread Pool Metrics**: Named threads và utilization tracking
+- **Memory Management**: Proactive GC suggestions và leak prevention
+- **Database Connection Pool**: HikariCP metrics và health status
+- **SSE Broadcasting**: Enhanced async processing với retry logic
 
 ---
 
@@ -470,7 +495,7 @@ java -Xmx4g \
 
 #### Prerequisites
 ```bat
-:: Java 17+ và Maven 3.6+ required
+:: Java 21+ và Maven 3.6+ required
 java --version    
 mvn --version     
 ```
@@ -526,7 +551,7 @@ java -jar btms-2.0.0.jar
 
 #### Option 3: Docker (Development)
 ```dockerfile
-FROM openjdk:17-jdk-slim
+FROM openjdk:21-jdk-slim
 COPY target/btms-2.0.0.jar app.jar
 EXPOSE 2345
 CMD ["java", "-jar", "app.jar"]
@@ -563,7 +588,7 @@ server.port=2345
 
 #### 1. Không thể khởi động ứng dụng
 ```bat
-:: Kiểm tra Java version (cần Java 17+)
+:: Kiểm tra Java version (cần Java 21+)
 java --version
 
 :: Kiểm tra port conflict
