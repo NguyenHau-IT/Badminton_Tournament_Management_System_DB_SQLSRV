@@ -1,5 +1,6 @@
 package com.example.btms.web.controller.scoreBoard;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +8,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -16,11 +18,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import java.io.IOException;
 
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.service.match.CourtManagerService;
 import com.example.btms.service.scoreboard.ScoreboardRemote;
+import com.example.btms.service.threading.BackgroundTaskManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
@@ -42,13 +44,9 @@ public class ScoreboardPinController {
     // Cache ObjectMapper để tái sử dụng, tránh tạo mới liên tục
     private final ObjectMapper om = new ObjectMapper();
 
-    // Thread pool để xử lý SSE broadcasts không đồng bộ
-    private final java.util.concurrent.ExecutorService broadcastExecutor = java.util.concurrent.Executors
-            .newFixedThreadPool(8, r -> {
-                Thread t = new Thread(r, "SSE-Broadcast-" + System.currentTimeMillis());
-                t.setDaemon(true);
-                return t;
-            });
+    // 🚀 Enhanced Background Task Manager (Java 21 optimized)
+    @Autowired
+    private BackgroundTaskManager taskManager;
 
     public ScoreboardPinController() {
         controllerInstance = this;
@@ -63,8 +61,8 @@ public class ScoreboardPinController {
     }
 
     private void broadcastSnapshotToPin(String pinCode) {
-        // Sử dụng thread pool để broadcast không đồng bộ, tránh block main thread
-        broadcastExecutor.submit(() -> {
+        // 🚀 Sử dụng enhanced task manager cho SSE broadcast (Java 21 optimized)
+        taskManager.executeSseBroadcast(() -> {
             try {
                 BadmintonMatch match = getOrCreateMatch(pinCode);
                 String payload = om.writeValueAsString(match.snapshot());
@@ -89,7 +87,7 @@ public class ScoreboardPinController {
                 // JSON serialization error - log and continue
                 log.warn("JSON serialization error broadcasting to PIN {}: {}", pinCode, e.getMessage());
             } catch (RuntimeException e) {
-                // Other runtime issues - log but don't crash the executor thread
+                // Other runtime issues - log but don't crash the task
                 log.warn("Error broadcasting to PIN {}: {}", pinCode, e.getMessage());
             }
         });

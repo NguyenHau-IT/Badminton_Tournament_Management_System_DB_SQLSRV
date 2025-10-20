@@ -32,3 +32,4 @@ target/classes/application.properties
 
 #target folder
 target/
+/nbproject/

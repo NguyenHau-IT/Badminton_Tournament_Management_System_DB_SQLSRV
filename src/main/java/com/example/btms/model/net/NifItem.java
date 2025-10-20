@@ -24,10 +24,15 @@ public final class NifItem {
         this.displayName = nullToEmpty(nif.getDisplayName());
         this.name = nullToEmpty(nif.getName());
 
-        Enumeration<InetAddress> inetAddresses = nif.getInetAddresses();
+        // Chỉ lấy địa chỉ IPv4 đầu tiên, bỏ qua IPv6
         String ipv4Addr = "";
-        if (inetAddresses.hasMoreElements()) {
-            ipv4Addr = inetAddresses.nextElement().getHostAddress();
+        Enumeration<InetAddress> inetAddresses = nif.getInetAddresses();
+        while (inetAddresses.hasMoreElements()) {
+            InetAddress addr = inetAddresses.nextElement();
+            if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
+                ipv4Addr = addr.getHostAddress();
+                break; // Chỉ lấy IPv4 đầu tiên
+            }
         }
         this.ipv4Address = nullToEmpty(ipv4Addr);
 
@@ -59,17 +64,18 @@ public final class NifItem {
                 if (ia == null || ia.getAddress() == null)
                     continue;
 
-                if (ia.getAddress() instanceof Inet4Address)
+                // Chỉ đếm và hiển thị IPv4, bỏ qua IPv6
+                if (ia.getAddress() instanceof Inet4Address) {
                     v4++;
-                else if (ia.getAddress() instanceof Inet6Address)
-                    v6++;
-
-                String ip = ia.getAddress().getHostAddress();
-                Integer prefix = ia.getNetworkPrefixLength() >= 0 ? (int) ia.getNetworkPrefixLength() : null;
-                if (prefix != null)
-                    tip.append(escape(ip)).append("/").append(prefix).append("<br/>");
-                else
-                    tip.append(escape(ip)).append("<br/>");
+                    String ip = ia.getAddress().getHostAddress();
+                    Integer prefix = ia.getNetworkPrefixLength() >= 0 ? (int) ia.getNetworkPrefixLength() : null;
+                    if (prefix != null)
+                        tip.append(escape(ip)).append("/").append(prefix).append("<br/>");
+                    else
+                        tip.append(escape(ip)).append("<br/>");
+                } else if (ia.getAddress() instanceof Inet6Address) {
+                    v6++; // Vẫn đếm IPv6 nhưng không hiển thị
+                }
             }
         }
         tip.append("</html>");

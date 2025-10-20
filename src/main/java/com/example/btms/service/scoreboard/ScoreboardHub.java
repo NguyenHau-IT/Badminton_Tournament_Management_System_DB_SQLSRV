@@ -3,9 +3,8 @@ package com.example.btms.service.scoreboard;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.SwingUtilities;
-
 import com.example.btms.model.match.BadmintonMatch;
+import com.example.btms.util.threading.SwingThreadingUtils;
 
 public final class ScoreboardHub {
 
@@ -97,9 +96,9 @@ public final class ScoreboardHub {
     }
 
     private void fireChanged() {
-        // gọi trên EDT để UI an toàn
+        // 🚀 Sử dụng enhanced threading utils cho UI safety
         for (Runnable r : listeners) {
-            SwingUtilities.invokeLater(r);
+            SwingThreadingUtils.runOnEDT(r);
         }
     }
 }

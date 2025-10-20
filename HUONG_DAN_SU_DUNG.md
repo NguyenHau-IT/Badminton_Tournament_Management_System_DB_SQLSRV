@@ -122,7 +122,7 @@ Screenshots: Ảnh được đọc từ thư mục nội bộ `screenshots` (đ�
 ## 🛠️ Cài đặt từ source code
 
 ### Yêu cầu hệ thống
-- **Java 17+** (bắt buộc cho Spring Boot 3.2.x)
+- **Java 21+** (bắt buộc cho Spring Boot 3.4.x)
 - **Maven 3.6+** (để build từ source)
 - **RAM**: Tối thiểu 4GB, khuyến nghị 8GB+
 - **Mạng LAN**: Để kết nối giữa các thiết bị
@@ -926,7 +926,7 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar BadmintonEventTechnolo
 **Giải pháp**:
 - MSI đã bao gồm JRE, kiểm tra thư mục cài đặt có folder `runtime\`
 - Nếu thiếu JRE, cài đặt lại từ MSI installer
-- Hoặc cài đặt Java 17+ từ trang chủ Oracle/OpenJDK
+- Hoặc cài đặt Java 21+ từ trang chủ Oracle/OpenJDK
 
 #### 3. Ứng dụng không khởi động được
 **Triệu chứng**: Double-click không phản hồi hoặc tắt ngay

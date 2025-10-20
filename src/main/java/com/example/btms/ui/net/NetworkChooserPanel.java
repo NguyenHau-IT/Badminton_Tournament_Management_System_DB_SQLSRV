@@ -3,7 +3,6 @@ package com.example.btms.ui.net;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -111,11 +110,21 @@ public class NetworkChooserPanel extends JPanel {
                     NetworkInterface nif = en.nextElement();
                     if (!nif.isUp() || nif.isLoopback() || nif.isVirtual())
                         continue;
-                    allItems.add(new NifItem(nif));
+
+                    NifItem item = new NifItem(nif);
+                    // Chỉ thêm interface có ít nhất 1 IPv4 address
+                    if (item.getIpv4Count() > 0 && item.getIpv4Address() != null && !item.getIpv4Address().isEmpty()) {
+                        allItems.add(item);
+                    }
                 }
             }
-            Collections.sort(allItems,
-                    (a, b) -> a.getDisplayName().compareToIgnoreCase(b.getDisplayName()));
+            // Sắp xếp: ưu tiên interface có nhiều IPv4 hơn, sau đó theo tên
+            Collections.sort(allItems, (a, b) -> {
+                int ipv4Compare = Integer.compare(b.getIpv4Count(), a.getIpv4Count()); // Descending by IPv4 count
+                if (ipv4Compare != 0)
+                    return ipv4Compare;
+                return a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
+            });
             for (NifItem i : allItems)
                 model.addElement(i);
         } catch (SocketException | SecurityException ex) {
@@ -217,9 +226,10 @@ public class NetworkChooserPanel extends JPanel {
                 return this;
             lbIcon.setIcon(value.isWifi() ? icWifi : icLan);
             lbTitle.setText(value.getDisplayName());
-            lbIpv4.setText(value.getIpv4Address() != null ? value.getIpv4Address() : "No IPv4");
+            lbIpv4.setText(value.getIpv4Address() != null && !value.getIpv4Address().isEmpty() ? value.getIpv4Address()
+                    : "No IPv4");
             lbSub.setText(value.getName());
-            badge.setText("IPv4 " + value.getIpv4Count() + "/v6 " + value.getIpv6Count());
+            badge.setText("IPv4: " + value.getIpv4Count()); // Chỉ hiển thị số IPv4
             setToolTipText(value.getTooltip());
 
             Color bgSel = UIManager.getColor("List.selectionBackground");

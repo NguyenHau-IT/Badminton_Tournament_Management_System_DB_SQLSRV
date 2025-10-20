@@ -17,9 +17,9 @@ import java.net.SocketException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.util.LinkedHashMap; // still used earlier? (kept for backward compatibility but theme menu removed)
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Map; // still used earlier? (kept for backward compatibility but theme menu removed)
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.JComponent;
@@ -43,7 +43,10 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
 
+import org.springframework.context.ApplicationContext;
+
 import com.example.btms.config.ConnectionConfig;
+import com.example.btms.config.H2TcpServerConfig;
 import com.example.btms.config.NetworkConfig;
 import com.example.btms.config.Prefs;
 import com.example.btms.desktop.controller.auth.LoginController;
@@ -128,6 +131,7 @@ public class MainFrame extends JFrame {
     private GiaiDauService giaiDauService;
     private Connection conn;
     private Prefs prefs;
+    private ApplicationContext applicationContext;
     private NoiDungManagementPanel noiDungPanel;
     private CauLacBoManagementPanel cauLacBoPanel;
     private DangKyNoiDungPanel dangKyNoiDungPanel;
@@ -172,6 +176,8 @@ public class MainFrame extends JFrame {
     private final JLabel statusConn = new JLabel("Chưa kết nối");
     private final JLabel statusHost = new JLabel("-");
     private final JLabel statusMem = new JLabel();
+    private final JLabel statusH2 = new JLabel("H2: -");
+    private final JLabel statusThreads = new JLabel("Threads: -");
 
     private final DecimalFormat df = new DecimalFormat("#,##0");
     // (Removed old JTabbedPane navigation)
@@ -193,14 +199,15 @@ public class MainFrame extends JFrame {
     // removed legacy select panel usage; selection is done via dialog now
 
     public MainFrame() {
-        this(null, null);
+        this(null, null, null);
     }
 
     // Đã xóa refreshHeader() vì không còn header
-    public MainFrame(NetworkConfig cfg, ConnectionConfig dbCfg) {
+    public MainFrame(NetworkConfig cfg, ConnectionConfig dbCfg, ApplicationContext applicationContext) {
         super("BADMINTON TUORNAMENT MANAGEMENT SYSTEM");
         this.netCfg = cfg;
         this.dbCfg = dbCfg;
+        this.applicationContext = applicationContext;
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
         // Startup hygiene: do NOT carry over last selected tournament between app runs.
@@ -377,6 +384,10 @@ public class MainFrame extends JFrame {
         left.add(new JLabel(" | "));
         left.add(new JLabel("Máy chủ:"));
         left.add(statusHost);
+        left.add(new JLabel(" | "));
+        left.add(statusH2);
+        left.add(new JLabel(" | "));
+        left.add(statusThreads);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         right.setOpaque(false);
@@ -419,6 +430,49 @@ public class MainFrame extends JFrame {
         long used = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
         long max = rt.maxMemory() / (1024 * 1024);
         statusMem.setText(df.format(used) + " / " + df.format(max) + " MB");
+
+        // Update H2 server status
+        updateH2Status();
+
+        // Update thread pool status
+        updateThreadPoolStatus();
+    }
+
+    private void updateH2Status() {
+        if (applicationContext != null) {
+            try {
+                H2TcpServerConfig h2Config = applicationContext.getBean(H2TcpServerConfig.class);
+                if (h2Config.isServerRunning()) {
+                    statusH2.setText("H2: ✓ Port " + h2Config.getServerPort());
+                    statusH2.setForeground(new Color(34, 139, 34)); // Forest Green
+                } else {
+                    statusH2.setText("H2: ✗ Stopped");
+                    statusH2.setForeground(Color.RED);
+                }
+            } catch (Exception e) {
+                statusH2.setText("H2: ? Error");
+                statusH2.setForeground(Color.ORANGE);
+            }
+        } else {
+            statusH2.setText("H2: N/A");
+            statusH2.setForeground(Color.GRAY);
+        }
+    }
+
+    private void updateThreadPoolStatus() {
+        java.lang.management.ThreadMXBean threadBean = java.lang.management.ManagementFactory.getThreadMXBean();
+        int threadCount = threadBean.getThreadCount();
+        int daemonCount = threadBean.getDaemonThreadCount();
+        statusThreads.setText("Threads: " + threadCount + " (" + daemonCount + " daemon)");
+
+        // Color coding based on thread count
+        if (threadCount < 50) {
+            statusThreads.setForeground(new Color(34, 139, 34)); // Green
+        } else if (threadCount < 100) {
+            statusThreads.setForeground(Color.ORANGE);
+        } else {
+            statusThreads.setForeground(Color.RED);
+        }
     }
 
     // (Removed loadIcon method – not needed for text-only menu navigation)
