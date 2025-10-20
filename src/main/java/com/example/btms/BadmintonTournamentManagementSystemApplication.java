@@ -1,6 +1,7 @@
 package com.example.btms;
 
 import java.awt.GraphicsEnvironment;
+import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.SwingUtilities;
@@ -80,9 +81,8 @@ public class BadmintonTournamentManagementSystemApplication {
 			try {
 				h2TcpServerConfig.startTcpServer(cfg);
 				System.out.println("✅ H2 TCP Server đã khởi động với IP: " + cfg.ipv4Address());
-			} catch (Exception e) {
+			} catch (SQLException e) {
 				System.err.println("❌ Không thể khởi động H2 TCP Server: " + e.getMessage());
-				e.printStackTrace();
 			}
 
 			// Tạo MainFrame nhưng KHÔNG hiển thị; MainFrame sẽ tự hiển thị sau khi
