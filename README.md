@@ -140,7 +140,7 @@ graph TB
 | **Maven** | - | Build & dependency management |
 | **ZXing** | 3.5.2 | QR Code generation |
 | **OkHttp** | - | HTTP client |
-| **H2** | - | TCP server cho remote DB access |
+| **H2** | 2.3.232 | TCP server cho remote DB access |
 | **Jackson** | - | JSON processing |
 | **JCalendar** | 1.4 | Date picker component |
 | **OpenPDF** | 1.3.39 | PDF generation |
