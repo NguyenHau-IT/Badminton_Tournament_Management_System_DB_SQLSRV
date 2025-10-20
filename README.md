@@ -130,7 +130,7 @@ graph TB
 | Công nghệ | Phiên bản | Mục đích |
 |-----------|-----------|----------|
 | **SQL Server** | - | Primary database |
-| **H2 Database** | - | TCP server cho remote access |
+| **H2 Database** | 2.3.232 | TCP server cho remote access |
 | **HikariCP** | - | Connection pooling |
 | **JDBC Driver** | - | Database connectivity |
 
