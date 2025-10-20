@@ -5,6 +5,9 @@ spring.application.name=BadmintonEventTechnology
 spring.main.headless=false
 
 # SQL Server Configuration
+spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=badminton_tournament;encrypt=true;trustServerCertificate=true
+spring.datasource.username=hau2
+spring.datasource.password=hau123
 spring.datasource.driver-class-name=com.microsoft.sqlserver.jdbc.SQLServerDriver
 
 # Connection pool settings

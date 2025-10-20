@@ -30,6 +30,7 @@ import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 
+import com.example.btms.desktop.controller.club.CauLacBoController;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
 import com.example.btms.model.player.VanDongVien;
@@ -38,11 +39,13 @@ import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.team.ChiTietDoiService;
 import com.example.btms.service.team.DangKiDoiService;
-import com.example.btms.ui.club.CauLacBoDialog;
 import com.example.btms.ui.player.VanDongVienDialog;
 
-/** Dialog tạo/sửa đội cho một nội dung (đôi) của giải. */
+/**
+ * Dialog tạo/sửa đội cho một nội dung (đôi) của giải.
+ */
 public class DangKyDoiDialog extends JDialog {
+
     private final DangKiDoiService teamService;
     private final ChiTietDoiService detailService;
     private final VanDongVienService vdvService;
@@ -226,13 +229,15 @@ public class DangKyDoiDialog extends JDialog {
             }
         }
         for (NoiDung nd : this.noiDungOptions) {
-            if (nd == null)
+            if (nd == null) {
                 continue;
-            if (!Boolean.TRUE.equals(nd.getTeam()))
+            }
+            if (!Boolean.TRUE.equals(nd.getTeam())) {
                 continue; // chỉ nội dung đôi
-            // Nếu có danh sách allowed (không rỗng) thì phải thuộc danh sách này
-            if (!allowedDoubleIds.isEmpty() && (nd.getId() == null || !allowedDoubleIds.contains(nd.getId())))
+            } // Nếu có danh sách allowed (không rỗng) thì phải thuộc danh sách này
+            if (!allowedDoubleIds.isEmpty() && (nd.getId() == null || !allowedDoubleIds.contains(nd.getId()))) {
                 continue;
+            }
             cboNoiDung.addItem(nd);
         }
         // Nếu đang sửa mà ND ban đầu không nằm trong danh sách đã đăng ký (trường hợp
@@ -254,8 +259,9 @@ public class DangKyDoiDialog extends JDialog {
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
                     boolean cellHasFocus) {
                 Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof NoiDung nd)
+                if (value instanceof NoiDung nd) {
                     setText(nd.getTenNoiDung());
+                }
                 return c;
             }
         });
@@ -278,8 +284,9 @@ public class DangKyDoiDialog extends JDialog {
         cboClb.addItem("— Không —");
         try {
             for (CauLacBo c : clbService.findAll()) {
-                if (c != null)
+                if (c != null) {
                     cboClb.addItem(c);
+                }
             }
         } catch (Exception ex) {
             System.err.println("Không thể tải CLB: " + ex.getMessage());
@@ -291,8 +298,9 @@ public class DangKyDoiDialog extends JDialog {
                     boolean isSelected, boolean cellHasFocus) {
                 Component comp = super.getListCellRendererComponent(list, value, index, isSelected,
                         cellHasFocus);
-                if (value instanceof CauLacBo c)
+                if (value instanceof CauLacBo c) {
                     setText(c.getTenClb());
+                }
                 return comp;
             }
         });
@@ -304,8 +312,9 @@ public class DangKyDoiDialog extends JDialog {
                     boolean isSelected, boolean cellHasFocus) {
                 Component comp = super.getListCellRendererComponent(list, value, index, isSelected,
                         cellHasFocus);
-                if (value instanceof VanDongVien v)
+                if (value instanceof VanDongVien v) {
                     setText(v.getHoTen());
+                }
                 return comp;
             }
         };
@@ -313,8 +322,9 @@ public class DangKyDoiDialog extends JDialog {
         lstAvailable.setCellRenderer(vRenderer);
 
         // Prefill if editing
-        if (tenTeamInit != null)
+        if (tenTeamInit != null) {
             txtTenTeam.setText(tenTeamInit);
+        }
         if (idClbInit != null) {
             for (int i = 0; i < cboClb.getItemCount(); i++) {
                 Object it = cboClb.getItemAt(i);
@@ -338,7 +348,18 @@ public class DangKyDoiDialog extends JDialog {
         // Hành động: Thêm CLB → mở dialog, reload danh sách và chọn CLB mới nếu có
         btnAddClb.addActionListener(e -> {
             Integer beforeMax = getMaxClubIdSafe();
-            new CauLacBoDialog(this, "Thêm CLB", null, clbService).setVisible(true);
+            var ctrl = new CauLacBoController(
+                    SwingUtilities.getWindowAncestor(this),
+                    "Thêm CLB",
+                    null, // null = thêm mới
+                    clbService);
+            ctrl.open();
+
+            if (ctrl.isSaved()) {
+                // List will be reloaded below via reloadClubs(preselect); no local reload() or
+                // updateCountLabel() methods exist here.
+            }
+
             // Reload clubs và cố gắng chọn CLB mới
             Integer afterMax = getMaxClubIdSafe();
             Integer preselect = (afterMax != null && beforeMax != null && afterMax > beforeMax) ? afterMax : null;
@@ -350,8 +371,9 @@ public class DangKyDoiDialog extends JDialog {
         // Nút di chuyển giữa 2 list
         Runnable addSelected = () -> {
             List<VanDongVien> chosen = lstAvailable.getSelectedValuesList();
-            if (chosen == null || chosen.isEmpty())
+            if (chosen == null || chosen.isEmpty()) {
                 return;
+            }
             // tối đa 2 VĐV
             if (modelSelected.getSize() + chosen.size() > 2) {
                 JOptionPane.showMessageDialog(this, "Đội đôi chỉ chọn tối đa 2 VĐV.", "Giới hạn",
@@ -367,8 +389,9 @@ public class DangKyDoiDialog extends JDialog {
         };
         Runnable removeSelected = () -> {
             List<VanDongVien> rem = lstSelected.getSelectedValuesList();
-            if (rem == null || rem.isEmpty())
+            if (rem == null || rem.isEmpty()) {
                 return;
+            }
             for (VanDongVien v : new ArrayList<>(rem)) {
                 removeVdv(modelSelected, v.getId());
             }
@@ -379,15 +402,17 @@ public class DangKyDoiDialog extends JDialog {
         lstAvailable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2)
+                if (e.getClickCount() == 2) {
                     addSelected.run();
+                }
             }
         });
         lstSelected.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2)
+                if (e.getClickCount() == 2) {
                     removeSelected.run();
+                }
             }
         });
 
@@ -398,8 +423,9 @@ public class DangKyDoiDialog extends JDialog {
             v.preselectClub(getSelectedClbId());
             NoiDung nd = getSelectedNoiDung();
             String gt = nd != null ? nd.getGioiTinh() : null;
-            if (gt != null)
+            if (gt != null) {
                 v.preselectGender(gt);
+            }
             v.setVisible(true);
             Integer afterMax = getMaxPlayerIdSafe();
             Integer preselectId = (afterMax != null && beforeMax != null && afterMax > beforeMax) ? afterMax : null;
@@ -421,8 +447,9 @@ public class DangKyDoiDialog extends JDialog {
         cboClb.addItem("— Không —");
         try {
             for (CauLacBo c : clbService.findAll()) {
-                if (c != null)
+                if (c != null) {
                     cboClb.addItem(c);
+                }
             }
         } catch (Exception ex) {
             System.err.println("Không thể tải CLB: " + ex.getMessage());
@@ -454,8 +481,9 @@ public class DangKyDoiDialog extends JDialog {
         try {
             Integer max = null;
             for (CauLacBo c : clbService.findAll()) {
-                if (c == null || c.getId() == null)
+                if (c == null || c.getId() == null) {
                     continue;
+                }
                 max = (max == null || c.getId() > max) ? c.getId() : max;
             }
             return max;
@@ -468,8 +496,9 @@ public class DangKyDoiDialog extends JDialog {
         try {
             Integer max = null;
             for (VanDongVien v : vdvService.findAll()) {
-                if (v == null || v.getId() == null)
+                if (v == null || v.getId() == null) {
                     continue;
+                }
                 max = (max == null || v.getId() > max) ? v.getId() : max;
             }
             return max;
@@ -479,8 +508,9 @@ public class DangKyDoiDialog extends JDialog {
     }
 
     private void selectNoiDung(NoiDung nd) {
-        if (nd == null)
+        if (nd == null) {
             return;
+        }
         for (int i = 0; i < cboNoiDung.getItemCount(); i++) {
             Object it = cboNoiDung.getItemAt(i);
             if (it instanceof NoiDung x && x.getId() != null && x.getId().equals(nd.getId())) {
@@ -497,8 +527,9 @@ public class DangKyDoiDialog extends JDialog {
 
     private Integer getSelectedClbId() {
         Object sel = cboClb.getSelectedItem();
-        if (sel instanceof CauLacBo c)
+        if (sel instanceof CauLacBo c) {
             return c.getId();
+        }
         return null; // "— Không —" hoặc không chọn -> không lọc theo CLB
     }
 
@@ -517,14 +548,17 @@ public class DangKyDoiDialog extends JDialog {
         try {
             List<VanDongVien> all = vdvService.findAll();
             for (VanDongVien v : all) {
-                if (v == null)
+                if (v == null) {
                     continue;
+                }
                 // Lọc theo CLB đã chọn (bắt buộc)
                 Integer vidClb = v.getIdClb();
-                if (vidClb == null || !clbId.equals(vidClb))
+                if (vidClb == null || !clbId.equals(vidClb)) {
                     continue;
-                if (!isEligible(v, ndSel))
+                }
+                if (!isEligible(v, ndSel)) {
                     continue;
+                }
                 eligible.add(v);
             }
         } catch (Exception ex) {
@@ -534,10 +568,12 @@ public class DangKyDoiDialog extends JDialog {
         lastEligible = eligible;
         // Giữ lại các VĐV đã chọn trước đó nhưng chỉ nếu vẫn còn hợp lệ
         List<Integer> keepIds = new ArrayList<>();
-        if (keepVdv1Id != null)
+        if (keepVdv1Id != null) {
             keepIds.add(keepVdv1Id);
-        if (keepVdv2Id != null)
+        }
+        if (keepVdv2Id != null) {
             keepIds.add(keepVdv2Id);
+        }
 
         // Lấy danh sách đang chọn (chỉ giữ những người còn đủ điều kiện)
         List<VanDongVien> currentSelected = new ArrayList<>();
@@ -549,10 +585,12 @@ public class DangKyDoiDialog extends JDialog {
         }
         // Bổ sung keepIds nếu có và còn chỗ
         for (Integer kid : keepIds) {
-            if (kid == null)
+            if (kid == null) {
                 continue;
-            if (currentSelected.size() >= 2)
+            }
+            if (currentSelected.size() >= 2) {
                 break;
+            }
             VanDongVien kv = findById(eligible, kid);
             if (kv != null && !containsVdv(currentSelected, kv.getId())) {
                 currentSelected.add(kv);
@@ -560,8 +598,9 @@ public class DangKyDoiDialog extends JDialog {
         }
         // Cập nhật modelSelected
         modelSelected.clear();
-        for (VanDongVien v : currentSelected)
+        for (VanDongVien v : currentSelected) {
             modelSelected.addElement(v);
+        }
         // Rebuild available = eligible - selected
         rebuildAvailable();
     }
@@ -576,29 +615,34 @@ public class DangKyDoiDialog extends JDialog {
     }
 
     private static boolean containsVdv(List<VanDongVien> list, Integer id) {
-        if (list == null || id == null)
+        if (list == null || id == null) {
             return false;
+        }
         for (VanDongVien v : list) {
-            if (v != null && id.equals(v.getId()))
+            if (v != null && id.equals(v.getId())) {
                 return true;
+            }
         }
         return false;
     }
 
     private static boolean containsVdv(DefaultListModel<VanDongVien> model, Integer id) {
-        if (model == null || id == null)
+        if (model == null || id == null) {
             return false;
+        }
         for (int i = 0; i < model.size(); i++) {
             VanDongVien v = model.get(i);
-            if (v != null && id.equals(v.getId()))
+            if (v != null && id.equals(v.getId())) {
                 return true;
+            }
         }
         return false;
     }
 
     private static void removeVdv(DefaultListModel<VanDongVien> model, Integer id) {
-        if (model == null || id == null)
+        if (model == null || id == null) {
             return;
+        }
         for (int i = model.size() - 1; i >= 0; i--) {
             VanDongVien v = model.get(i);
             if (v != null && id.equals(v.getId())) {
@@ -608,11 +652,13 @@ public class DangKyDoiDialog extends JDialog {
     }
 
     private static VanDongVien findById(List<VanDongVien> list, Integer id) {
-        if (list == null || id == null)
+        if (list == null || id == null) {
             return null;
+        }
         for (VanDongVien v : list) {
-            if (v != null && id.equals(v.getId()))
+            if (v != null && id.equals(v.getId())) {
                 return v;
+            }
         }
         return null;
     }
@@ -622,20 +668,24 @@ public class DangKyDoiDialog extends JDialog {
         String req = nd.getGioiTinh();
         if (req != null && !req.isBlank()) {
             String gv = v.getGioiTinh();
-            if ("M".equalsIgnoreCase(req) && (gv == null || !gv.equalsIgnoreCase("M")))
+            if ("M".equalsIgnoreCase(req) && (gv == null || !gv.equalsIgnoreCase("M"))) {
                 return false;
-            if ("F".equalsIgnoreCase(req) && (gv == null || !gv.equalsIgnoreCase("F")))
+            }
+            if ("F".equalsIgnoreCase(req) && (gv == null || !gv.equalsIgnoreCase("F"))) {
                 return false;
+            }
         }
         // Age filter (inclusive); if VDV missing DOB -> allow
         Integer td = nd.getTuoiDuoi();
         Integer tt = nd.getTuoiTren();
         if ((td != null || tt != null) && v.getNgaySinh() != null) {
             int age = Period.between(v.getNgaySinh(), LocalDate.now()).getYears();
-            if (td != null && age < td)
+            if (td != null && age < td) {
                 return false;
-            if (tt != null && tt > 0 && age > tt)
+            }
+            if (tt != null && tt > 0 && age > tt) {
                 return false;
+            }
         }
         return true;
     }
@@ -651,8 +701,9 @@ public class DangKyDoiDialog extends JDialog {
 
         Integer idClb = null;
         Object clbSel = cboClb.getSelectedItem();
-        if (clbSel instanceof CauLacBo c)
+        if (clbSel instanceof CauLacBo c) {
             idClb = c.getId();
+        }
 
         // Yêu cầu phải chọn đúng 2 VĐV
         if (modelSelected.getSize() != 2) {
@@ -699,8 +750,9 @@ public class DangKyDoiDialog extends JDialog {
         } catch (RuntimeException ex) {
             // Hiển thị nguyên nhân gốc để dễ chẩn đoán
             Throwable root = ex;
-            while (root.getCause() != null)
+            while (root.getCause() != null) {
                 root = root.getCause();
+            }
             String msg = ex.getMessage();
             String rootMsg = root != ex ? root.getMessage() : null;
             String full = (msg != null ? msg : "Lỗi") + (rootMsg != null ? "\nChi tiết: " + rootMsg : "");

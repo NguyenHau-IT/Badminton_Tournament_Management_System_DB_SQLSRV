@@ -21,37 +21,79 @@ public class H2ScriptUtil {
     }
 
     /**
+     * Callback interface for logging during database creation
+     */
+    public interface LogCallback {
+        void log(String message);
+    }
+
+    /**
      * Đọc file script SQL Server, chuyển đổi cú pháp sang H2 rồi chạy trên DB file.
      */
     public static void runSqlServerScriptOnH2FileDb(String dbName, File scriptFile) throws Exception {
-        if (scriptFile == null || !scriptFile.isFile())
-            return;
+        runSqlServerScriptOnH2FileDb(dbName, scriptFile, null);
+    }
 
+    /**
+     * Đọc file script SQL Server, chuyển đổi cú pháp sang H2 rồi chạy trên DB file
+     * với log callback.
+     */
+    public static void runSqlServerScriptOnH2FileDb(String dbName, File scriptFile, LogCallback logger)
+            throws Exception {
+        if (scriptFile == null) {
+            throw new Exception("Script file is null");
+        }
+        if (!scriptFile.exists()) {
+            throw new Exception("Script file does not exist: " + scriptFile.getAbsolutePath());
+        }
+        if (!scriptFile.isFile()) {
+            throw new Exception("Script path is not a file: " + scriptFile.getAbsolutePath());
+        }
+
+        logMessage(logger, "📖 Đọc file script: " + scriptFile.getName());
         String raw = readTextAuto(scriptFile);
+
+        logMessage(logger, "🔄 Chuyển đổi cú pháp SQL Server sang H2...");
         String converted = convertSqlServerToH2(raw);
 
         // KHÔNG DÙNG MODE=MSSQLServer nữa
         String url = "jdbc:h2:file:./database/" + dbName
                 + ";DATABASE_TO_UPPER=FALSE;AUTO_SERVER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS PUBLIC\\;SET SCHEMA PUBLIC";
 
+        logMessage(logger, "🔗 Kết nối tới H2 database...");
         try (Connection c = DriverManager.getConnection(url, "sa", "")) {
             c.setAutoCommit(false);
             try (Statement st = c.createStatement()) {
+                logMessage(logger, "🏗️ Tạo schema và thiết lập database...");
                 st.execute("CREATE SCHEMA IF NOT EXISTS PUBLIC");
                 st.execute("SET SCHEMA PUBLIC");
 
-                for (String sql : splitBySemicolon(converted)) {
+                String[] statements = splitBySemicolon(converted);
+                logMessage(logger, "⚡ Thực thi " + statements.length + " câu lệnh SQL...");
+
+                int executedCount = 0;
+                for (String sql : statements) {
                     if (sql.isBlank())
                         continue;
                     try {
                         st.execute(sql);
+                        executedCount++;
+                        if (executedCount % 5 == 0) {
+                            logMessage(logger,
+                                    "✅ Đã thực thi " + executedCount + "/" + statements.length + " câu lệnh...");
+                        }
                     } catch (SQLException ex) {
                         String snip = sql.length() > 240 ? sql.substring(0, 240) + "..." : sql;
-                        throw new SQLException("Lỗi khi chạy SQL: " + snip + "\n" + ex.getMessage(), ex);
+                        throw new SQLException("❌ Lỗi thực thi câu lệnh SQL #" + executedCount + ": " + snip + "\n"
+                                + ex.getMessage(), ex);
                     }
                 }
+
+                logMessage(logger, "✅ Thành công thực thi " + executedCount + " câu lệnh SQL.");
             }
+            logMessage(logger, "💾 Commit transaction...");
             c.commit();
+            logMessage(logger, "🎉 Khởi tạo schema database hoàn tất!");
         }
     }
 
@@ -134,6 +176,16 @@ public class H2ScriptUtil {
                     return new String(bytes, StandardCharsets.UTF_8);
                 }
             }
+        }
+    }
+
+    /**
+     * Helper method to log messages to both console and callback
+     */
+    private static void logMessage(LogCallback logger, String message) {
+        System.out.println(message);
+        if (logger != null) {
+            logger.log(message);
         }
     }
 }

@@ -1,6 +1,5 @@
-package com.example.btms.controller.scoreBoard;
+package com.example.btms.web.controller.scoreBoard;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import java.io.IOException;
 
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.service.match.CourtManagerService;
