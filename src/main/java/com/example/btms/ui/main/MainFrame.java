@@ -688,15 +688,9 @@ public class MainFrame extends JFrame {
             statusConn.setText("Đã kết nối");
             statusConn.setForeground(new Color(46, 204, 113));
 
-            try {
-                monitorTab.setAdminMode(true, null);
-                controlPanel.setClientName("ADMIN");
-            } catch (Exception ignore) {
-            }
-
-            currentRole = Role.ADMIN;
+            // Yêu cầu đăng nhập trước khi chọn giải đấu
             buildMenuBar();
-            startTournamentOnlyFlow();
+            forceLoginAndTournamentSelection();
 
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Lỗi cập nhật UI: " + e.getMessage(), "Lỗi",
@@ -1043,8 +1037,18 @@ public class MainFrame extends JFrame {
         // Làm mới toàn bộ để các panel nạp lại theo giải vừa chọn
         refreshApplicationData();
 
-        // Nếu frame đang bị thu nhỏ (ICONIFIED), khôi phục và đưa lên trước
+        // 4) Đảm bảo MainFrame hiển thị
         try {
+            if (!isVisible()) {
+                try {
+                    if (getWidth() == 0 || getHeight() == 0) {
+                        pack();
+                    }
+                } catch (Throwable ignore) {
+                }
+                setLocationRelativeTo(null);
+                setVisible(true);
+            }
             if ((getExtendedState() & java.awt.Frame.ICONIFIED) != 0) {
                 setExtendedState(java.awt.Frame.NORMAL);
             }
