@@ -22,6 +22,7 @@ public class ScoreboardService {
 
     public void startBroadcast(BadmintonMatch match, NetworkInterface nif, String clientName, String hostShown,
             String displayKind, String header, boolean isDoubles, String aLabel, String bLabel, String courtId) {
+
         stopBroadcast();
         try {
             broadcaster = new ScoreboardBroadcaster(match, nif, clientName, hostShown, displayKind, courtId);

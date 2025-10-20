@@ -55,6 +55,7 @@ public class ScoreboardBroadcaster implements PropertyChangeListener, AutoClosea
         this.doubles = doubles;
         this.nameA = nameA == null ? "" : nameA;
         this.nameB = nameB == null ? "" : nameB;
+
         sendOnce();
     }
 
@@ -141,6 +142,7 @@ public class ScoreboardBroadcaster implements PropertyChangeListener, AutoClosea
                 "gamesB", String.valueOf(s.games[1]),
                 "gameScores", gameScoresStr.toString(), // Thêm điểm các ván đã hoàn thành
                 "ts", String.valueOf(Instant.now().toEpochMilli()));
+
         sendPacket(json);
     }
 

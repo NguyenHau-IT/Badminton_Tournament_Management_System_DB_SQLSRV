@@ -46,13 +46,20 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 ### 🔄 Đồng bộ thời gian thực
 - Server-Sent Events (SSE) cho cập nhật tức thì
 - Fallback polling nếu SSE không khả dụng
-- (Đã bỏ) UDP receiver cho screenshot monitoring
+- UDP Multicast broadcasting (239.255.50.50:50505) cho monitoring
 
 ### 💾 Quản lý dữ liệu
 - Quản lý giải đấu, câu lạc bộ, vận động viên
 - Đăng ký nội dung thi đấu theo giải
 - Lưu trữ kết quả và lịch sử thi đấu
 - Phân quyền người dùng (ADMIN/CLIENT)
+- Screenshot capture và lưu vào folder local (không gửi qua mạng)
+
+### 🌐 Tính năng mạng nâng cao (v2.0.0)
+- **H2 TCP Server**: Remote database access trên port 9092
+- **IPv4 Only Filtering**: Chỉ chấp nhận IPv4, loại bỏ IPv6
+- **Network Interface Selector**: Dialog chọn interface khi khởi động
+- **Multi-machine Support**: Cho phép máy khác kết nối database
 
 ---
 
@@ -63,24 +70,31 @@ graph TB
     A[Desktop App - Java Swing] --> B[Spring Boot Core]
     B --> C[Web Interface - Thymeleaf]
     B --> D[REST API + SSE]
-    B --> E[SQL Server Database/ H2 Database]
+    B --> E[SQL Server Database]
+    B --> F[H2 TCP Server - Port 9092]
     
-    F[Mobile/Tablet Browser] --> C
-    F --> D
+    G[Mobile/Tablet Browser] --> C
+    G --> D
     
-    G[QR Code Scanner] --> C
-    H[PIN Entry] --> C
+    H[QR Code Scanner] --> C
+    I[PIN Entry] --> C
+    J[Remote H2 Clients] --> F
     
-  subgraph "Real-time Communication"
-    D --> I[Server-Sent Events]
-  D --> J[(Đã bỏ) UDP Screenshot Receiver]
-  end
+    subgraph "Real-time Communication"
+        D --> K[Server-Sent Events]
+    end
+    
+    subgraph "Network Features"
+        L[IPv4 Network Filtering] --> B
+        M[Interface Selector] --> B
+    end
     
     subgraph "Database Layer"
-        E --> K[Tournaments]
-        E --> L[Clubs]
-        E --> M[Players]
-        E --> N[Matches]
+        E --> N[Tournaments]
+        E --> O[Clubs]
+        E --> P[Players]
+        E --> Q[Matches]
+        F --> R[Remote Access]
     end
 ```
 
@@ -116,6 +130,7 @@ graph TB
 | Công nghệ | Phiên bản | Mục đích |
 |-----------|-----------|----------|
 | **SQL Server** | - | Primary database |
+| **H2 Database** | - | TCP server cho remote access |
 | **HikariCP** | - | Connection pooling |
 | **JDBC Driver** | - | Database connectivity |
 
@@ -125,7 +140,7 @@ graph TB
 | **Maven** | - | Build & dependency management |
 | **ZXing** | 3.5.2 | QR Code generation |
 | **OkHttp** | - | HTTP client |
-| **H2** | - | In-memory/file DB phục vụ local testing (runtime) |
+| **H2** | - | TCP server cho remote DB access |
 | **Jackson** | - | JSON processing |
 | **JCalendar** | 1.4 | Date picker component |
 | **OpenPDF** | 1.3.39 | PDF generation |
@@ -174,10 +189,11 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
 ### 🖥️ Giao diện Desktop
 
 #### Khởi động ứng dụng
-1. **Network Selection**: Chọn network interface khi khởi động
-2. **Database Connection**: Ứng dụng tự động kết nối database
-3. **Login**: Đăng nhập với quyền ADMIN hoặc CLIENT
-4. **Main Interface**: Truy cập các chức năng chính
+1. **Network Selection**: Chọn network interface IPv4 khi khởi động
+2. **H2 TCP Server**: Tự động khởi động H2 server cho remote access
+3. **Database Connection**: Ứng dụng tự động kết nối SQL Server
+4. **Login**: Đăng nhập với quyền ADMIN hoặc CLIENT
+5. **Main Interface**: Truy cập các chức năng chính
 
 #### Các tab chính
 - **🏟️ Thi đấu**: Quản lý và điều khiển các sân (MultiCourtControlPanel)
@@ -186,7 +202,7 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
 - **📝 Nội dung**: Quản lý danh mục nội dung thi đấu
 - **🏛️ Câu lạc bộ**: Quản lý các câu lạc bộ
 - **✍️ Đăng ký**: Đăng ký vận động viên vào nội dung
-- **📊 Kết quả**: Xem screenshot các trận đấu
+- **📊 Kết quả**: Xem screenshot các trận đấu từ folder local
 - **📋 Logs**: Xem nhật ký hệ thống
 
 #### Quản lý sân thi đấu
@@ -211,10 +227,41 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
 - **URL**: `http://[IP]:2345/scoreboard/[PIN]`
 - **Ví dụ**: `http://192.168.1.100:2345/scoreboard/1234`
 
-### 🔄 Real-time Features
+### �️ H2 TCP Server (NEW in v2.0.0)
+
+#### Remote Database Access
+H2 TCP Server cho phép máy khác kết nối và truy cập database:
+
+```bash
+# Server tự động khởi động trên:
+Port: 9092
+Bind: 0.0.0.0 (tất cả network interfaces)
+Database: mem:btms (in-memory)
+```
+
+#### Kết nối từ máy khác
+```bash
+# H2 Console (web interface)
+java -cp h2.jar org.h2.tools.Console
+URL: jdbc:h2:tcp://[SERVER_IP]:9092/mem:btms
+
+# Database clients (DBeaver, DataGrip, etc.)
+JDBC URL: jdbc:h2:tcp://192.168.1.100:9092/mem:btms
+Driver: H2 Database Engine
+Username: sa
+Password: (empty)
+```
+
+#### Network Configuration
+- **IPv4 Only**: Hệ thống chỉ chấp nhận IPv4 network interfaces
+- **Interface Selection**: Dialog chọn interface khi khởi động
+- **Auto-start**: H2 server tự động chạy cùng ứng dụng
+
+### �🔄 Real-time Features
 - **Server-Sent Events**: Cập nhật tức thì khi thay đổi điểm số
 - **Fallback Polling**: Tự động refresh nếu SSE không khả dụng
 - **Cross-platform Sync**: Đồng bộ giữa desktop và web interface
+- **UDP Multicast**: ScoreboardBroadcaster phát broadcast trên 239.255.50.50:50505 cho MonitorTab
 
 ---
 
@@ -363,6 +410,13 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 - **ScoreboardController**: REST API không cần PIN (No-PIN mode)
 - **ScoreboardViewController**: Thymeleaf views và static content
 - **SSE Integration**: Server-Sent Events for real-time updates
+
+#### H2 TCP Server (v2.0.0)
+- **H2TcpServerConfig**: Auto-start H2 TCP server trên port 9092
+- **Remote Database Access**: Cho phép máy khác kết nối database
+- **IPv4 Network Filtering**: Chỉ chấp nhận IPv4 interfaces
+- **Network Interface Selector**: Dialog chọn interface khi khởi động
+- **UDP Multicast Broadcasting**: ScoreboardBroadcaster cho monitoring (239.255.50.50:50505)
 
 #### Data Management
 - **SQL Server**: Primary database với JPA/Hibernate
@@ -535,6 +589,35 @@ java -jar btms-2.0.0.jar --debug
 - Check network connection stability
 - Fallback sẽ tự động chuyển sang polling mode
 
+#### 5. H2 TCP Server issues (v2.0.0)
+```bat
+:: Kiểm tra H2 server có chạy không
+netstat -an | findstr :9092
+
+:: Test H2 connection từ command line
+java -cp h2.jar org.h2.tools.Shell -url jdbc:h2:tcp://localhost:9092/mem:btms
+
+:: Kiểm tra network interface selection
+:: Thử chạy lại ứng dụng và chọn interface khác
+```
+
+#### 6. Network interface selection
+- **IPv4 required**: Hệ thống chỉ chấp nhận IPv4 interfaces
+- **No valid interface**: Kiểm tra network adapter settings
+- **Connection timeout**: Thử restart network adapter hoặc chọn interface khác
+
+#### 7. UDP Multicast issues
+```bat
+:: Kiểm tra multicast support
+ping 239.255.50.50
+
+:: Kiểm tra port 50505 có conflict không
+netstat -an | findstr :50505
+
+:: Monitor UDP traffic (admin tools)
+:: ScoreboardBroadcaster sẽ broadcast trên 239.255.50.50:50505
+```
+
 #### 5. Performance issues
 ```bash
 # Tăng heap size
@@ -568,28 +651,34 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
 ## 🗺️ Roadmap & Future Features
 
 ### 🚧 Version 2.1 (Planned)
-- [ ] **Multi-language Support**: English, Vietnamese interface
-- [ ] **Enhanced Security**: JWT token authentication
+- [ ] **Multi-language Support**: English, Vietnamese interface  
+- [ ] **Enhanced Security**: JWT token authentication, PIN encryption
 - [ ] **Cloud Backup**: Auto backup tournament data to cloud
 - [ ] **Mobile App**: Native Android/iOS companion app
-- [ ] **Advanced Analytics**: Match statistics và reporting
-- [ ] **Tournament Bracket**: Automated bracket generation
+- [ ] **Advanced Analytics**: Match statistics và performance tracking
+- [ ] **Tournament Bracket**: Automated bracket generation với seeding
+- [ ] **Push Notifications**: Real-time score updates cho mobile
+- [ ] **HTTPS Support**: SSL certificates cho secure connections
 
 ### 🔮 Version 3.0 (Future)
 - [ ] **Microservices Architecture**: Scalable multi-instance deployment
-- [ ] **Real-time Streaming**: Live video integration
-- [ ] **AI Features**: Auto-scoring via computer vision
-- [ ] **Multi-venue Support**: Sync across multiple locations
-- [ ] **Sponsor Integration**: Advertisement & branding management
-- [ ] **Player Rating System**: ELO-based ranking system
+- [ ] **Real-time Streaming**: Live video integration với multi-camera
+- [ ] **AI Features**: Computer vision auto-scoring, predictive analytics
+- [ ] **Multi-venue Support**: Sync tournaments across multiple locations
+- [ ] **Sponsor Integration**: Advertisement & branding management system
+- [ ] **Player Rating System**: ELO-based ranking với skill assessments
+- [ ] **Live Streaming**: Video streaming với automated highlights
+- [ ] **Plugin Architecture**: Extensible system cho custom features
 
 ### 💡 Community Contributions
 We welcome contributions! Các areas cần hỗ trợ:
-- UI/UX improvements
-- Performance optimization
-- Testing và quality assurance
-- Documentation translation
-- Feature suggestions và bug reports
+- **UI/UX improvements**: Desktop và web interface enhancements
+- **Performance optimization**: Memory usage, load testing
+- **Network features**: IPv6 support, advanced networking
+- **Security enhancements**: Authentication, encryption
+- **Testing và quality assurance**: Unit tests, integration tests
+- **Documentation translation**: Multi-language documentation
+- **Feature suggestions và bug reports**: GitHub Issues/Discussions
 
 ---
 
@@ -638,7 +727,8 @@ mvn spring-boot:run
 
 ### 📚 Additional Documentation
 - [`HUONG_DAN_SU_DUNG.md`](HUONG_DAN_SU_DUNG.md) - Detailed user guide (Vietnamese)
-- [`BAO_CAO_CONG_NGHE_VA_TINH_NANG_v2.md`](BAO_CAO_CONG_NGHE_VA_TINH_NANG_v2.md) - Technical report
+- [`BAO_CAO_CONG_NGHE_VA_TINH_NANG_v2.md`](BAO_CAO_CONG_NGHE_VA_TINH_NANG_v2.md) - Comprehensive technical report
+- [`H2_TCP_SERVER_GUIDE.md`](H2_TCP_SERVER_GUIDE.md) - H2 remote access setup guide
 - [`jvm-optimization.conf`](jvm-optimization.conf) - JVM tuning parameters
 - [`SETTINGS.md`](SETTINGS.md) - Cấu hình chi tiết trong ứng dụng (màn hình Settings)
 

@@ -5,7 +5,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
-import java.sql.SQLException;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -18,204 +17,147 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 import com.example.btms.model.category.NoiDung;
-import com.example.btms.service.category.NoiDungService;
+import java.awt.Color;
+import java.awt.Cursor;
 
 public class NoiDungDialog extends JDialog {
-    private final NoiDungService noiDungService;
-    private final NoiDung originalNoiDung;
-    private final boolean isEditMode;
+    // --- UI fields
+    private final JTextField tenNoiDungField = new JTextField(30);
+    private final JTextField tuoiDuoiField = new JTextField(5);
+    private final JTextField tuoiTrenField = new JTextField(5);
+    private final JComboBox<String> gioiTinhCombo = new JComboBox<>(new String[] { "", "m", "f" });
+    private final JCheckBox teamCheckBox = new JCheckBox("Đồng đội");
+    private final JButton btnSave;
+    private final JButton btnCancel = new JButton("Hủy");
 
-    private JTextField tenNoiDungField, tuoiDuoiField, tuoiTrenField;
-    private JComboBox<String> gioiTinhCombo;
-    private JCheckBox teamCheckBox;
-    private JButton btnSave, btnCancel;
-
-    // Lưu trạng thái sau khi bấm lưu để caller có thể xử lý tiếp
-    private boolean saved = false;
-    private NoiDung resultNoiDung = null;
-
-    public NoiDungDialog(Window parent, String title, NoiDung noiDung, NoiDungService noiDungService) {
+    public NoiDungDialog(Window parent, String title, boolean isEditMode) {
         super(parent, title, ModalityType.APPLICATION_MODAL);
-        this.noiDungService = noiDungService;
-        this.originalNoiDung = noiDung;
-        this.isEditMode = noiDung != null;
-        initializeComponents();
-        setupLayout();
-        setupEventHandlers();
-        if (isEditMode) {
-            loadData();
-        }
+        this.btnSave = new JButton(isEditMode ? "Cập nhật" : "Thêm mới");
+        buildUI();
         pack();
         setLocationRelativeTo(parent);
     }
 
-    private void initializeComponents() {
-        tenNoiDungField = new JTextField(30);
-        tuoiDuoiField = new JTextField(5);
-        tuoiTrenField = new JTextField(5);
-        gioiTinhCombo = new JComboBox<>(new String[] { "", "m", "f" });
-        teamCheckBox = new JCheckBox("Đồng đội");
-        btnSave = new JButton(isEditMode ? "Cập nhật" : "Thêm mới");
-        btnCancel = new JButton("Hủy");
-    }
-
-    private void setupLayout() {
+    private void buildUI() {
         setLayout(new BorderLayout(10, 10));
-        JPanel formPanel = new JPanel(new GridBagLayout());
+        JPanel form = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        formPanel.add(new JLabel("Tên nội dung *:"), gbc);
+        form.add(new JLabel("Tên nội dung *:"), gbc);
         gbc.gridx = 1;
-        gbc.gridy = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(tenNoiDungField, gbc);
+        form.add(tenNoiDungField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.fill = GridBagConstraints.NONE;
-        formPanel.add(new JLabel("Tuổi dưới:"), gbc);
+        form.add(new JLabel("Tuổi dưới:"), gbc);
         gbc.gridx = 1;
-        gbc.gridy = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(tuoiDuoiField, gbc);
+        form.add(tuoiDuoiField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.fill = GridBagConstraints.NONE;
-        formPanel.add(new JLabel("Tuổi trên:"), gbc);
+        form.add(new JLabel("Tuổi trên:"), gbc);
         gbc.gridx = 1;
-        gbc.gridy = 2;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(tuoiTrenField, gbc);
+        form.add(tuoiTrenField, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.fill = GridBagConstraints.NONE;
-        formPanel.add(new JLabel("Giới tính:"), gbc);
+        form.add(new JLabel("Giới tính:"), gbc);
         gbc.gridx = 1;
-        gbc.gridy = 3;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        formPanel.add(gioiTinhCombo, gbc);
+        form.add(gioiTinhCombo, gbc);
 
-        // Ghi chú nhỏ dưới combobox
         gbc.gridx = 1;
         gbc.gridy = 4;
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         JLabel note = new JLabel("Ghi chú: m = Nam, f = Nữ, để trống = cả Nam và Nữ");
         note.setFont(note.getFont().deriveFont(note.getFont().getSize2D() - 1f));
-        note.setForeground(java.awt.Color.DARK_GRAY);
-        formPanel.add(note, gbc);
+        note.setForeground(Color.DARK_GRAY);
+        form.add(note, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 5;
         gbc.gridwidth = 2;
-        formPanel.add(teamCheckBox, gbc);
+        form.add(teamCheckBox, gbc);
 
-        add(formPanel, BorderLayout.CENTER);
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(btnSave);
-        buttonPanel.add(btnCancel);
-        add(buttonPanel, BorderLayout.SOUTH);
-        formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel buttons = new JPanel();
+        buttons.add(btnSave);
+        buttons.add(btnCancel);
+
+        add(form, BorderLayout.CENTER);
+        add(buttons, BorderLayout.SOUTH);
+        form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        buttons.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
     }
 
-    private void setupEventHandlers() {
-        btnSave.addActionListener(e -> saveNoiDung());
-        btnCancel.addActionListener(e -> dispose());
+    // --- Getters cho Controller
+    public JTextField getTenNoiDungField() {
+        return tenNoiDungField;
     }
 
-    private void loadData() {
-        tenNoiDungField.setText(originalNoiDung.getTenNoiDung());
-        tuoiDuoiField.setText(String.valueOf(originalNoiDung.getTuoiDuoi()));
-        tuoiTrenField.setText(String.valueOf(originalNoiDung.getTuoiTren()));
-        String gt = originalNoiDung.getGioiTinh();
-        if (gt == null || gt.isBlank()) {
+    public JTextField getTuoiDuoiField() {
+        return tuoiDuoiField;
+    }
+
+    public JTextField getTuoiTrenField() {
+        return tuoiTrenField;
+    }
+
+    public JComboBox<String> getGioiTinhCombo() {
+        return gioiTinhCombo;
+    }
+
+    public JCheckBox getTeamCheckBox() {
+        return teamCheckBox;
+    }
+
+    public JButton getBtnSave() {
+        return btnSave;
+    }
+
+    public JButton getBtnCancel() {
+        return btnCancel;
+    }
+
+    // --- Helpers cho Controller
+    public void fillFrom(NoiDung nd) {
+        if (nd == null)
+            return;
+        tenNoiDungField.setText(nd.getTenNoiDung());
+        tuoiDuoiField.setText(String.valueOf(nd.getTuoiDuoi()));
+        tuoiTrenField.setText(String.valueOf(nd.getTuoiTren()));
+        String gt = nd.getGioiTinh();
+        if (gt == null || gt.isBlank())
             gioiTinhCombo.setSelectedItem("");
-        } else if (gt.equalsIgnoreCase("m")) {
+        else if ("m".equalsIgnoreCase(gt))
             gioiTinhCombo.setSelectedItem("m");
-        } else if (gt.equalsIgnoreCase("f")) {
+        else if ("f".equalsIgnoreCase(gt))
             gioiTinhCombo.setSelectedItem("f");
-        } else {
-            // nếu dữ liệu cũ khác m/f, để trống để tránh gây hiểu nhầm
+        else
             gioiTinhCombo.setSelectedItem("");
-        }
-        teamCheckBox.setSelected(Boolean.TRUE.equals(originalNoiDung.getTeam()));
+        teamCheckBox.setSelected(Boolean.TRUE.equals(nd.getTeam()));
     }
 
-    private void saveNoiDung() {
-        try {
-            String tenNoiDung = tenNoiDungField.getText().trim();
-            if (tenNoiDung.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Tên nội dung không được để trống!", "Lỗi",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            int tuoiDuoi = Integer.parseInt(tuoiDuoiField.getText().trim());
-            int tuoiTren = Integer.parseInt(tuoiTrenField.getText().trim());
-            String gioiTinh = ((String) gioiTinhCombo.getSelectedItem());
-            if (gioiTinh != null)
-                gioiTinh = gioiTinh.trim();
-            boolean team = teamCheckBox.isSelected();
-            if (isEditMode) {
-                originalNoiDung.setTenNoiDung(tenNoiDung);
-                originalNoiDung.setTuoiDuoi(tuoiDuoi);
-                originalNoiDung.setTuoiTren(tuoiTren);
-                originalNoiDung.setGioiTinh(gioiTinh);
-                originalNoiDung.setTeam(team);
-                boolean updated = noiDungService.updateNoiDung(originalNoiDung);
-                if (updated) {
-                    saved = true;
-                    resultNoiDung = originalNoiDung;
-                    JOptionPane.showMessageDialog(this, "Cập nhật nội dung thành công!", "Thành công",
-                            JOptionPane.INFORMATION_MESSAGE);
-                    dispose();
-                } else {
-                    JOptionPane.showMessageDialog(this, "Không thể cập nhật nội dung!", "Lỗi",
-                            JOptionPane.ERROR_MESSAGE);
-                }
-            } else {
-                NoiDung newNoiDung = new NoiDung(null, tenNoiDung, tuoiDuoi, tuoiTren, gioiTinh, team);
-                NoiDung created = noiDungService.createNoiDung(newNoiDung);
-                if (created != null) {
-                    saved = true;
-                    resultNoiDung = created;
-                }
-                JOptionPane.showMessageDialog(this, "Thêm nội dung thành công!", "Thành công",
-                        JOptionPane.INFORMATION_MESSAGE);
-                dispose();
-            }
-        } catch (NumberFormatException nfe) {
-            JOptionPane.showMessageDialog(this, "Tuổi dưới/trên phải là số nguyên hợp lệ!", "Lỗi dữ liệu",
-                    JOptionPane.ERROR_MESSAGE);
-        } catch (SQLException se) {
-            String msg = se.getMessage();
-            if (msg == null && se.getCause() != null)
-                msg = se.getCause().getMessage();
-            JOptionPane.showMessageDialog(this,
-                    "Lỗi cơ sở dữ liệu: " + (msg != null ? msg : se.getClass().getSimpleName()),
-                    "Lỗi", JOptionPane.ERROR_MESSAGE);
-        } catch (IllegalArgumentException iae) {
-            JOptionPane.showMessageDialog(this, iae.getMessage(), "Lỗi dữ liệu", JOptionPane.ERROR_MESSAGE);
-        } catch (RuntimeException re) {
-            String msg = re.getMessage();
-            if (msg == null && re.getCause() != null)
-                msg = re.getCause().getMessage();
-            JOptionPane.showMessageDialog(this, "Lỗi: " + (msg != null ? msg : re.getClass().getSimpleName()), "Lỗi",
-                    JOptionPane.ERROR_MESSAGE);
-        }
+    public void setBusy(boolean busy) {
+        setCursor(busy ? Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR) : Cursor.getDefaultCursor());
+        getRootPane().setEnabled(!busy);
     }
 
-    public boolean isSaved() {
-        return saved;
+    public void info(String msg) {
+        JOptionPane.showMessageDialog(this, msg, "Thông báo", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    public NoiDung getResultNoiDung() {
-        return resultNoiDung;
+    public void error(String msg) {
+        JOptionPane.showMessageDialog(this, msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
     }
 }

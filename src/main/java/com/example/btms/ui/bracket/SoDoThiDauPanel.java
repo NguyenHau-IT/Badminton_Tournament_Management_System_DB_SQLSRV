@@ -560,11 +560,12 @@ public class SoDoThiDauPanel extends JPanel {
             }
 
             // 6) Prefill BadmintonControlPanel bên trong tab
-            BadmintonControlPanel panel = null;
+            final BadmintonControlPanel panel;
             if (session != null && session.controlPanel instanceof BadmintonControlPanel p) {
                 panel = p;
             } else {
                 // thử lấy từ tab đang chọn
+                BadmintonControlPanel foundPanel = null;
                 try {
                     java.lang.reflect.Field fTabs = mcPanel.getClass().getDeclaredField("courtTabs");
                     fTabs.setAccessible(true);
@@ -574,19 +575,21 @@ public class SoDoThiDauPanel extends JPanel {
                         for (int i = 0; i < tabs.getTabCount(); i++) {
                             if (courtId.equals(tabs.getTitleAt(i))
                                     && tabs.getComponentAt(i) instanceof BadmintonControlPanel p2) {
-                                panel = p2;
+                                foundPanel = p2;
                                 tabs.setSelectedIndex(i);
                                 break;
                             }
                         }
                         int idx = tabs.getSelectedIndex();
-                        if (panel == null && idx >= 0 && tabs.getComponentAt(idx) instanceof BadmintonControlPanel p2) {
-                            panel = p2;
+                        if (foundPanel == null && idx >= 0
+                                && tabs.getComponentAt(idx) instanceof BadmintonControlPanel p2) {
+                            foundPanel = p2;
                         }
                     }
                 } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException
                         | SecurityException ignore) {
                 }
+                panel = foundPanel;
             }
 
             if (panel != null) {
@@ -630,22 +633,113 @@ public class SoDoThiDauPanel extends JPanel {
 
                     cbDoubles.setSelected(isTeam);
                     if (!header.isBlank()) {
-                        if (isTeam)
+                        if (isTeam) {
                             selectByString(cboHeaderDoubles, header);
-                        else
+                            // Trigger action event để reload team data
+                            java.awt.event.ActionEvent ae = new java.awt.event.ActionEvent(cboHeaderDoubles,
+                                    java.awt.event.ActionEvent.ACTION_PERFORMED, "comboBoxChanged");
+                            for (java.awt.event.ActionListener al : cboHeaderDoubles.getActionListeners()) {
+                                try {
+                                    al.actionPerformed(ae);
+                                } catch (Exception ignore) {
+                                }
+                            }
+                        } else {
                             selectByString(cboHeaderSingles, header);
+                            // Trigger action event để reload player data
+                            java.awt.event.ActionEvent ae = new java.awt.event.ActionEvent(cboHeaderSingles,
+                                    java.awt.event.ActionEvent.ACTION_PERFORMED, "comboBoxChanged");
+                            for (java.awt.event.ActionListener al : cboHeaderSingles.getActionListeners()) {
+                                try {
+                                    al.actionPerformed(ae);
+                                } catch (Exception ignore) {
+                                }
+                            }
+                        }
                     }
-                    if (isTeam) {
-                        String teamA = extractTeamNameFromDisplay(displayA);
-                        String teamB = extractTeamNameFromDisplay(displayB);
-                        selectTeamByName(cboTeamA, teamA);
-                        selectTeamByName(cboTeamB, teamB);
-                    } else {
-                        String nameA = extractNameBeforeClub(displayA);
-                        String nameB = extractNameBeforeClub(displayB);
-                        selectByString(cboNameA, nameA);
-                        selectByString(cboNameB, nameB);
-                    }
+
+                    // Đợi một chút để data được load xong trước khi set tên
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        if (isTeam) {
+                            String teamA = extractTeamNameFromDisplay(displayA);
+                            String teamB = extractTeamNameFromDisplay(displayB);
+                            selectTeamByName(cboTeamA, teamA);
+                            selectTeamByName(cboTeamB, teamB);
+                        } else {
+                            String nameA = extractNameBeforeClub(displayA);
+                            String nameB = extractNameBeforeClub(displayB);
+                            selectByString(cboNameA, nameA);
+                            selectByString(cboNameB, nameB);
+                        }
+
+                        // Trigger update để đảm bảo match được cập nhật với tên và header đúng
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            try {
+                                // Delay để đảm bảo UI đã sẵn sàng
+                                Thread.sleep(100);
+
+                                java.lang.reflect.Method updateMethod = null;
+                                if (isTeam) {
+                                    updateMethod = panel.getClass().getDeclaredMethod("updateFromTeams");
+                                } else {
+                                    updateMethod = panel.getClass().getDeclaredMethod("updateFromVdv");
+                                }
+                                if (updateMethod != null) {
+                                    updateMethod.setAccessible(true);
+                                    updateMethod.invoke(panel);
+                                }
+
+                                // Delay thêm để đảm bảo update method đã hoàn thành
+                                Thread.sleep(100);
+
+                                // Trực tiếp set header và names vào match và mini panel
+                                // Lấy match object từ panel
+                                java.lang.reflect.Field matchField = panel.getClass().getDeclaredField("match");
+                                matchField.setAccessible(true);
+                                Object matchObj = matchField.get(panel);
+
+                                // Lấy mini panel
+                                java.lang.reflect.Field miniField = panel.getClass().getDeclaredField("mini");
+                                miniField.setAccessible(true);
+                                Object miniObj = miniField.get(panel);
+
+                                if (matchObj != null && miniObj != null) {
+                                    // Set names vào match
+                                    java.lang.reflect.Method setNamesMethod = matchObj.getClass()
+                                            .getDeclaredMethod("setNames", String.class, String.class);
+                                    setNamesMethod.setAccessible(true);
+
+                                    String finalNameA = isTeam ? extractTeamNameFromDisplay(displayA)
+                                            : extractNameBeforeClub(displayA);
+                                    String finalNameB = isTeam ? extractTeamNameFromDisplay(displayB)
+                                            : extractNameBeforeClub(displayB);
+
+                                    setNamesMethod.invoke(matchObj, finalNameA, finalNameB);
+
+                                    // Set header vào mini panel
+                                    java.lang.reflect.Method setHeaderMethod = miniObj.getClass()
+                                            .getDeclaredMethod("setHeader", String.class);
+                                    setHeaderMethod.setAccessible(true);
+                                    setHeaderMethod.invoke(miniObj, header);
+
+                                    // Force update lại broadcast data
+                                    try {
+                                        java.lang.reflect.Method broadcastMethod = panel.getClass()
+                                                .getDeclaredMethod("broadcastMatchState");
+                                        if (broadcastMethod != null) {
+                                            broadcastMethod.setAccessible(true);
+                                            broadcastMethod.invoke(panel);
+                                        }
+                                    } catch (Exception ignore) {
+                                        // Method not found - this is expected for some panel types
+                                    }
+                                }
+                            } catch (Exception ex) {
+                                System.err.println("Error setting match data: " + ex.getMessage());
+                                ex.printStackTrace();
+                            }
+                        });
+                    });
 
                     // Đặt courtId nếu panel hỗ trợ (thường đã được set bởi MultiCourtControlPanel)
                     try {
