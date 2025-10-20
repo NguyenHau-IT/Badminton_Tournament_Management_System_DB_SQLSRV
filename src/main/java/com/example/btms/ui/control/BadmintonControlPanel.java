@@ -21,6 +21,7 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.NetworkInterface;
 import java.sql.Connection;
@@ -517,8 +518,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         btnCapture.setToolTipText("Chụp ảnh bảng điểm mini hiện tại");
         btnCapture.addActionListener(e -> captureMiniScoreboard());
 
+        // Nút reload danh sách
+        btnReloadLists = ButtonFactory.outlined("🔄 Làm mới", COL_PRIMARY, BTN_CTRL, FONT_BTN);
+        btnReloadLists.setToolTipText("Làm mới danh sách nội dung và VĐV");
+        btnReloadLists.addActionListener(e -> reloadListsFromDb());
+
         for (JButton b : new JButton[] { btnStart, btnFinish, btnOpenDisplay, btnOpenDisplayH, btnCloseDisplay,
-                btnReset, pauseResume }) {
+                btnReset, pauseResume, btnReloadLists }) {
             b.setPreferredSize(BTN_CTRL);
             b.setMaximumSize(new Dimension(Integer.MAX_VALUE, BTN_CTRL.height));
         }
@@ -534,11 +540,12 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         buttons.add(btnStart);
         buttons.add(btnFinish);
         buttons.add(btnReset);
-        buttons.add(btnCapture);
+        buttons.add(btnReloadLists);
         buttons.add(btnOpenDisplay);
         buttons.add(btnOpenDisplayH);
         buttons.add(btnCloseDisplay);
         buttons.add(pauseResume);
+        buttons.add(btnCapture);
         buttons.add(Box.createGlue());
 
         card.add(top, BorderLayout.NORTH);
@@ -1340,6 +1347,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private void onStart() {
         cancelFinishTimer();
         String header = currentHeader();
+
         if (header.isBlank()) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn Nội dung.", "Thiếu nội dung",
                     JOptionPane.WARNING_MESSAGE);
@@ -1348,7 +1356,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         int bo = switch (bestOf.getSelectedIndex()) {
             case 0 -> 1;
             case 1 -> 3;
-            default -> 5;
+            default -> 3;
         };
         match.setBestOf(bo);
 
@@ -1380,9 +1388,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             Integer idA = ta.getIdTeam();
             Integer idB = tb.getIdTeam();
             match.setClubs(doiService.getClubNameByTeamId(idA), doiService.getClubNameByTeamId(idB));
-            System.out.println("Club A: " + doiService.getClubNameByTeamId(idA) + ", Club B: "
-                    + doiService.getClubNameByTeamId(idB));
             mini.setHeader(header);
+
+            // IMPORTANT: Gọi startBroadcast TRƯỚC match.startMatch để tránh property change
+            // trigger broadcaster cũ
+            scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
+                    header, true, fullNameA, fullNameB, courtId);
+
             match.startMatch(initialServer.getSelectedIndex());
             // Lấy hoặc tạo ID trận cho lựa chọn hiện tại, rồi liên kết vào sơ đồ
             try {
@@ -1410,13 +1422,15 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
             hasStarted = true;
             afterStartUi();
-            scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
-                    header, true, fullNameA, fullNameB, courtId);
+
+            // Broadcast đã được gọi ở trên, không cần gọi lại
+
             logger.startDoubles(header, ta.getTenTeam(), ta.getIdTeam(), tb.getTenTeam(), tb.getIdTeam(), bo);
             updateRemoteLinkUi();
         } else {
             String nameA = sel(cboNameA);
             String nameB = sel(cboNameB);
+
             if (nameA.isBlank() || nameB.isBlank()) {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn VĐV cho Đội A và Đội B.", "Thiếu VĐV",
                         JOptionPane.WARNING_MESSAGE);
@@ -1428,8 +1442,13 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             Integer idA = singlesNameToId.getOrDefault(nameA, -1);
             Integer idB = singlesNameToId.getOrDefault(nameB, -1);
             match.setClubs(getClubNameByVdvId(idA), getClubNameByVdvId(idB));
-            System.out.println("Club A: " + getClubNameByVdvId(idA) + ", Club B: " + getClubNameByVdvId(idB));
             mini.setHeader(header);
+
+            // IMPORTANT: Gọi startBroadcast TRƯỚC match.startMatch để tránh property change
+            // trigger broadcaster cũ
+            scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
+                    header, false, nameA, nameB, courtId);
+
             match.startMatch(initialServer.getSelectedIndex());
             // Lấy hoặc tạo ID trận cho lựa chọn hiện tại, rồi liên kết vào sơ đồ
             try {
@@ -1461,8 +1480,9 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             hasStarted = true;
             afterStartUi();
             // openDisplayAuto();
-            scoreboardSvc.startBroadcast(match, selectedIf, clientName, hostShown, displayKind,
-                    header, false, nameA, nameB, courtId);
+
+            // Broadcast đã được gọi ở trên, không cần gọi lại
+
             // Gắn match lên HTTP server theo port của sân
             logger.startSingles(header, nameA, idA, nameB, idB, bo);
             updateRemoteLinkUi();
@@ -2209,7 +2229,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     "Chụp ảnh thành công",
                     JOptionPane.INFORMATION_MESSAGE);
 
-        } catch (Exception ex) {
+        } catch (HeadlessException | IOException ex) {
             logger.logTs("Lỗi khi chụp ảnh bảng điểm: %s", ex.getMessage());
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi chụp ảnh: " + ex.getMessage(),
@@ -2508,10 +2528,10 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
             // Hiển thị thông báo ngắn
             JOptionPane.showMessageDialog(this,
-                    "Đã copy link nhập PIN vào clipboard!\n" + pinUrl,
+                    "Đã copy link nhập PIN vào clipboard!",
                     "Copy thành công",
                     JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
+        } catch (HeadlessException ex) {
             logger.logTs("Lỗi khi copy link PIN: %s", ex.getMessage());
             JOptionPane.showMessageDialog(this,
                     "Lỗi khi copy link PIN: " + ex.getMessage(),
