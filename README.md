@@ -148,21 +148,40 @@ graph TB
 ---
 ### 📋 Yêu cầu hệ thống
 - **OS**: Windows 10/11 64-bit
+- **Java**: Java 21+ LTS (Required for enhanced threading features)
 
 ### 🚀 Chạy ứng dụng
 
-#### Từ source code (Windows CMD):
+#### 🎯 Quick Start (Recommended):
+```bat
+:: Setup Java 21 environment (run as Administrator)
+setup-java21-env.bat
+
+:: Build với Java 21 optimizations
+build-java21.bat
+
+:: Run với enhanced threading
+run-java21.bat
+```
+
+#### Từ source code (Manual):
 ```bat
 :: Clone repository
 git clone https://github.com/NguyenHau-IT/Badminton_Tournament_Management_System_DB_SQLSRV.git
 cd Badminton_Tournament_Management_System_DB_SQLSRV
 
-:: Build và chạy
-mvn clean package -DskipTests
-java -jar target\btms-2.0.0.jar
+:: Ensure Java 21 is active
+java -version
 
-:: Hoặc chạy trực tiếp với Maven
-mvn spring-boot:run
+:: Build với Java 21
+mvn clean package -DskipTests
+
+:: Run với enhanced JVM settings
+"C:\Program Files\Java\jdk-21\bin\java.exe" ^
+    -Xmx4g ^
+    -XX:+UseG1GC ^
+    -XX:+UseStringDeduplication ^
+    -jar target\btms-2.0.0.jar
 ```
 
 #### Từ MSI installer:
@@ -440,27 +459,33 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 - Thay đổi default port nếu cần thiết
 - Monitor network traffic và access logs
 
-### ⚡ Tối ưu hiệu năng
+### ⚡ Tối ưu hiệu năng (Java 21 Enhanced)
 - **HikariCP**: Connection pool với max 10 connections
-- **Thread Pool**: 8 threads cho SSE broadcasting
-- **Memory Management**: G1GC recommended với 4GB+ heap
+- **Enhanced Threading**: Multi-tier thread pools cho optimal performance
+- **Real-time Monitoring**: Performance metrics và auto-cleanup
+- **Smart Task Management**: Separated I/O, CPU và SSE workloads
+- **Memory Management**: G1GC + proactive GC suggestions
 - **Client-side Throttling**: 80ms minimum interval cho SSE events
 
-#### 🚀 JVM Tuning
+#### 🚀 JVM Tuning (Java 21 Optimized)
 ```bash
-# Recommended JVM settings
+# Enhanced JVM settings cho Java 21
 java -Xmx4g \
      -XX:+UseG1GC \
      -XX:+UseStringDeduplication \
      -XX:MaxGCPauseMillis=200 \
+     -XX:G1HeapRegionSize=16m \
+     --add-opens java.base/java.lang=ALL-UNNAMED \
      -jar btms-2.0.0.jar
 ```
 
-#### 📊 Performance Monitoring
-- RAM usage tracker trong status bar
-- Real-time connection monitoring
-- Database connection pool metrics
-- SSE connection count và health status
+#### 📊 Performance Monitoring (Enhanced)
+- **Real-time Status Bar**: Memory usage, thread count với visual indicators
+- **Performance Service**: Automatic monitoring và alerting
+- **Thread Pool Metrics**: Named threads và utilization tracking
+- **Memory Management**: Proactive GC suggestions và leak prevention
+- **Database Connection Pool**: HikariCP metrics và health status
+- **SSE Broadcasting**: Enhanced async processing với retry logic
 
 ---
 
