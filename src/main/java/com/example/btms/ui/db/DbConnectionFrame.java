@@ -434,34 +434,58 @@ public class DbConnectionFrame extends JFrame {
                 return;
             }
 
+            // Hiển thị dialog log
+            DatabaseCreationLogDialog logDialog = new DatabaseCreationLogDialog(this, dbName);
+
             setBusy(true);
             new Thread(() -> {
-                try {
-                    File dir = new File("database");
-                    if (!dir.exists())
-                        dir.mkdirs();
-                    String fileUrl = "jdbc:h2:file:./database/" + dbName + H2_BASE_OPTS; // KHÔNG IFEXISTS ở chế độ tạo
-                    DriverManager.getConnection(fileUrl, "sa", "").close();
+                SwingUtilities.invokeLater(() -> logDialog.setVisible(true));
 
-                    try {
-                        initH2DatabaseFromScript(dbName);
-                    } catch (Exception initEx) {
-                        showErrorLater("Init schema failed: " + initEx.getMessage());
+                boolean success = false;
+                try {
+                    logDialog.appendLog("📁 Tạo thư mục database...");
+                    File dir = new File("database");
+                    if (!dir.exists()) {
+                        dir.mkdirs();
+                        logDialog.appendLog("✅ Đã tạo thư mục database");
+                    } else {
+                        logDialog.appendLog("✅ Thư mục database đã tồn tại");
                     }
 
-                    SwingUtilities.invokeLater(() -> {
-                        loadExistingDbOptions();
-                        rbLocalLan.setSelected(true);
-                        cbDbType.setSelectedItem(DbType.H2);
-                        txtServer.setText("localhost");
-                        JOptionPane.showMessageDialog(this,
-                                "H2 database created. Switch to 'Use local / network' and press Connect.",
-                                "Done", JOptionPane.INFORMATION_MESSAGE);
-                    });
+                    logDialog.appendLog("🏗️ Tạo file database H2...");
+                    String fileUrl = "jdbc:h2:file:./database/" + dbName + H2_BASE_OPTS; // KHÔNG IFEXISTS ở chế độ tạo
+                    DriverManager.getConnection(fileUrl, "sa", "").close();
+                    logDialog.appendLog("✅ Đã tạo file database");
+
+                    // Khởi tạo schema và bảng từ script
+                    try {
+                        initH2DatabaseFromScript(dbName, logDialog::appendLog);
+                        success = true;
+
+                        SwingUtilities.invokeLater(() -> {
+                            loadExistingDbOptions();
+                            rbLocalLan.setSelected(true);
+                            cbDbType.setSelectedItem(DbType.H2);
+                            txtServer.setText("localhost");
+                        });
+                    } catch (Exception initEx) {
+                        // Nếu script thất bại, xóa DB đã tạo và báo lỗi
+                        logDialog.appendLog("❌ Lỗi khởi tạo schema: " + initEx.getMessage());
+                        try {
+                            File dbFile = new File("database/" + dbName + ".mv.db");
+                            if (dbFile.exists()) {
+                                dbFile.delete();
+                                logDialog.appendLog("🗑️ Đã xóa file database lỗi");
+                            }
+                        } catch (Exception deleteEx) {
+                            logDialog.appendLog("⚠️ Không thể xóa file database lỗi");
+                        }
+                    }
                 } catch (java.sql.SQLException ex) {
-                    showErrorLater("Cannot create H2 DB: " + ex.getMessage());
+                    logDialog.appendLog("❌ Không thể tạo H2 DB: " + ex.getMessage());
                 } finally {
                     setBusy(false);
+                    logDialog.markCompleted(success);
                 }
             }, "h2-init-new").start();
             return;
@@ -606,8 +630,31 @@ public class DbConnectionFrame extends JFrame {
     }
 
     private void initH2DatabaseFromScript(String dbName) throws Exception {
+        initH2DatabaseFromScript(dbName, null);
+    }
+
+    private void initH2DatabaseFromScript(String dbName, H2ScriptUtil.LogCallback logger) throws Exception {
         File script = new File("database", "script.sql");
-        H2ScriptUtil.runSqlServerScriptOnH2FileDb(dbName, script);
+
+        // Kiểm tra file script có tồn tại không
+        if (!script.exists()) {
+            throw new Exception("Script file not found: " + script.getAbsolutePath() +
+                    ". Please ensure 'database/script.sql' exists.");
+        }
+
+        if (!script.canRead()) {
+            throw new Exception("Cannot read script file: " + script.getAbsolutePath() +
+                    ". Please check file permissions.");
+        }
+
+        // Chạy script để tạo bảng
+        if (logger != null) {
+            logger.log("🔧 Khởi tạo H2 database: " + dbName);
+        }
+        H2ScriptUtil.runSqlServerScriptOnH2FileDb(dbName, script, logger);
+        if (logger != null) {
+            logger.log("✅ Hoàn tất khởi tạo database!");
+        }
     }
 
     private static String safe(String s) {

@@ -583,19 +583,53 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Được gọi khi kết nối DB thành công. Khởi tạo các service/panel phụ thuộc
-     * DB, cập nhật trạng thái, dựng menu và ép người dùng đăng nhập + chọn
-     * giải.
+     * Được gọi khi kết nối DB thành công. Chỉ khởi tạo dữ liệu cần thiết cho đăng
+     * nhập,
+     * sau đó yêu cầu đăng nhập + chọn giải.
      */
     private void onDatabaseConnected(Connection conn) {
         try {
-            controlPanel.setConnection(conn);
-            multiCourtPanel.setConnection(conn);
-            try {
-                tournamentTabPanel.updateConnection();
-            } catch (Throwable ignore) {
-            }
+            // Phase 1: Chỉ khởi tạo dữ liệu cần thiết cho đăng nhập
+            initializeBasicConnectionAndAuth(conn);
 
+            statusConn.setText("Đã kết nối");
+            statusConn.setForeground(new Color(46, 204, 113));
+
+            // Yêu cầu đăng nhập trước khi chọn giải đấu
+            buildMenuBar();
+            forceLoginAndTournamentSelection();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Lỗi cập nhật UI: " + e.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Phase 1: Khởi tạo kết nối cơ bản và dữ liệu NGUOI_DUNG cho đăng nhập
+     */
+    private void initializeBasicConnectionAndAuth(Connection conn) {
+        // Kết nối cơ bản cho control panels
+        controlPanel.setConnection(conn);
+        multiCourtPanel.setConnection(conn);
+
+        // Cập nhật auth service để load bảng NGUOI_DUNG cho đăng nhập
+        updateAuthService(conn);
+
+        // Khởi tạo tournament panel connection cho việc load bảng GIAI_DAU
+        try {
+            tournamentTabPanel.updateConnection();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /**
+     * Phase 2: Khởi tạo các service và panel phụ thuộc vào giải đấu đã chọn.
+     * Load tất cả dữ liệu: CLB, VĐV, Nội dung, Đăng ký, Thi đấu, etc.
+     */
+    private void initializeAllDataAfterTournamentSelection(Connection conn) {
+        System.out.println("DEBUG: initializeAllDataAfterTournamentSelection() started");
+        try {
             // ==== Services chung ====
             noiDungService = new NoiDungService(new NoiDungRepository(conn));
 
@@ -684,15 +718,11 @@ public class MainFrame extends JFrame {
             }
 
             updateAuthService(conn);
-
-            statusConn.setText("Đã kết nối");
-            statusConn.setForeground(new Color(46, 204, 113));
-
-            // Yêu cầu đăng nhập trước khi chọn giải đấu
-            buildMenuBar();
-            forceLoginAndTournamentSelection();
+            System.out.println("DEBUG: initializeAllDataAfterTournamentSelection() completed successfully");
 
         } catch (Exception e) {
+            System.out.println("DEBUG: Exception in initializeAllDataAfterTournamentSelection: " + e.getMessage());
+            e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Lỗi cập nhật UI: " + e.getMessage(), "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -997,18 +1027,25 @@ public class MainFrame extends JFrame {
      * main UI.
      */
     private void forceLoginAndTournamentSelection() {
+        System.out.println("DEBUG: forceLoginAndTournamentSelection() started");
+
         // 1) Đăng nhập bằng dialog nội bộ
+        System.out.println("DEBUG: Starting login dialog");
         if (!showLoginDialog()) {
+            System.out.println("DEBUG: Login dialog cancelled");
             if (!isVisible()) {
                 dispose();
                 System.exit(0);
             }
             return; // huỷ
         }
+        System.out.println("DEBUG: Login successful, currentRole = " + currentRole);
 
         // 2) Chọn giải đấu
+        System.out.println("DEBUG: Starting tournament selection");
         GiaiDau gd = showTournamentSelectDialog();
         if (gd == null) {
+            System.out.println("DEBUG: Tournament selection cancelled, resetting state");
             // quay về trạng thái chưa đăng nhập
             currentRole = null;
             selectedGiaiDau = null;
@@ -1020,7 +1057,9 @@ public class MainFrame extends JFrame {
             }
             return;
         }
+        System.out.println("DEBUG: Tournament selected: " + gd.getTenGiai() + " (ID: " + gd.getId() + ")");
         selectedGiaiDau = gd;
+        System.out.println("DEBUG: Saving tournament selection to preferences");
         try {
             new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
             if (gd.getTenGiai() != null) {
@@ -1029,7 +1068,32 @@ public class MainFrame extends JFrame {
         } catch (Exception ignore) {
         }
 
-        // 3) Hiển thị đầy đủ chức năng
+        // 3) Load tất cả dữ liệu còn lại sau khi chọn giải
+        System.out.println("DEBUG: Starting data initialization after tournament selection");
+        try {
+            statusConn.setText("Đang tải dữ liệu...");
+            statusConn.setForeground(new Color(52, 152, 219)); // blue color for loading
+
+            Connection conn = service.current();
+            if (conn != null) {
+                initializeAllDataAfterTournamentSelection(conn);
+
+                statusConn.setText("Dữ liệu đã sẵn sàng");
+                statusConn.setForeground(new Color(46, 204, 113)); // green for ready
+            } else {
+                System.out.println("DEBUG: WARNING - Database connection is null!");
+            }
+        } catch (Exception e) {
+            System.out.println("DEBUG: ERROR during data initialization: " + e.getMessage());
+            e.printStackTrace();
+            statusConn.setText("Lỗi tải dữ liệu");
+            statusConn.setForeground(new Color(231, 76, 60)); // red for error
+            JOptionPane.showMessageDialog(this, "Lỗi khởi tạo dữ liệu: " + e.getMessage(), "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+
+        // 4) Hiển thị đầy đủ chức năng
+        System.out.println("DEBUG: Registering views and building UI");
         registerViewsForCurrentRole();
         buildMenuBar();
         rebuildNavigationTree();
@@ -1037,7 +1101,8 @@ public class MainFrame extends JFrame {
         // Làm mới toàn bộ để các panel nạp lại theo giải vừa chọn
         refreshApplicationData();
 
-        // 4) Đảm bảo MainFrame hiển thị
+        // 5) Đảm bảo MainFrame hiển thị
+        System.out.println("DEBUG: Showing MainFrame");
         try {
             if (!isVisible()) {
                 try {
@@ -1056,6 +1121,7 @@ public class MainFrame extends JFrame {
             requestFocus();
         } catch (Throwable ignore) {
         }
+        System.out.println("DEBUG: forceLoginAndTournamentSelection() completed successfully");
     }
 
     private void registerViewsForCurrentRole() {
