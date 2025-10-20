@@ -634,12 +634,13 @@ public class DbConnectionFrame extends JFrame {
     }
 
     private void initH2DatabaseFromScript(String dbName, H2ScriptUtil.LogCallback logger) throws Exception {
-        File script = new File("database", "script.sql");
+        // Tìm file script từ resources hoặc fallback về database folder
+        File script = getScriptFile();
 
         // Kiểm tra file script có tồn tại không
         if (!script.exists()) {
             throw new Exception("Script file not found: " + script.getAbsolutePath() +
-                    ". Please ensure 'database/script.sql' exists.");
+                    ". Please ensure 'script.sql' exists in resources or 'database/script.sql' exists.");
         }
 
         if (!script.canRead()) {
@@ -722,5 +723,27 @@ public class DbConnectionFrame extends JFrame {
         } catch (java.lang.SecurityException ignore) {
         }
         return null;
+    }
+
+    /**
+     * Lấy file script.sql từ resources (gán cứng)
+     */
+    private File getScriptFile() throws Exception {
+        // Luôn sử dụng file từ resources
+        java.io.InputStream inputStream = getClass().getResourceAsStream("/database/script.sql");
+        if (inputStream == null) {
+            throw new Exception("Script file not found in resources: /database/script.sql");
+        }
+
+        // Tạo temp file từ resources
+        File tempFile = File.createTempFile("script", ".sql");
+        tempFile.deleteOnExit();
+
+        try (java.io.FileOutputStream outputStream = new java.io.FileOutputStream(tempFile)) {
+            inputStream.transferTo(outputStream);
+        }
+        inputStream.close();
+
+        return tempFile;
     }
 }
