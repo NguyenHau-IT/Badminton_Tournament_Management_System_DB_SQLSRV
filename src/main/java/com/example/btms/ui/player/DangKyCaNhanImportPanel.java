@@ -27,17 +27,6 @@ public class DangKyCaNhanImportPanel extends JFrame {
     private final CauLacBoService clbService;
     private final Runnable onDone;
 
-    /**
-     * Tạo và hiển thị cửa sổ nhập danh sách đăng ký từ CSV
-     * 
-     * @param conn           Database connection
-     * @param prefs          Application preferences
-     * @param noiDungService Service for content management
-     * @param dkService      Registration service
-     * @param vdvService     Player service
-     * @param clbService     Club service
-     * @param onDone         Callback khi hoàn thành import
-     */
     public static void showImportWindow(
             Connection conn,
             Prefs prefs,

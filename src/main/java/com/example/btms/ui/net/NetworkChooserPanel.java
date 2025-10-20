@@ -1,7 +1,9 @@
 package com.example.btms.ui.net;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -147,6 +149,7 @@ public class NetworkChooserPanel extends JPanel {
         private final JLabel lbIcon = new JLabel();
         private final JLabel lbTitle = new JLabel();
         private final JLabel lbSub = new JLabel();
+        private final JLabel lbIpv4 = new JLabel();
         private final JLabel badge = new JLabel();
         private final Icon icWifi;
         private final Icon icLan;
@@ -158,11 +161,11 @@ public class NetworkChooserPanel extends JPanel {
             putClientProperty("FlatLaf.style", "arc:14;");
             Icon wifi = null, lan = null;
             try {
-                wifi = new FlatSVGIcon("icons/wifi.svg", 18, 18);
+                wifi = new FlatSVGIcon("icons/wifi.svg", 25, 25);
             } catch (Exception ignore) {
             }
             try {
-                lan = new FlatSVGIcon("icons/ethernet.svg", 18, 18);
+                lan = new FlatSVGIcon("icons/ethernet.svg", 25, 25);
             } catch (Exception ignore) {
             }
             icWifi = wifi;
@@ -171,9 +174,18 @@ public class NetworkChooserPanel extends JPanel {
             JPanel center = new JPanel();
             center.setOpaque(false);
             center.setLayout(new javax.swing.BoxLayout(center, javax.swing.BoxLayout.Y_AXIS));
-            lbTitle.putClientProperty("FlatLaf.style", "font: bold +0");
+            lbTitle.putClientProperty("FlatLaf.style", "font: bold +3");
+            lbIpv4.putClientProperty("FlatLaf.style", "font: bold +2");
+
+            // Thiết lập màu xám cho IPv4 label
+            Color grayColor = UIManager.getColor("Label.disabledForeground");
+            if (grayColor == null) {
+                grayColor = Color.GRAY;
+            }
+            lbIpv4.setForeground(grayColor);
+
             center.add(lbTitle);
-            center.add(lbSub);
+            center.add(lbIpv4);
 
             JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
             right.setOpaque(false);
@@ -205,12 +217,13 @@ public class NetworkChooserPanel extends JPanel {
                 return this;
             lbIcon.setIcon(value.isWifi() ? icWifi : icLan);
             lbTitle.setText(value.getDisplayName());
+            lbIpv4.setText(value.getIpv4Address() != null ? value.getIpv4Address() : "No IPv4");
             lbSub.setText(value.getName());
             badge.setText("IPv4 " + value.getIpv4Count() + "/v6 " + value.getIpv6Count());
             setToolTipText(value.getTooltip());
 
-            java.awt.Color bgSel = UIManager.getColor("List.selectionBackground");
-            java.awt.Color fgSel = UIManager.getColor("List.selectionForeground");
+            Color bgSel = UIManager.getColor("List.selectionBackground");
+            Color fgSel = UIManager.getColor("List.selectionForeground");
             setBackground(isSelected ? bgSel : UIManager.getColor("List.background"));
             setForeground(isSelected ? fgSel : UIManager.getColor("List.foreground"));
             return this;

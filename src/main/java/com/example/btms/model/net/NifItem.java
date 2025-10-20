@@ -2,9 +2,11 @@ package com.example.btms.model.net;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Objects;
 
@@ -21,7 +23,13 @@ public final class NifItem {
 
         this.displayName = nullToEmpty(nif.getDisplayName());
         this.name = nullToEmpty(nif.getName());
-        this.ipv4Address = nullToEmpty(nif.getInetAddresses().nextElement().getHostAddress());
+
+        Enumeration<InetAddress> inetAddresses = nif.getInetAddresses();
+        String ipv4Addr = "";
+        if (inetAddresses.hasMoreElements()) {
+            ipv4Addr = inetAddresses.nextElement().getHostAddress();
+        }
+        this.ipv4Address = nullToEmpty(ipv4Addr);
 
         int v4 = 0, v6 = 0;
         StringBuilder tip = new StringBuilder(128);

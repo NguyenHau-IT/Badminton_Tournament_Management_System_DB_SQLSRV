@@ -20,6 +20,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 
 import com.example.btms.config.Prefs;
+import com.example.btms.desktop.controller.category.ChangeCategoryTransferController;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.player.DangKiCaNhan;
 import com.example.btms.repository.category.NoiDungRepository;
@@ -30,6 +31,7 @@ import com.example.btms.service.category.NoiDungService;
 import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.player.DangKiCaNhanService;
 import com.example.btms.service.player.VanDongVienService;
+import com.example.btms.ui.category.ChangeCategoryTransferDialog;
 
 /**
  * Tab/quản lý đăng ký cá nhân (Singles) cho giải đang chọn.
@@ -396,6 +398,7 @@ public class DangKyCaNhanPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
             return;
         }
+
         java.util.List<NoiDung> categories;
         try {
             categories = loadRegisteredSinglesCategories();
@@ -403,10 +406,12 @@ public class DangKyCaNhanPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Lỗi tải nội dung: " + ex.getMessage());
             return;
         }
+
         if (categories.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Không có nội dung ĐƠN đã đăng ký.");
             return;
         }
+
         // ưu tiên lấy ND từ filter đang chọn, nếu null thì lấy theo dòng đang chọn,
         // else lấy phần tử đầu
         NoiDung initial = (NoiDung) cboNoiDungFilter.getSelectedItem();
@@ -423,21 +428,28 @@ public class DangKyCaNhanPanel extends JPanel {
         if (initial == null)
             initial = categories.get(0);
 
-        com.example.btms.ui.category.ChangeCategoryTransferDialog dlg = new com.example.btms.ui.category.ChangeCategoryTransferDialog(
+        // --- 1 UI + 1 Controller ---
+        var view = new ChangeCategoryTransferDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
-                prefs,
-                false, // singles mode
+                /* teamMode = */ false, // singles mode
                 categories,
-                initial,
+                initial);
+
+        new ChangeCategoryTransferController(
+                view,
+                prefs,
+                /* teamMode = */ false,
                 // singles services
-                dkService,
-                vdvService,
-                // teams services (unused in singles mode)
-                null,
-                null,
-                clbService,
-                this::reload);
-        dlg.setVisible(true);
+                dkService, // DangKiCaNhanService
+                vdvService, // VanDongVienService
+                // teams services (không dùng ở singles)
+                null, // DangKiDoiService
+                null, // ChiTietDoiService
+                clbService, // CauLacBoService (dùng để hiện tên CLB)
+                this::reload // onChanged
+        );
+
+        view.setVisible(true); // dialog MODELESS giống trước đây
     }
 
     /** Public refresh API for MainFrame and tree context menu. */

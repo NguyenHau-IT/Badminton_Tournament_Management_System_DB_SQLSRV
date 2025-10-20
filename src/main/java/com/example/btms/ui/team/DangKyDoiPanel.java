@@ -22,6 +22,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 
 import com.example.btms.config.Prefs;
+import com.example.btms.desktop.controller.category.ChangeCategoryTransferController;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.club.CauLacBo;
 import com.example.btms.model.team.DangKiDoi;
@@ -35,6 +36,7 @@ import com.example.btms.service.club.CauLacBoService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.team.ChiTietDoiService;
 import com.example.btms.service.team.DangKiDoiService;
+import com.example.btms.ui.category.ChangeCategoryTransferDialog;
 
 /**
  * Tab đăng ký đội (đôi) cho nội dung thi đấu đã đăng ký ở giải hiện tại.
@@ -424,6 +426,7 @@ public class DangKyDoiPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Chưa chọn giải.");
             return;
         }
+
         java.util.List<NoiDung> doubles;
         try {
             doubles = loadRegisteredDoubleCategories();
@@ -435,7 +438,8 @@ public class DangKyDoiPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Không có nội dung ĐÔI đã đăng ký.");
             return;
         }
-        // Lấy nội dung theo dòng đang chọn, nếu không có thì chọn phần tử đầu
+
+        // Lấy nội dung theo dòng đang chọn, nếu không có thì lấy phần tử đầu
         NoiDung initial = null;
         if (table.getSelectedRow() >= 0) {
             int mr = table.convertRowIndexToModel(table.getSelectedRow());
@@ -450,21 +454,28 @@ public class DangKyDoiPanel extends JPanel {
         if (initial == null)
             initial = doubles.get(0);
 
-        com.example.btms.ui.category.ChangeCategoryTransferDialog dlg = new com.example.btms.ui.category.ChangeCategoryTransferDialog(
+        // --- 1 UI + 1 Controller (TEAM MODE) ---
+        var view = new ChangeCategoryTransferDialog(
                 javax.swing.SwingUtilities.getWindowAncestor(this),
-                prefs,
-                true, // team mode
+                /* teamMode = */ true,
                 doubles,
-                initial,
-                // singles services (unused)
-                null,
-                null,
+                initial);
+
+        new ChangeCategoryTransferController(
+                view,
+                prefs,
+                /* teamMode = */ true,
+                // singles services (không dùng ở team mode)
+                null, // DangKiCaNhanService
+                null, // VanDongVienService
                 // teams services
-                teamService,
-                detailService,
-                clbService,
-                this::reload);
-        dlg.setVisible(true);
+                teamService, // DangKiDoiService
+                detailService, // ChiTietDoiService
+                clbService, // CauLacBoService
+                this::reload // onChanged
+        );
+
+        view.setVisible(true); // MODELESS như trước
     }
 
     // chooseDoublesCategory() không còn dùng sau khi lọc bằng loadCategories()

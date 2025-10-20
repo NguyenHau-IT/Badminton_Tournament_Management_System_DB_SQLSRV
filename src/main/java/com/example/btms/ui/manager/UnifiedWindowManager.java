@@ -17,7 +17,7 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
 import com.example.btms.service.db.DatabaseService;
-import com.example.btms.ui.auth.LoginFrame.Role;
+import com.example.btms.model.role.Role;
 import com.example.btms.ui.bracket.SoDoThiDauPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.util.ui.IconUtil;

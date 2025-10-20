@@ -12,6 +12,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 
 import com.example.btms.config.ConnectionConfig;
+import com.example.btms.config.H2TcpServerConfig;
 import com.example.btms.config.NetworkConfig;
 import com.example.btms.config.Prefs;
 import com.example.btms.ui.main.MainFrame;
@@ -26,6 +27,9 @@ public class BadmintonTournamentManagementSystemApplication {
 
 	@Autowired
 	private ConnectionConfig dbCfg;
+
+	@Autowired
+	private H2TcpServerConfig h2TcpServerConfig;
 
 	public static void main(String[] args) {
 		// Tắt headless để cho phép mở Swing UI
@@ -66,6 +70,15 @@ public class BadmintonTournamentManagementSystemApplication {
 					p.put("ui.network.ifName", cfg.ifName());
 				}
 			} catch (Throwable ignore) {
+			}
+
+			// Khởi động H2 TCP Server với IP đã chọn
+			try {
+				h2TcpServerConfig.startTcpServer(cfg);
+				System.out.println("✅ H2 TCP Server đã khởi động với IP: " + cfg.ipv4Address());
+			} catch (Exception e) {
+				System.err.println("❌ Không thể khởi động H2 TCP Server: " + e.getMessage());
+				e.printStackTrace();
 			}
 
 			// Tạo MainFrame nhưng KHÔNG hiển thị; MainFrame sẽ tự hiển thị sau khi
