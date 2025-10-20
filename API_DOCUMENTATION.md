@@ -200,7 +200,7 @@ Lưu ý: Xác thực PIN hiện tại do tầng ứng dụng xử lý (và có t
 ## 🧾 Phiên bản & Liên quan
 
 - Phiên bản API: 2.0.0
-- Ứng dụng: Spring Boot 3.2.6, Java 17
+- Ứng dụng: Spring Boot 3.4.0, Java 21
 - Xem thêm:
   - `README.md` (tổng quan, cài đặt)
   - `HUONG_DAN_SU_DUNG.md` (hướng dẫn sử dụng)

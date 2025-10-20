@@ -76,8 +76,8 @@ Spring Boot (Web + REST API + SSE)  ←→  SQL Server (JDBC/Hikari/JPA)
 ### 💻 Công nghệ chính (Tech stack)
 
 #### Runtime & nền tảng
-- **Java 17** (maven.compiler.release=17)
-- **Spring Boot 3.2.6** (parent)
+- **Java 21** (maven.compiler.release=21)
+- **Spring Boot 3.4.0** (parent)
 - **Desktop UI**: Java Swing + FlatLaf 3.4 (flatlaf, flatlaf-extras)
 
 #### Web & API
@@ -646,7 +646,7 @@ graph LR
 ### 📦 Đóng gói & cài đặt (Windows MSI)
 
 #### JPackage Configuration
-- **Runtime**: Bundle JRE 17 với application
+- **Runtime**: Bundle JRE 21 với application
 - **MSI Installer**: Windows native installer
 - **Auto-updater**: Future plan cho automatic updates
 - **System Integration**: Desktop shortcuts, Start menu entries

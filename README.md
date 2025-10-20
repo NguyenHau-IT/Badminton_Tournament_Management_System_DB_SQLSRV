@@ -2,8 +2,8 @@
 
 Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng điều khiển đa sân và giao diện web real-time.
 
-![Java](https://img.shields.io/badge/Java-17-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.6-brightgreen)
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.0-brightgreen)
 ![Maven](https://img.shields.io/badge/Maven-Build-red)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
@@ -22,8 +22,8 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 ### 📊 Thông tin kỹ thuật
 - **Phiên bản**: 2.0.0
 - **Tác giả**: Nguyen Viet Hau
-- **Ngôn ngữ**: Java 17
-- **Framework**: Spring Boot 3.2.6
+- **Ngôn ngữ**: Java 21
+- **Framework**: Spring Boot 3.4.0
 - **Cổng mặc định**: 2345
 - **Hỗ trợ**: Windows 10/11 64-bit
 
@@ -111,8 +111,8 @@ graph TB
 ### 🖥️ Backend & Core
 | Công nghệ | Phiên bản | Mục đích |
 |-----------|-----------|----------|
-| **Java** | 17 | Runtime platform |
-| **Spring Boot** | 3.2.6 | Application framework |
+| **Java** | 21 | Runtime platform |
+| **Spring Boot** | 3.4.0 | Application framework |
 | **Spring Web** | - | REST API & Web MVC |
 | **Spring Data JPA** | - | Database abstraction |
 | **Hibernate** | - | ORM implementation |
@@ -470,7 +470,7 @@ java -Xmx4g \
 
 #### Prerequisites
 ```bat
-:: Java 17+ và Maven 3.6+ required
+:: Java 21+ và Maven 3.6+ required
 java --version    
 mvn --version     
 ```
@@ -526,7 +526,7 @@ java -jar btms-2.0.0.jar
 
 #### Option 3: Docker (Development)
 ```dockerfile
-FROM openjdk:17-jdk-slim
+FROM openjdk:21-jdk-slim
 COPY target/btms-2.0.0.jar app.jar
 EXPOSE 2345
 CMD ["java", "-jar", "app.jar"]
@@ -563,7 +563,7 @@ server.port=2345
 
 #### 1. Không thể khởi động ứng dụng
 ```bat
-:: Kiểm tra Java version (cần Java 17+)
+:: Kiểm tra Java version (cần Java 21+)
 java --version
 
 :: Kiểm tra port conflict

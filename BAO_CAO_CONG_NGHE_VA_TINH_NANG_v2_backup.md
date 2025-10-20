@@ -44,7 +44,7 @@ Spring Boot (Web + REST API + SSE)  ←→  SQL Server (JDBC/Hikari/JPA)
 ## 💻 Công nghệ chính (Tech stack)
 
 ### Runtime & nền tảng
-- Java 17 (maven.compiler.release=17)
+- **Java 21** (maven.compiler.release=21)
 - Spring Boot 3.2.6 (parent)
 - Desktop UI: Java Swing + FlatLaf 3.4 (flatlaf, flatlaf-extras)
 

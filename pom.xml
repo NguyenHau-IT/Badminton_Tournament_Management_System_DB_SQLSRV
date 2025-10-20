@@ -12,14 +12,14 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.6</version>
+        <version>3.4.0</version>
         <relativePath/>
     </parent>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <app.name>Badminton Tournament Management System (BTMS)</app.name>
-        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <main.class>com.example.btms.BadmintonTournamentManagementSystemApplication</main.class>
 
         <!-- Mặc định (sẽ bị profiles override tùy theo có ổ D hay không) -->
@@ -80,14 +80,16 @@
             <version>3.5.2</version>
         </dependency>
 
-        <!-- Để Spring Boot BOM quản lý version -->
+        <!-- OkHttp với version explicit -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
         </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp-sse</artifactId>
+            <version>4.12.0</version>
         </dependency>
 
         <dependency>
