@@ -151,6 +151,8 @@ public class H2ServerInfoPanel extends JPanel {
 
     private void refreshInfo(ActionEvent e) {
         updateInfo();
+        // Cũng hiển thị đầy đủ thông tin trong console log
+        h2ServerConfig.showConnectionInfo();
         showTooltip(refreshButton, "✅ Refreshed!");
     }
 
