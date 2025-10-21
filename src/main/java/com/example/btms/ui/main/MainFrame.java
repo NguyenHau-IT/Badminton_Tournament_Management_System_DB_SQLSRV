@@ -94,6 +94,7 @@ import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.ui.draw.BocThamThiDau;
 import com.example.btms.ui.log.LogTab;
+import com.example.btms.ui.log.LogViewerDialog;
 import com.example.btms.ui.manager.UnifiedWindowManager;
 import com.example.btms.ui.manager.UnifiedWindowManager.WindowType;
 import com.example.btms.ui.monitor.MonitorTab;
@@ -445,17 +446,65 @@ public class MainFrame extends JFrame {
                 if (h2Config.isServerRunning()) {
                     statusH2.setText("H2: ✓ Port " + h2Config.getServerPort());
                     statusH2.setForeground(new Color(34, 139, 34)); // Forest Green
+
+                    // Tooltip with connection info
+                    statusH2.setToolTipText("<html>" +
+                            "H2 TCP Server đang chạy<br/>" +
+                            "Port: " + h2Config.getServerPort() + "<br/>" +
+                            "IP: " + h2Config.getServerIP() + "<br/>" +
+                            "Remote Access: ENABLED<br/>" +
+                            "<b>Click để xem chi tiết kết nối</b>" +
+                            "</html>");
+
+                    // Add click listener to show connection details
+                    if (statusH2.getMouseListeners().length == 0) {
+                        statusH2.addMouseListener(new java.awt.event.MouseAdapter() {
+                            @Override
+                            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                                showH2ConnectionDetails();
+                            }
+                        });
+                        statusH2.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                    }
                 } else {
                     statusH2.setText("H2: ✗ Stopped");
                     statusH2.setForeground(Color.RED);
+                    statusH2.setToolTipText("H2 TCP Server đã dừng");
                 }
             } catch (Exception e) {
                 statusH2.setText("H2: ? Error");
                 statusH2.setForeground(Color.ORANGE);
+                statusH2.setToolTipText("Lỗi truy cập H2 TCP Server: " + e.getMessage());
             }
         } else {
             statusH2.setText("H2: N/A");
             statusH2.setForeground(Color.GRAY);
+            statusH2.setToolTipText("ApplicationContext không khả dụng");
+        }
+    }
+
+    private void showH2ConnectionDetails() {
+        if (applicationContext != null) {
+            try {
+                H2TcpServerConfig h2Config = applicationContext.getBean(H2TcpServerConfig.class);
+
+                // Hiển thị đầy đủ thông tin connection trong console log
+                h2Config.showConnectionInfo();
+
+                // Cũng hiển thị dialog cho user
+                String details = h2Config.getDebugInfo();
+                JOptionPane.showMessageDialog(
+                        this,
+                        details,
+                        "H2 TCP Server - Thông tin kết nối",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Lỗi lấy thông tin H2 Server: " + e.getMessage(),
+                        "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
@@ -948,6 +997,11 @@ public class MainFrame extends JFrame {
                 JMenu mOther = new JMenu("Khác");
                 if (currentRole == Role.ADMIN) {
                     mOther.add(menuItem("Logs"));
+
+                    // System Logs Viewer
+                    JMenuItem miSystemLogs = new JMenuItem("System Logs");
+                    miSystemLogs.addActionListener(e -> openSystemLogsViewer());
+                    mOther.add(miSystemLogs);
                 }
                 mOther.add(menuItem("Cài đặt"));
                 // Backup DB tool
@@ -1252,7 +1306,11 @@ public class MainFrame extends JFrame {
             if (!(comp instanceof DefaultMutableTreeNode node)) {
                 return;
             }
-            activateNavNode(node);
+            // Chỉ kích hoạt khi selection thay đổi từ null hoặc khác node
+            if (e.getOldLeadSelectionPath() == null ||
+                    !e.getOldLeadSelectionPath().equals(e.getNewLeadSelectionPath())) {
+                activateNavNode(node);
+            }
             // Ghi nhớ nội dung đang chọn nếu nó nằm dưới "Danh sách đăng kí"
             try {
                 Object uo = node.getUserObject();
@@ -1264,33 +1322,6 @@ public class MainFrame extends JFrame {
                     }
                 }
             } catch (Exception ignore) {
-            }
-        });
-
-        // Cho phép click lại cùng một mục vẫn kích hoạt (khi selection không đổi)
-        navTree.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getButton() != java.awt.event.MouseEvent.BUTTON1) {
-                    return;
-                }
-                int row = navTree.getRowForLocation(e.getX(), e.getY());
-                if (row < 0) {
-                    return;
-                }
-                javax.swing.tree.TreePath path = navTree.getPathForRow(row);
-                if (path == null) {
-                    return;
-                }
-                // Chỉ kích hoạt khi click lại đúng node đang được chọn để tránh kích hoạt 2 lần
-                javax.swing.tree.TreePath selected = navTree.getSelectionPath();
-                if (selected == null || !selected.equals(path)) {
-                    return;
-                }
-                Object comp = path.getLastPathComponent();
-                if (comp instanceof DefaultMutableTreeNode node) {
-                    activateNavNode(node);
-                }
             }
         });
 
@@ -2803,5 +2834,19 @@ public class MainFrame extends JFrame {
             return "giai-dau";
         }
         return x;
+    }
+
+    /**
+     * Open System Logs Viewer Dialog
+     */
+    private void openSystemLogsViewer() {
+        try {
+            LogViewerDialog dialog = new LogViewerDialog(this);
+            dialog.setVisible(true);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Không thể mở System Logs Viewer: " + e.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
