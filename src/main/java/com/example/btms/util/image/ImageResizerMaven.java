@@ -1,12 +1,16 @@
 package com.example.btms.util.image;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import javax.imageio.ImageIO;
+
+import com.example.btms.util.log.Log;
 
 /**
  * Maven version của công cụ resize ảnh
@@ -21,13 +25,16 @@ public class ImageResizerMaven {
     // Các kích thước cần tạo
     private static final int[] SIZES = { 16, 32, 48, 64, 128, 256 };
 
+    private final Log log = new Log();
+
     public static void main(String[] args) {
         try {
             ImageResizerMaven resizer = new ImageResizerMaven();
             resizer.resizeAllImages();
-            System.out.println("✅ Đã resize thành công tất cả ảnh!");
+            resizer.log.logTs("✅ Đã resize thành công tất cả ảnh!");
         } catch (Exception e) {
-            System.err.println("❌ Lỗi khi resize ảnh: " + e.getMessage());
+            Log errorLog = new Log();
+            errorLog.logTs("❌ Lỗi khi resize ảnh: %s", e.getMessage());
             e.printStackTrace();
         }
     }
@@ -46,8 +53,8 @@ public class ImageResizerMaven {
 
         // Đọc ảnh gốc
         BufferedImage sourceImage = ImageIO.read(sourceFile);
-        System.out.println("📖 Đã đọc ảnh gốc: " + sourceFile.getAbsolutePath());
-        System.out.println("📏 Kích thước gốc: " + sourceImage.getWidth() + "x" + sourceImage.getHeight());
+        log.logTs("📖 Đã đọc ảnh gốc: %s", sourceFile.getAbsolutePath());
+        log.logTs("📏 Kích thước gốc: %dx%d", sourceImage.getWidth(), sourceImage.getHeight());
 
         // Resize cho từng kích thước
         for (int size : SIZES) {
@@ -77,7 +84,7 @@ public class ImageResizerMaven {
 
         // Lưu ảnh
         ImageIO.write(resized, "PNG", outputFile);
-        System.out.println("💾 Đã tạo: " + outputFileName + " (" + size + "x" + size + ")");
+        log.logTs("💾 Đã tạo: %s (%dx%d)", outputFileName, size, size);
     }
 
     /**
@@ -122,6 +129,6 @@ public class ImageResizerMaven {
 
         File outputFile = new File(outputPath);
         ImageIO.write(resized, "PNG", outputFile);
-        System.out.println("✅ Đã resize ảnh thành công: " + outputPath);
+        log.logTs("✅ Đã resize ảnh thành công: %s", outputPath);
     }
 }
