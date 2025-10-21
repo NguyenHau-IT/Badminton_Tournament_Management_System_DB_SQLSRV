@@ -1,5 +1,22 @@
 package com.example.btms.desktop.controller.category;
 
+import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Set;
+
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JOptionPane;
+import javax.swing.RowFilter;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+
 import com.example.btms.config.Prefs;
 import com.example.btms.model.category.NoiDung;
 import com.example.btms.model.team.ChiTietDoi;
@@ -11,15 +28,9 @@ import com.example.btms.service.player.DangKiCaNhanService;
 import com.example.btms.service.player.VanDongVienService;
 import com.example.btms.service.team.ChiTietDoiService;
 import com.example.btms.service.team.DangKiDoiService;
+import com.example.btms.ui.category.ChangeCategoryTransferDialog;
 import com.example.btms.ui.category.ContentParticipantsPanel;
 import com.example.btms.ui.team.DangKyDoiDialog;
-import com.example.btms.ui.category.ChangeCategoryTransferDialog;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.sql.Connection;
-import java.util.*;
-import java.util.Map.Entry;
 
 public class ContentParticipantsController {
 
@@ -441,9 +452,12 @@ public class ContentParticipantsController {
             NoiDung nd = model.getElementAt(i);
             if (nd != null && idNoiDung.equals(nd.getId())) {
                 combo.setSelectedIndex(i);
-                break;
+                // Không cần gọi reloadParticipantsAsync() ở đây vì ActionListener đã tự động
+                // gọi
+                return;
             }
         }
+        // Chỉ reload nếu không tìm thấy idNoiDung trong combo
         reloadParticipantsAsync();
     }
 }

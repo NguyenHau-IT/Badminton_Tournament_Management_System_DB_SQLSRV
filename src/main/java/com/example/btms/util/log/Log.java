@@ -79,6 +79,24 @@ public class Log {
         }
     }
 
+    /* ================== Log viewer utilities ================== */
+
+    /** Lấy tất cả nội dung log hiện tại */
+    public String getAllLogs() {
+        JTextArea area = ensureTarget();
+        return area.getText();
+    }
+
+    /** Xóa tất cả nội dung log */
+    public void clearConsole() {
+        JTextArea area = ensureTarget();
+        if (SwingUtilities.isEventDispatchThread()) {
+            area.setText("");
+        } else {
+            SwingUtilities.invokeLater(() -> area.setText(""));
+        }
+    }
+
     /* ================== Match-oriented helpers ================== */
 
     /** In tỉ số + ván hiện tại từ Snapshot. */
