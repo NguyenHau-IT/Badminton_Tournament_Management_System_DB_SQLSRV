@@ -94,6 +94,7 @@ import com.example.btms.ui.control.BadmintonControlPanel;
 import com.example.btms.ui.control.MultiCourtControlPanel;
 import com.example.btms.ui.draw.BocThamThiDau;
 import com.example.btms.ui.log.LogTab;
+import com.example.btms.ui.log.LogViewerDialog;
 import com.example.btms.ui.manager.UnifiedWindowManager;
 import com.example.btms.ui.manager.UnifiedWindowManager.WindowType;
 import com.example.btms.ui.monitor.MonitorTab;
@@ -486,8 +487,12 @@ public class MainFrame extends JFrame {
         if (applicationContext != null) {
             try {
                 H2TcpServerConfig h2Config = applicationContext.getBean(H2TcpServerConfig.class);
-                String details = h2Config.getDebugInfo();
 
+                // Hiển thị đầy đủ thông tin connection trong console log
+                h2Config.showConnectionInfo();
+
+                // Cũng hiển thị dialog cho user
+                String details = h2Config.getDebugInfo();
                 JOptionPane.showMessageDialog(
                         this,
                         details,
@@ -992,6 +997,11 @@ public class MainFrame extends JFrame {
                 JMenu mOther = new JMenu("Khác");
                 if (currentRole == Role.ADMIN) {
                     mOther.add(menuItem("Logs"));
+
+                    // System Logs Viewer
+                    JMenuItem miSystemLogs = new JMenuItem("System Logs");
+                    miSystemLogs.addActionListener(e -> openSystemLogsViewer());
+                    mOther.add(miSystemLogs);
                 }
                 mOther.add(menuItem("Cài đặt"));
                 // Backup DB tool
@@ -1296,7 +1306,11 @@ public class MainFrame extends JFrame {
             if (!(comp instanceof DefaultMutableTreeNode node)) {
                 return;
             }
-            activateNavNode(node);
+            // Chỉ kích hoạt khi selection thay đổi từ null hoặc khác node
+            if (e.getOldLeadSelectionPath() == null ||
+                    !e.getOldLeadSelectionPath().equals(e.getNewLeadSelectionPath())) {
+                activateNavNode(node);
+            }
             // Ghi nhớ nội dung đang chọn nếu nó nằm dưới "Danh sách đăng kí"
             try {
                 Object uo = node.getUserObject();
@@ -1308,33 +1322,6 @@ public class MainFrame extends JFrame {
                     }
                 }
             } catch (Exception ignore) {
-            }
-        });
-
-        // Cho phép click lại cùng một mục vẫn kích hoạt (khi selection không đổi)
-        navTree.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getButton() != java.awt.event.MouseEvent.BUTTON1) {
-                    return;
-                }
-                int row = navTree.getRowForLocation(e.getX(), e.getY());
-                if (row < 0) {
-                    return;
-                }
-                javax.swing.tree.TreePath path = navTree.getPathForRow(row);
-                if (path == null) {
-                    return;
-                }
-                // Chỉ kích hoạt khi click lại đúng node đang được chọn để tránh kích hoạt 2 lần
-                javax.swing.tree.TreePath selected = navTree.getSelectionPath();
-                if (selected == null || !selected.equals(path)) {
-                    return;
-                }
-                Object comp = path.getLastPathComponent();
-                if (comp instanceof DefaultMutableTreeNode node) {
-                    activateNavNode(node);
-                }
             }
         });
 
@@ -2847,5 +2834,19 @@ public class MainFrame extends JFrame {
             return "giai-dau";
         }
         return x;
+    }
+
+    /**
+     * Open System Logs Viewer Dialog
+     */
+    private void openSystemLogsViewer() {
+        try {
+            LogViewerDialog dialog = new LogViewerDialog(this);
+            dialog.setVisible(true);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Không thể mở System Logs Viewer: " + e.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

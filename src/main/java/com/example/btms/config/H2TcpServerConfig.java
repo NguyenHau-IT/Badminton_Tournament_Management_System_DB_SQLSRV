@@ -7,9 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.h2.tools.Server;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
+import com.example.btms.util.log.Log;
 
 import jakarta.annotation.PreDestroy;
 
@@ -27,23 +27,36 @@ import jakarta.annotation.PreDestroy;
 @Component
 public class H2TcpServerConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(H2TcpServerConfig.class);
+    private static final Log LOG = new Log();
 
+    // Server status fields
     private volatile Server tcpServer;
     private volatile boolean isServerStarted = false;
 
+    // Configuration
     private String serverIP = "127.0.0.1";
     private int serverPort = 9092; // Default H2 TCP port
     private String baseDirAbsolute = Paths.get("./database").toAbsolutePath().toString();
-    private String defaultDbName = "badminton_tournament";
+    private final String defaultDbName = "badminton_tournament";
 
-    /**
-     * Khởi động H2 TCP Server với IP và port cụ thể.
-     *
-     * @param bindIP IP để bind (ví dụ "192.168.1.10" hoặc "127.0.0.1")
-     * @param port   TCP port (mặc định 9092 nếu <= 0)
-     * @throws SQLException nếu không thể khởi động server
-     */
+    // === Log Utilities ===
+
+    private void logH2Info(String message, Object... args) {
+        LOG.logTs("[H2-TCP] " + message, args);
+    }
+
+    private void logH2Success(String message, Object... args) {
+        LOG.logTs("✅ [H2-TCP] " + message, args);
+    }
+
+    private void logH2Error(String message, Object... args) {
+        LOG.logTs("❌ [H2-TCP] " + message, args);
+    }
+
+    private void logH2Console(String message, Object... args) {
+        LOG.log("🖥️ [H2-CONSOLE] " + message, args);
+    }
+
     public synchronized void startTcpServer(String bindIP, int port) throws SQLException {
         // Nếu đã chạy, dừng trước để khởi động lại theo cấu hình mới
         if (isServerStarted) {
@@ -52,6 +65,15 @@ public class H2TcpServerConfig {
 
         this.serverIP = (bindIP == null || bindIP.isBlank()) ? "127.0.0.1" : bindIP.trim();
         this.serverPort = (port > 0) ? port : 9092;
+
+        // Kiểm tra port availability trước khi start
+        if (isPortInUse(this.serverPort)) {
+            logH2Error("Port %d is already in use", this.serverPort);
+            logH2Console("⚠️ Port %d đang được sử dụng!", this.serverPort);
+            logH2Console("💡 Chạy lệnh để kiểm tra: netstat -ano | findstr :%d", this.serverPort);
+            throw new SQLException(String.format(
+                    "Port %d is already in use. Please kill existing process or use different port.", this.serverPort));
+        }
 
         // Dựng args cho H2
         final List<String> args = new ArrayList<>();
@@ -67,12 +89,8 @@ public class H2TcpServerConfig {
         args.add("-tcpAllowOthers");
 
         // Log thông tin bảo mật
-        log.info("🔒 H2 Server bind to 0.0.0.0:{} - bảo mật qua firewall/network", this.serverPort);
-        log.info("🌐 Target LAN IP: {} - máy cùng mạng có thể kết nối", this.serverIP);
-
-        // Tăng timeout để tránh connection timeout
-        args.add("-tcpShutdownForce");
-        args.add("false");
+        logH2Info("Server bind to 0.0.0.0:%d - bảo mật qua firewall", this.serverPort);
+        logH2Info("Target LAN IP: %s - máy cùng mạng có thể kết nối", this.serverIP);
 
         // Cố định thư mục chứa file DB
         args.add("-baseDir");
@@ -92,30 +110,43 @@ public class H2TcpServerConfig {
 
             isServerStarted = true;
 
-            log.info("🚀 H2 TCP Server started");
-            log.info("📍 Server binds to 0.0.0.0:{} (all interfaces)", this.serverPort);
-            log.info("🔒 LAN Access: Máy cùng mạng {} có thể kết nối", getNetworkPrefix());
-            log.info("🛡️ Bảo mật qua: Windows Firewall + Network configuration");
-            log.info("📁 BaseDir: {}", baseDirAbsolute);
-            log.info("🔗 Connection URL: {}", getConnectionUrl());
-            log.info("👤 Username: sa | 🔑 Password: (empty)");
+            logH2Success("Server started on 0.0.0.0:%d", this.serverPort);
+            logH2Info("LAN Access: %s/24 subnet", getNetworkPrefix());
+            logH2Info("Security: Windows Firewall + Network config");
+            logH2Info("BaseDir: %s", baseDirAbsolute);
+            logH2Info("Connection URL: %s", getConnectionUrl());
+            logH2Info("Credentials: sa/(empty)");
 
-            System.out.println("🚀 H2 TCP Server started successfully!");
-            System.out.println("📍 Server binds to 0.0.0.0:" + this.serverPort + " (all interfaces)");
-            System.out.println("🔒 LAN Access: Máy cùng mạng " + getNetworkPrefix() + ".x có thể kết nối");
-            System.out.println("🛡️ Bảo mật: Dựa vào Windows Firewall và cấu hình mạng");
-            System.out.println("🌐 Máy cùng LAN kết nối bằng: " + this.serverIP + ":" + this.serverPort);
-            System.out.println("🔗 Connection URL từ máy cùng LAN: " + getConnectionUrl());
-            System.out.println(
-                    "🔗 Connection URL từ localhost: jdbc:h2:tcp://localhost:" + this.serverPort + "/" + defaultDbName);
-            System.out.println("👤 Username: sa");
-            System.out.println("🔑 Password: (empty)");
-            System.out.println("📁 Database directory: " + baseDirAbsolute);
-            System.out.println("🔥 Lưu ý: Đảm bảo Windows Firewall cho phép port " + this.serverPort);
-            System.out.println("🛡️ Bảo mật: Cấu hình firewall để chỉ cho máy cùng mạng LAN");
+            // Console output for user visibility
+            logH2Console("🚀 H2 TCP Server started successfully!");
+            logH2Console("📍 Server binds to 0.0.0.0:%d (all interfaces)", this.serverPort);
+            logH2Console("🔒 LAN Access: Máy cùng mạng %s.x có thể kết nối", getNetworkPrefix());
+            logH2Console("🛡️ Bảo mật: Dựa vào Windows Firewall và cấu hình mạng");
+            logH2Console("🌐 Máy cùng LAN kết nối bằng: %s:%d", this.serverIP, this.serverPort);
+            logH2Console("🔗 Connection URL từ máy cùng LAN: %s", getConnectionUrl());
+            logH2Console("🔗 Connection URL từ localhost: jdbc:h2:tcp://localhost:%d/%s", this.serverPort,
+                    defaultDbName);
+            logH2Console("👤 Username: sa");
+            logH2Console("🔑 Password: (empty)");
+            logH2Console("📁 Database directory: %s", baseDirAbsolute);
+            logH2Console("🔥 Lưu ý: Đảm bảo Windows Firewall cho phép port %d", this.serverPort);
+            logH2Console("🛡️ Bảo mật: Cấu hình firewall để chỉ cho máy cùng mạng LAN");
 
         } catch (SQLException e) {
             isServerStarted = false;
+
+            // Xử lý lỗi port conflict
+            if (e.getMessage().contains("port may be in use") || e.getMessage().contains("BindException")) {
+                logH2Error("Port %d is already in use - checking for existing processes", this.serverPort);
+                logH2Console("⚠️ Port %d đang được sử dụng bởi process khác!", this.serverPort);
+                logH2Console("💡 Giải pháp:");
+                logH2Console("   1. Kiểm tra: netstat -ano | findstr :%d", this.serverPort);
+                logH2Console("   2. Kill process: taskkill /PID <process_id> /F");
+                logH2Console("   3. Hoặc restart ứng dụng");
+            } else {
+                logH2Error("Failed to start server: %s", e.getMessage());
+            }
+
             // Đảm bảo server tham chiếu bị thu hồi nếu start lỗi
             if (tcpServer != null) {
                 try {
@@ -146,13 +177,37 @@ public class H2TcpServerConfig {
         if (tcpServer != null && isServerStarted) {
             try {
                 tcpServer.stop();
-                log.info("🛑 H2 TCP Server stopped.");
-                System.out.println("🛑 H2 TCP Server stopped.");
+                logH2Info("Server stopped");
+                logH2Console("🛑 H2 TCP Server stopped.");
             } finally {
                 tcpServer = null;
                 isServerStarted = false;
             }
         }
+    }
+
+    /**
+     * Hiển thị lại đầy đủ thông tin kết nối khi server đang chạy.
+     */
+    public void showConnectionInfo() {
+        if (!isServerRunning()) {
+            logH2Console("❌ H2 TCP Server chưa khởi động");
+            return;
+        }
+
+        logH2Console("📋 H2 TCP Server Connection Information:");
+        logH2Console("🚀 Status: RUNNING");
+        logH2Console("📍 Server binds to 0.0.0.0:%d (all interfaces)", this.serverPort);
+        logH2Console("🔒 LAN Access: Máy cùng mạng %s.x có thể kết nối", getNetworkPrefix());
+        logH2Console("🛡️ Bảo mật: Dựa vào Windows Firewall và cấu hình mạng");
+        logH2Console("🌐 Máy cùng LAN kết nối bằng: %s:%d", this.serverIP, this.serverPort);
+        logH2Console("🔗 Connection URL từ máy cùng LAN: %s", getConnectionUrl());
+        logH2Console("🔗 Connection URL từ localhost: jdbc:h2:tcp://localhost:%d/%s", this.serverPort, defaultDbName);
+        logH2Console("👤 Username: sa");
+        logH2Console("🔑 Password: (empty)");
+        logH2Console("📁 Database directory: %s", baseDirAbsolute);
+        logH2Console("🔥 Lưu ý: Đảm bảo Windows Firewall cho phép port %d", this.serverPort);
+        logH2Console("🛡️ Bảo mật: Cấu hình firewall để chỉ cho máy cùng mạng LAN");
     }
 
     /**
@@ -223,6 +278,19 @@ public class H2TcpServerConfig {
         sb.append("- Khuyến nghị: Advanced firewall rules cho LAN-only access\n");
         sb.append("- Cấu hình router/switch để isolate network nếu cần\n");
         return sb.toString();
+    }
+
+    // === Utility Methods ===
+
+    /**
+     * Kiểm tra xem port có đang được sử dụng không.
+     */
+    private boolean isPortInUse(int port) {
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(port)) {
+            return false; // Port available
+        } catch (java.io.IOException e) {
+            return true; // Port in use
+        }
     }
 
     /**
