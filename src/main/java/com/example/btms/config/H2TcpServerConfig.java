@@ -59,22 +59,16 @@ public class H2TcpServerConfig {
         args.add("-tcpPort");
         args.add(String.valueOf(this.serverPort));
 
-        // Bind to specific LAN IP instead of 0.0.0.0 for security
-        // Chỉ cho phép kết nối trong cùng mạng LAN
-        if (!this.serverIP.equals("127.0.0.1") && !this.serverIP.equals("localhost")) {
-            // Bind to specific LAN IP for better security
-            args.add("-tcpListenAddress");
-            args.add(this.serverIP);
-            log.info("🔒 H2 Server sẽ bind to LAN IP: {} (chỉ máy cùng mạng)", this.serverIP);
-        } else {
-            // Fallback to localhost only
-            args.add("-tcpListenAddress");
-            args.add("127.0.0.1");
-            log.info("🔒 H2 Server sẽ bind to localhost only");
-        }
+        // H2 TCP Server sẽ bind to all interfaces (0.0.0.0)
+        // Vì -tcpListenAddress không được hỗ trợ trong phiên bản này
+        // Bảo mật sẽ được đảm bảo qua firewall và network configuration
 
-        // Cho phép máy khác truy cập (chỉ trong cùng mạng LAN)
+        // Cho phép máy khác truy cập (trong cùng mạng LAN)
         args.add("-tcpAllowOthers");
+
+        // Log thông tin bảo mật
+        log.info("🔒 H2 Server bind to 0.0.0.0:{} - bảo mật qua firewall/network", this.serverPort);
+        log.info("🌐 Target LAN IP: {} - máy cùng mạng có thể kết nối", this.serverIP);
 
         // Tăng timeout để tránh connection timeout
         args.add("-tcpShutdownForce");
@@ -99,24 +93,26 @@ public class H2TcpServerConfig {
             isServerStarted = true;
 
             log.info("🚀 H2 TCP Server started");
-            log.info("📍 Server binds to LAN IP: {} on port: {}", this.serverIP, this.serverPort);
-            log.info("🔒 Remote access: CHỈ máy cùng mạng LAN có thể kết nối");
+            log.info("📍 Server binds to 0.0.0.0:{} (all interfaces)", this.serverPort);
+            log.info("🔒 LAN Access: Máy cùng mạng {} có thể kết nối", getNetworkPrefix());
+            log.info("🛡️ Bảo mật qua: Windows Firewall + Network configuration");
             log.info("📁 BaseDir: {}", baseDirAbsolute);
             log.info("🔗 Connection URL: {}", getConnectionUrl());
             log.info("👤 Username: sa | 🔑 Password: (empty)");
 
             System.out.println("🚀 H2 TCP Server started successfully!");
-            System.out.println("📍 Server binds to LAN IP: " + this.serverIP + " on port: " + this.serverPort);
-            System.out.println("🔒 Remote access: CHỈ máy cùng mạng LAN có thể kết nối");
-            System.out.println("🌐 Máy cùng mạng kết nối bằng IP: " + this.serverIP + ":" + this.serverPort);
-            System.out.println("🔗 Connection URL từ máy khác (cùng LAN): " + getConnectionUrl());
+            System.out.println("📍 Server binds to 0.0.0.0:" + this.serverPort + " (all interfaces)");
+            System.out.println("🔒 LAN Access: Máy cùng mạng " + getNetworkPrefix() + ".x có thể kết nối");
+            System.out.println("🛡️ Bảo mật: Dựa vào Windows Firewall và cấu hình mạng");
+            System.out.println("🌐 Máy cùng LAN kết nối bằng: " + this.serverIP + ":" + this.serverPort);
+            System.out.println("🔗 Connection URL từ máy cùng LAN: " + getConnectionUrl());
             System.out.println(
                     "🔗 Connection URL từ localhost: jdbc:h2:tcp://localhost:" + this.serverPort + "/" + defaultDbName);
             System.out.println("👤 Username: sa");
             System.out.println("🔑 Password: (empty)");
             System.out.println("📁 Database directory: " + baseDirAbsolute);
             System.out.println("🔥 Lưu ý: Đảm bảo Windows Firewall cho phép port " + this.serverPort);
-            System.out.println("🛡️  Bảo mật: Chỉ máy trong cùng mạng LAN có thể kết nối");
+            System.out.println("🛡️ Bảo mật: Cấu hình firewall để chỉ cho máy cùng mạng LAN");
 
         } catch (SQLException e) {
             isServerStarted = false;
@@ -173,8 +169,8 @@ public class H2TcpServerConfig {
     public String getConnectionInfo() {
         if (isServerRunning()) {
             return String.format(
-                    "H2 TCP Server đang chạy trên port %d (bind LAN IP: %s)%n" +
-                            "🔒 Remote Access: CHỈ máy cùng mạng LAN%n" +
+                    "H2 TCP Server đang chạy trên port %d (bind 0.0.0.0 - all interfaces)%n" +
+                            "🔒 Remote Access: Máy cùng mạng LAN (qua firewall config)%n" +
                             "🔗 Connection URL từ máy cùng LAN: %s%n" +
                             "🔗 Connection URL từ localhost: jdbc:h2:tcp://localhost:%d/%s%n" +
                             "👤 Username: sa%n" +
@@ -183,11 +179,11 @@ public class H2TcpServerConfig {
                             "%n" +
                             "🔥 QUAN TRỌNG:%n" +
                             "1. Đảm bảo Windows Firewall cho phép port %d%n" +
-                            "2. CHỈ máy trong cùng mạng LAN (%s/24) có thể kết nối%n" +
-                            "3. Server bind to IP: %s (không phải 0.0.0.0)%n" +
-                            "4. Không thể truy cập từ internet hoặc mạng khác",
-                    serverPort, serverIP, getConnectionUrl(), serverPort, defaultDbName, baseDirAbsolute,
-                    serverPort, getNetworkPrefix(), serverIP);
+                            "2. Cấu hình firewall để CHỈ cho máy cùng mạng LAN (%s/24)%n" +
+                            "3. Server bind to 0.0.0.0 (H2 limitation) - bảo mật qua firewall%n" +
+                            "4. Khuyến nghị: Cấu hình advanced firewall rules cho LAN-only",
+                    serverPort, getConnectionUrl(), serverPort, defaultDbName, baseDirAbsolute,
+                    serverPort, getNetworkPrefix());
         } else {
             return "H2 TCP Server chưa khởi động";
         }
@@ -209,10 +205,11 @@ public class H2TcpServerConfig {
         StringBuilder sb = new StringBuilder();
         sb.append("🔍 H2 TCP Server Debug Info:\n");
         sb.append("Server Status: ").append(isServerRunning() ? "RUNNING" : "STOPPED").append("\n");
-        sb.append("Bind Address: ").append(serverIP).append(" (LAN IP only)\n");
+        sb.append("Bind Address: 0.0.0.0 (all interfaces - H2 limitation)\n");
         sb.append("Port: ").append(serverPort).append("\n");
-        sb.append("Network Access: CHỈ máy cùng mạng LAN (").append(getNetworkPrefix()).append("/24)\n");
-        sb.append("Allow Others: TRUE (cùng LAN)\n");
+        sb.append("Target LAN IP: ").append(serverIP).append("\n");
+        sb.append("Network Access: Máy cùng mạng LAN (").append(getNetworkPrefix()).append("/24)\n");
+        sb.append("Allow Others: TRUE\n");
         sb.append("Base Directory: ").append(baseDirAbsolute).append("\n");
         sb.append("\n🔗 Connection URLs:\n");
         sb.append("From LAN machines: ").append(getConnectionUrl()).append("\n");
@@ -221,9 +218,10 @@ public class H2TcpServerConfig {
         sb.append("\n🔥 Firewall Command:\n");
         sb.append(getFirewallCommand()).append("\n");
         sb.append("\n🛡️ Security Info:\n");
-        sb.append("- Server bind to specific LAN IP (not 0.0.0.0)\n");
-        sb.append("- Only machines in same LAN can connect\n");
-        sb.append("- No internet/external network access\n");
+        sb.append("- H2 không hỗ trợ -tcpListenAddress, phải bind 0.0.0.0\n");
+        sb.append("- Bảo mật dựa vào Windows Firewall configuration\n");
+        sb.append("- Khuyến nghị: Advanced firewall rules cho LAN-only access\n");
+        sb.append("- Cấu hình router/switch để isolate network nếu cần\n");
         return sb.toString();
     }
 
