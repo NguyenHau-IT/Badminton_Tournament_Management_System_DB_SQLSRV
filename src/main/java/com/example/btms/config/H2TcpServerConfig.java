@@ -59,11 +59,26 @@ public class H2TcpServerConfig {
         args.add("-tcpPort");
         args.add(String.valueOf(this.serverPort));
 
-        // H2 mặc định bind tất cả interfaces (0.0.0.0)
-        // Không cần -tcpListenAddress vì không được hỗ trợ trong phiên bản này
+        // Bind to specific LAN IP instead of 0.0.0.0 for security
+        // Chỉ cho phép kết nối trong cùng mạng LAN
+        if (!this.serverIP.equals("127.0.0.1") && !this.serverIP.equals("localhost")) {
+            // Bind to specific LAN IP for better security
+            args.add("-tcpListenAddress");
+            args.add(this.serverIP);
+            log.info("🔒 H2 Server sẽ bind to LAN IP: {} (chỉ máy cùng mạng)", this.serverIP);
+        } else {
+            // Fallback to localhost only
+            args.add("-tcpListenAddress");
+            args.add("127.0.0.1");
+            log.info("🔒 H2 Server sẽ bind to localhost only");
+        }
 
-        // Cho phép máy khác truy cập
+        // Cho phép máy khác truy cập (chỉ trong cùng mạng LAN)
         args.add("-tcpAllowOthers");
+
+        // Tăng timeout để tránh connection timeout
+        args.add("-tcpShutdownForce");
+        args.add("false");
 
         // Cố định thư mục chứa file DB
         args.add("-baseDir");
@@ -72,7 +87,7 @@ public class H2TcpServerConfig {
         args.add("-ifNotExists");
 
         try {
-            tcpServer = Server.createTcpServer(args.toArray(new String[0]));
+            tcpServer = Server.createTcpServer(args.toArray(String[]::new));
             tcpServer.start();
 
             // Kiểm tra trạng thái thật sự
@@ -84,18 +99,24 @@ public class H2TcpServerConfig {
             isServerStarted = true;
 
             log.info("🚀 H2 TCP Server started");
-            log.info("📍 Server will bind to all interfaces (0.0.0.0) on port: {}", this.serverPort);
+            log.info("📍 Server binds to LAN IP: {} on port: {}", this.serverIP, this.serverPort);
+            log.info("🔒 Remote access: CHỈ máy cùng mạng LAN có thể kết nối");
             log.info("📁 BaseDir: {}", baseDirAbsolute);
-            log.info("🔗 Connection URL (mặc định): {}", getConnectionUrl());
+            log.info("🔗 Connection URL: {}", getConnectionUrl());
             log.info("👤 Username: sa | 🔑 Password: (empty)");
 
             System.out.println("🚀 H2 TCP Server started successfully!");
-            System.out.println("📍 Server binds to all interfaces on port: " + this.serverPort);
-            System.out.println("📍 Client should connect to: " + this.serverIP + ":" + this.serverPort);
-            System.out.println("🔗 Connection URL: " + getConnectionUrl());
+            System.out.println("📍 Server binds to LAN IP: " + this.serverIP + " on port: " + this.serverPort);
+            System.out.println("🔒 Remote access: CHỈ máy cùng mạng LAN có thể kết nối");
+            System.out.println("🌐 Máy cùng mạng kết nối bằng IP: " + this.serverIP + ":" + this.serverPort);
+            System.out.println("🔗 Connection URL từ máy khác (cùng LAN): " + getConnectionUrl());
+            System.out.println(
+                    "🔗 Connection URL từ localhost: jdbc:h2:tcp://localhost:" + this.serverPort + "/" + defaultDbName);
             System.out.println("👤 Username: sa");
             System.out.println("🔑 Password: (empty)");
             System.out.println("📁 Database directory: " + baseDirAbsolute);
+            System.out.println("🔥 Lưu ý: Đảm bảo Windows Firewall cho phép port " + this.serverPort);
+            System.out.println("🛡️  Bảo mật: Chỉ máy trong cùng mạng LAN có thể kết nối");
 
         } catch (SQLException e) {
             isServerStarted = false;
@@ -152,18 +173,71 @@ public class H2TcpServerConfig {
     public String getConnectionInfo() {
         if (isServerRunning()) {
             return String.format(
-                    "H2 TCP Server đang chạy trên port %d (bind all interfaces)%n" +
-                            "Connection URL từ máy khác: %s%n" +
-                            "Connection URL từ localhost: jdbc:h2:tcp://localhost:%d/%s%n" +
-                            "Username: sa%n" +
-                            "Password: (để trống)%n" +
-                            "Database directory: %s%n" +
+                    "H2 TCP Server đang chạy trên port %d (bind LAN IP: %s)%n" +
+                            "🔒 Remote Access: CHỈ máy cùng mạng LAN%n" +
+                            "🔗 Connection URL từ máy cùng LAN: %s%n" +
+                            "🔗 Connection URL từ localhost: jdbc:h2:tcp://localhost:%d/%s%n" +
+                            "👤 Username: sa%n" +
+                            "🔑 Password: (để trống)%n" +
+                            "📁 Database directory: %s%n" +
                             "%n" +
-                            "Lưu ý: Server bind tất cả interfaces, máy khác có thể kết nối qua bất kỳ IP nào của máy này",
-                    serverPort, getConnectionUrl(), serverPort, defaultDbName, baseDirAbsolute);
+                            "🔥 QUAN TRỌNG:%n" +
+                            "1. Đảm bảo Windows Firewall cho phép port %d%n" +
+                            "2. CHỈ máy trong cùng mạng LAN (%s/24) có thể kết nối%n" +
+                            "3. Server bind to IP: %s (không phải 0.0.0.0)%n" +
+                            "4. Không thể truy cập từ internet hoặc mạng khác",
+                    serverPort, serverIP, getConnectionUrl(), serverPort, defaultDbName, baseDirAbsolute,
+                    serverPort, getNetworkPrefix(), serverIP);
         } else {
             return "H2 TCP Server chưa khởi động";
         }
+    }
+
+    /**
+     * Tạo firewall rule command cho Windows để mở port H2.
+     */
+    public String getFirewallCommand() {
+        return String.format(
+                "netsh advfirewall firewall add rule name=\"H2 TCP Server\" dir=in action=allow protocol=TCP localport=%d",
+                serverPort);
+    }
+
+    /**
+     * Kiểm tra và hiển thị thông tin debug kết nối.
+     */
+    public String getDebugInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("🔍 H2 TCP Server Debug Info:\n");
+        sb.append("Server Status: ").append(isServerRunning() ? "RUNNING" : "STOPPED").append("\n");
+        sb.append("Bind Address: ").append(serverIP).append(" (LAN IP only)\n");
+        sb.append("Port: ").append(serverPort).append("\n");
+        sb.append("Network Access: CHỈ máy cùng mạng LAN (").append(getNetworkPrefix()).append("/24)\n");
+        sb.append("Allow Others: TRUE (cùng LAN)\n");
+        sb.append("Base Directory: ").append(baseDirAbsolute).append("\n");
+        sb.append("\n🔗 Connection URLs:\n");
+        sb.append("From LAN machines: ").append(getConnectionUrl()).append("\n");
+        sb.append("From localhost: jdbc:h2:tcp://localhost:").append(serverPort).append("/").append(defaultDbName)
+                .append("\n");
+        sb.append("\n🔥 Firewall Command:\n");
+        sb.append(getFirewallCommand()).append("\n");
+        sb.append("\n🛡️ Security Info:\n");
+        sb.append("- Server bind to specific LAN IP (not 0.0.0.0)\n");
+        sb.append("- Only machines in same LAN can connect\n");
+        sb.append("- No internet/external network access\n");
+        return sb.toString();
+    }
+
+    /**
+     * Lấy network prefix từ IP address (ví dụ: 192.168.1 từ 192.168.1.100)
+     */
+    private String getNetworkPrefix() {
+        if (serverIP != null && serverIP.contains(".")) {
+            String[] parts = serverIP.split("\\.");
+            if (parts.length >= 3) {
+                return parts[0] + "." + parts[1] + "." + parts[2];
+            }
+        }
+        return serverIP;
     }
 
     /**

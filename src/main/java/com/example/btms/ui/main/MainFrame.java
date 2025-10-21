@@ -445,17 +445,61 @@ public class MainFrame extends JFrame {
                 if (h2Config.isServerRunning()) {
                     statusH2.setText("H2: ✓ Port " + h2Config.getServerPort());
                     statusH2.setForeground(new Color(34, 139, 34)); // Forest Green
+
+                    // Tooltip with connection info
+                    statusH2.setToolTipText("<html>" +
+                            "H2 TCP Server đang chạy<br/>" +
+                            "Port: " + h2Config.getServerPort() + "<br/>" +
+                            "IP: " + h2Config.getServerIP() + "<br/>" +
+                            "Remote Access: ENABLED<br/>" +
+                            "<b>Click để xem chi tiết kết nối</b>" +
+                            "</html>");
+
+                    // Add click listener to show connection details
+                    if (statusH2.getMouseListeners().length == 0) {
+                        statusH2.addMouseListener(new java.awt.event.MouseAdapter() {
+                            @Override
+                            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                                showH2ConnectionDetails();
+                            }
+                        });
+                        statusH2.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                    }
                 } else {
                     statusH2.setText("H2: ✗ Stopped");
                     statusH2.setForeground(Color.RED);
+                    statusH2.setToolTipText("H2 TCP Server đã dừng");
                 }
             } catch (Exception e) {
                 statusH2.setText("H2: ? Error");
                 statusH2.setForeground(Color.ORANGE);
+                statusH2.setToolTipText("Lỗi truy cập H2 TCP Server: " + e.getMessage());
             }
         } else {
             statusH2.setText("H2: N/A");
             statusH2.setForeground(Color.GRAY);
+            statusH2.setToolTipText("ApplicationContext không khả dụng");
+        }
+    }
+
+    private void showH2ConnectionDetails() {
+        if (applicationContext != null) {
+            try {
+                H2TcpServerConfig h2Config = applicationContext.getBean(H2TcpServerConfig.class);
+                String details = h2Config.getDebugInfo();
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        details,
+                        "H2 TCP Server - Thông tin kết nối",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Lỗi lấy thông tin H2 Server: " + e.getMessage(),
+                        "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
