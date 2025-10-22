@@ -79,6 +79,7 @@ import com.example.btms.ui.scoreboard.MiniScorePanel;
 import com.example.btms.util.log.Log;
 import com.example.btms.util.net.NetworkUtil;
 import com.example.btms.util.qr.QRCodeUtil;
+import com.example.btms.util.sound.SoundPlayer;
 import com.example.btms.util.swing.SelectionGuard;
 import com.example.btms.util.ui.ButtonFactory;
 import com.example.btms.web.controller.scoreBoard.ScoreboardPinController;
@@ -1254,7 +1255,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             match.setClubs(clubA, clubB);
         } catch (Exception ex) {
             // Fallback an toàn nếu có lỗi I/O
-            match.setClubs(getClubNameById(ta.getIdCauLacBo()), getClubNameById(tb.getIdCauLacBo()));
+            match.setClubs(getClubNameById(ta.getIdClb()), getClubNameById(tb.getIdClb()));
         }
         logger.chooseTeamA(ta.getTenTeam(), ta.getIdTeam());
         logger.chooseTeamB(tb.getTenTeam(), tb.getIdTeam());
@@ -1405,6 +1406,17 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
+                        // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
+                        try {
+                            boolean reset = maybePromptResetExistingMatch(currentMatchId, header, true, fullNameA,
+                                    fullNameB);
+                            if (reset) {
+                                // Lần +1 đầu tiên sau khi đặt lại phải ghi mới
+                                restartSetPending = true;
+                            }
+                        } catch (Exception exPrompt) {
+                            logger.logTs("Lỗi khi xác nhận đặt lại trận có sẵn: %s", exPrompt.getMessage());
+                        }
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
@@ -1461,6 +1473,16 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
+                        // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
+                        try {
+                            boolean reset = maybePromptResetExistingMatch(currentMatchId, header, false, nameA, nameB);
+                            if (reset) {
+                                // Lần +1 đầu tiên sau khi đặt lại phải ghi mới
+                                restartSetPending = true;
+                            }
+                        } catch (Exception exPrompt) {
+                            logger.logTs("Lỗi khi xác nhận đặt lại trận có sẵn: %s", exPrompt.getMessage());
+                        }
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
@@ -1475,18 +1497,117 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             } catch (Exception ex) {
                 logger.logTs("Lỗi lấy/tạo ID_TRẬN: %s", ex.getMessage());
             }
-            com.example.btms.util.sound.SoundPlayer.playStartIfEnabled();
+            SoundPlayer.playStartIfEnabled();
 
             hasStarted = true;
             afterStartUi();
             // openDisplayAuto();
 
-            // Broadcast đã được gọi ở trên, không cần gọi lại
-
-            // Gắn match lên HTTP server theo port của sân
             logger.startSingles(header, nameA, idA, nameB, idB, bo);
             updateRemoteLinkUi();
         }
+    }
+
+    /**
+     * Khi phát hiện trận đã có sẵn ID trong sơ đồ/DB, hiển thị thông tin và hỏi
+     * người dùng có muốn ĐẶT LẠI không. Nếu chọn Đặt lại, sẽ xóa toàn bộ bản ghi
+     * CHI_TIET_VAN của trận này để ghi lại từ đầu.
+     *
+     * @param matchId   ID_TRẬN đã tồn tại
+     * @param header    Nội dung đang chọn
+     * @param isDoubles true nếu là ĐÔI, false nếu là ĐƠN
+     * @param nameA     Tên bên A (hiển thị)
+     * @param nameB     Tên bên B (hiển thị)
+     * @return true nếu người dùng chọn Đặt lại (đã xóa chi tiết ván); false nếu giữ
+     *         nguyên
+     */
+    private boolean maybePromptResetExistingMatch(String matchId, String header, boolean isDoubles, String nameA,
+            String nameB) {
+        if (conn == null || matchId == null || matchId.isBlank())
+            return false;
+        try {
+            ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+            var cur = msvc.get(matchId);
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            List<com.example.btms.model.match.ChiTietVan> sets = vs.listByMatch(matchId);
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("Trận này đã có sẵn trong CSDL.\n\n");
+            sb.append("ID: ").append(matchId).append('\n');
+            sb.append("Nội dung: ").append(header).append(isDoubles ? " (Đôi)" : " (Đơn)").append('\n');
+            sb.append("A: ").append(nameA != null ? nameA : "-").append('\n');
+            sb.append("B: ").append(nameB != null ? nameB : "-").append('\n');
+            try {
+                java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter
+                        .ofPattern("dd/MM/yyyy HH:mm:ss");
+                sb.append("Thể thức: BO").append(cur.getTheThuc() != null ? cur.getTheThuc() : 0);
+                sb.append(", Sân: ").append(cur.getSan() != null ? cur.getSan() : 0).append('\n');
+                sb.append("Bắt đầu: ")
+                        .append(cur.getBatDau() != null ? cur.getBatDau().format(dtf) : "-")
+                        .append("  |  Cập nhật: ")
+                        .append(cur.getKetThuc() != null ? cur.getKetThuc().format(dtf) : "-")
+                        .append('\n');
+            } catch (Exception ignore) {
+            }
+            sb.append("Số chi tiết ván hiện có: ").append(sets != null ? sets.size() : 0).append('\n');
+            // Hiển thị điểm các ván và tỉ số ván thắng tổng
+            if (sets != null && !sets.isEmpty()) {
+                try {
+                    // Sắp xếp theo số ván tăng dần nếu có
+                    sets.sort(java.util.Comparator.comparing(
+                            com.example.btms.model.match.ChiTietVan::getSetNo,
+                            java.util.Comparator.nullsLast(Integer::compareTo)));
+                } catch (Exception ignore) {
+                }
+                int gamesA = 0, gamesB = 0;
+                sb.append("Điểm các ván:\n");
+                for (var v : sets) {
+                    Integer setNo = v.getSetNo();
+                    int d1 = v.getTongDiem1() != null ? v.getTongDiem1() : 0;
+                    int d2 = v.getTongDiem2() != null ? v.getTongDiem2() : 0;
+                    sb.append("  Ván ").append(setNo != null ? setNo : 0).append(": ")
+                            .append(d1).append(" - ").append(d2).append('\n');
+                    if (d1 != d2) {
+                        if (d1 > d2)
+                            gamesA++;
+                        else
+                            gamesB++;
+                    }
+                }
+                sb.append("Ván thắng: ").append(gamesA).append(" - ").append(gamesB).append("\n\n");
+            } else {
+                sb.append('\n');
+            }
+            sb.append(
+                    "Bạn có muốn ĐẶT LẠI trận này?\nChọn 'Có' để xóa toàn bộ chi tiết ván (CHI_TIET_VAN) và ghi lại từ đầu.\nChọn 'Không' để tiếp tục sử dụng dữ liệu hiện có.");
+
+            int ans = JOptionPane.showConfirmDialog(this, sb.toString(),
+                    "Trận đã có ID — đặt lại?", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (ans == JOptionPane.YES_OPTION) {
+                int deleted = 0;
+                if (sets != null) {
+                    for (var v : sets) {
+                        try {
+                            if (v != null && v.getSetNo() != null)
+                                vs.delete(matchId, v.getSetNo());
+                            deleted++;
+                        } catch (Exception ignore) {
+                        }
+                    }
+                }
+                logger.logTs("Đã xóa %d bản ghi CHI_TIET_VAN cho matchId=%s", deleted, matchId);
+                try {
+                    JOptionPane.showMessageDialog(this,
+                            "Đã đặt lại trận. Chi tiết ván đã được xóa (" + deleted + ").\nBạn có thể ghi lại từ đầu.",
+                            "Đặt lại thành công", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ignore) {
+                }
+                return true;
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi khi hiển thị thông tin trận đã có: %s", ex.getMessage());
+        }
+        return false;
     }
 
     /**
@@ -1497,6 +1618,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
      */
     private void linkMatchIdToBracketForCurrentSelection(String header, boolean isDoubles, String matchId,
             Integer idVdvA, Integer idVdvB, DangKiDoi teamA, DangKiDoi teamB) {
+        String nameA, nameB, keyA = "", keyB = "", clubA, clubB;
         if (conn == null || matchId == null || matchId.isBlank())
             return;
         try {
@@ -1522,13 +1644,42 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         updated, idGiai, idNoiDung);
             } else {
                 SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+                // Lấy danh sách hiện có để khớp mềm theo tên lưu trong bảng (tránh lệch format)
+                List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
                 int updated = 0;
-                if (teamA != null && teamA.getTenTeam() != null)
-                    updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, teamA.getTenTeam(), matchId);
-                if (teamB != null && teamB.getTenTeam() != null)
-                    updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, teamB.getTenTeam(), matchId);
-                logger.logTs("SO_DO_DOI: đã liên kết ID_TRAN_DAU=%s cho %d vị trí (giai=%d, nd=%d)", matchId, updated,
-                        idGiai, idNoiDung);
+                if (teamA != null && teamA.getTenTeam() != null) {
+                    clubA = getClubNameById(teamA.getIdClb());
+                    nameA = teamA.getTenTeam();
+                    keyA = (clubA != null && !clubA.isBlank()) ? (nameA + " - " + clubA) : nameA;
+                    // Tìm chính xác label đang lưu trong sơ đồ để cập nhật theo đúng chuỗi đó
+                    String labelInBracketA = findBracketTeamLabel(rows, nameA, clubA);
+                    if (labelInBracketA != null && !labelInBracketA.isBlank()) {
+                        updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, labelInBracketA, matchId);
+                    } else {
+                        // Fallback: thử cả key (Team - Club) và tên đội trần
+                        int u1 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, keyA, matchId);
+                        if (u1 == 0 && nameA != null)
+                            u1 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, nameA, matchId);
+                        updated += u1;
+                    }
+                }
+                if (teamB != null && teamB.getTenTeam() != null) {
+                    clubB = getClubNameById(teamB.getIdClb());
+                    nameB = teamB.getTenTeam();
+                    keyB = (clubB != null && !clubB.isBlank()) ? (nameB + " - " + clubB) : nameB;
+                    String labelInBracketB = findBracketTeamLabel(rows, nameB, clubB);
+                    if (labelInBracketB != null && !labelInBracketB.isBlank()) {
+                        updated += dsvc.linkTranDauByTeamName(idGiai, idNoiDung, labelInBracketB, matchId);
+                    } else {
+                        int u2 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, keyB, matchId);
+                        if (u2 == 0 && nameB != null)
+                            u2 = dsvc.linkTranDauByTeamName(idGiai, idNoiDung, nameB, matchId);
+                        updated += u2;
+                    }
+                }
+                logger.logTs("SO_DO_DOI: đã liên kết ID_TRAN_DAU=%s cho %d vị trí (giai=%d, nd=%d, teamA=%s, teamB=%s)",
+                        matchId, updated,
+                        idGiai, idNoiDung, keyA, keyB);
             }
         } catch (Exception ex) {
             logger.logTs("Lỗi liên kết ID_TRAN_DAU vào sơ đồ: %s", ex.getMessage());
@@ -1583,24 +1734,56 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             } else {
                 SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
                 List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
-                String tenA = teamA != null ? teamA.getTenTeam() : null;
-                String tenB = teamB != null ? teamB.getTenTeam() : null;
-                if (tenA != null && !tenA.isBlank()) {
-                    for (var r : rows) {
-                        if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenA)
-                                && r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
-                            idA = r.getIdTranDau();
-                            break;
-                        }
+                String nameA = teamA != null ? teamA.getTenTeam() : null;
+                String clubA = (teamA != null) ? getClubNameById(teamA.getIdClb()) : null;
+                String keyA = (nameA != null)
+                        ? ((clubA != null && !clubA.isBlank()) ? (nameA + " - " + clubA) : nameA)
+                        : null;
+                String nameB = teamB != null ? teamB.getTenTeam() : null;
+                String clubB = (teamB != null) ? getClubNameById(teamB.getIdClb()) : null;
+                String keyB = (nameB != null)
+                        ? ((clubB != null && !clubB.isBlank()) ? (nameB + " - " + clubB) : nameB)
+                        : null;
+
+                String normKeyA = normalizeTeamKey(keyA);
+                String normNameA = normalizeTeamKey(nameA);
+                String baseA = baseTeamName(nameA);
+                String normBaseA = normalizeTeamKey(baseA);
+
+                for (var r : rows) {
+                    if (r.getIdTranDau() == null || r.getIdTranDau().isBlank())
+                        continue;
+                    String ten = r.getTenTeam();
+                    if (ten == null)
+                        continue;
+                    String nTen = normalizeTeamKey(ten);
+                    String nBaseTen = normalizeTeamKey(baseTeamName(ten));
+                    if ((normKeyA != null && nTen.equals(normKeyA))
+                            || (normNameA != null && nTen.equals(normNameA))
+                            || (normBaseA != null && nBaseTen.equals(normBaseA))) {
+                        idA = r.getIdTranDau();
+                        break;
                     }
                 }
-                if (tenB != null && !tenB.isBlank()) {
-                    for (var r : rows) {
-                        if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenB)
-                                && r.getIdTranDau() != null && !r.getIdTranDau().isBlank()) {
-                            idB = r.getIdTranDau();
-                            break;
-                        }
+
+                String normKeyB = normalizeTeamKey(keyB);
+                String normNameB = normalizeTeamKey(nameB);
+                String baseB = baseTeamName(nameB);
+                String normBaseB = normalizeTeamKey(baseB);
+
+                for (var r : rows) {
+                    if (r.getIdTranDau() == null || r.getIdTranDau().isBlank())
+                        continue;
+                    String ten = r.getTenTeam();
+                    if (ten == null)
+                        continue;
+                    String nTen = normalizeTeamKey(ten);
+                    String nBaseTen = normalizeTeamKey(baseTeamName(ten));
+                    if ((normKeyB != null && nTen.equals(normKeyB))
+                            || (normNameB != null && nTen.equals(normNameB))
+                            || (normBaseB != null && nBaseTen.equals(normBaseB))) {
+                        idB = r.getIdTranDau();
+                        break;
                     }
                 }
             }
@@ -1902,22 +2085,41 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             logger.logTs("Cập nhật DIEM (đơn): A=%d (%d vị trí), B=%d (%d vị trí) [giai=%d, nd=%d]",
                     diemA, updatedA, diemB, updatedB, idGiai, idNoiDung);
         } else {
-            // ĐÔI: xác định theo TEN_TEAM A/B + ID_TRAN_DAU
+            // ĐÔI: xác định theo TEN_TEAM A/B + ID_TRAN_DAU (linh hoạt theo tên lưu trong
+            // sơ đồ)
             SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
             List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
             DangKiDoi teamA = (DangKiDoi) cboTeamA.getSelectedItem();
             DangKiDoi teamB = (DangKiDoi) cboTeamB.getSelectedItem();
             String tenA = teamA != null ? teamA.getTenTeam() : null;
             String tenB = teamB != null ? teamB.getTenTeam() : null;
+            String nA = normalizeTeamKey(tenA);
+            String nB = normalizeTeamKey(tenB);
+            String nbA = normalizeTeamKey(baseTeamName(tenA));
+            String nbB = normalizeTeamKey(baseTeamName(tenB));
             int updatedA = 0, updatedB = 0;
             for (var r : rows) {
                 if (r.getIdTranDau() != null && r.getIdTranDau().equals(matchId)) {
-                    if (tenA != null && r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenA)) {
+                    String rowTeam = r.getTenTeam();
+                    String nRow = normalizeTeamKey(rowTeam);
+                    String nbRow = normalizeTeamKey(baseTeamName(rowTeam));
+                    boolean matchA = (nA != null && nA.equals(nRow)) || (nbA != null && nbA.equals(nbRow));
+                    boolean matchB = (nB != null && nB.equals(nRow)) || (nbB != null && nbB.equals(nbRow));
+                    if (matchA && !matchB) {
                         dsvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemA);
                         updatedA++;
-                    } else if (tenB != null && r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenB)) {
+                    } else if (matchB && !matchA) {
                         dsvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemB);
                         updatedB++;
+                    } else if (!matchA && !matchB) {
+                        // Không khớp rõ ràng: ưu tiên gán theo lượt đầu tiên gặp (tránh bỏ sót)
+                        if (updatedA == 0) {
+                            dsvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemA);
+                            updatedA++;
+                        } else if (updatedB == 0) {
+                            dsvc.setDiem(idGiai, idNoiDung, r.getViTri(), diemB);
+                            updatedB++;
+                        }
                     }
                 }
             }
@@ -2515,6 +2717,104 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         }
     }
 
+    /* =================== TEAM NAME MATCHING HELPERS (đôi) =================== */
+
+    /**
+     * Chuẩn hoá key tên đội để so sánh linh hoạt:
+     * - lower-case, trim
+     * - thay các loại dấu gạch (–, —) thành '-'
+     * - gom nhiều khoảng trắng về 1
+     * - bỏ khoảng trắng thừa quanh dấu '-'
+     */
+    private static String normalizeTeamKey(String s) {
+        if (s == null)
+            return null;
+        String t = s.toLowerCase().trim();
+        // thay các dấu gạch dài/khác loại về '-'
+        t = t.replace('–', '-').replace('—', '-');
+        // chuẩn hoá khoảng trắng quanh '-'
+        t = t.replaceAll("\\s*-\\s*", " - ");
+        // gom nhiều khoảng trắng về 1
+        t = t.replaceAll("\\s+", " ");
+        return t;
+    }
+
+    /** Lấy phần tên đội trước phần CLB nếu có dạng "Tên đội - Tên CLB" */
+    private static String baseTeamName(String s) {
+        if (s == null)
+            return null;
+        String t = s;
+        int idx = t.indexOf("-");
+        if (idx < 0) {
+            // thử dấu gạch dài
+            idx = t.indexOf('–');
+            if (idx < 0)
+                idx = t.indexOf('—');
+        }
+        if (idx >= 0)
+            return t.substring(0, idx).trim();
+        return t.trim();
+    }
+
+    /**
+     * Tìm chính xác label (TEN_TEAM) đang lưu trong bảng sơ đồ dựa trên tên đội
+     * hiện
+     * chọn và CLB (nếu có). Trả về đúng chuỗi TEN_TEAM trong DB để update bằng
+     * equals.
+     */
+    private String findBracketTeamLabel(List<com.example.btms.model.bracket.SoDoDoi> rows, String teamName,
+            String clubName) {
+        if (rows == null || rows.isEmpty() || (teamName == null || teamName.isBlank()))
+            return null;
+
+        String keyWithClub = (clubName != null && !clubName.isBlank()) ? (teamName + " - " + clubName) : null;
+
+        // 1) So khớp EXACT (không phân biệt hoa/thường)
+        for (var r : rows) {
+            String ten = r.getTenTeam();
+            if (ten == null)
+                continue;
+            if ((keyWithClub != null && ten.equalsIgnoreCase(keyWithClub)) || ten.equalsIgnoreCase(teamName))
+                return ten;
+        }
+
+        // 2) So khớp NORMALIZED (chuẩn hoá gạch/khoảng trắng)
+        String nKeyWithClub = normalizeTeamKey(keyWithClub);
+        String nName = normalizeTeamKey(teamName);
+        for (var r : rows) {
+            String ten = r.getTenTeam();
+            if (ten == null)
+                continue;
+            String nTen = normalizeTeamKey(ten);
+            if ((nKeyWithClub != null && nTen.equals(nKeyWithClub)) || (nName != null && nTen.equals(nName)))
+                return ten;
+        }
+
+        // 3) So khớp theo BASE NAME (bỏ phần sau dấu '-')
+        String baseSel = baseTeamName(teamName);
+        String nBaseSel = normalizeTeamKey(baseSel);
+        for (var r : rows) {
+            String ten = r.getTenTeam();
+            if (ten == null)
+                continue;
+            String nBaseTen = normalizeTeamKey(baseTeamName(ten));
+            if (nBaseSel != null && nBaseSel.equals(nBaseTen))
+                return ten;
+        }
+
+        // 4) Fallback nhẹ: bắt đầu bằng hoặc chứa (tránh bắt trùng quá rộng)
+        for (var r : rows) {
+            String ten = r.getTenTeam();
+            if (ten == null)
+                continue;
+            String nTen = normalizeTeamKey(ten);
+            if (nTen != null && nName != null && (nTen.startsWith(nName) || nName.startsWith(nTen)))
+                return ten;
+        }
+
+        return null;
+    }
+
     /**
      * Copy link nhập PIN vào clipboard
      */
@@ -2557,7 +2857,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     }
 
     /**
-     * Lấy tên CLB theo ID_CLB của ĐỘI (DangKiDoi.idCauLacBo).
+     * Lấy tên CLB theo ID_CLB của ĐỘI (DangKiDoi.IdClb).
      * Trả về chuỗi rỗng nếu không có hoặc không tìm thấy.
      */
     private String getClubNameById(Integer idClb) {
@@ -2632,14 +2932,14 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     /**
      * Xác định tên CLB cho một đội đôi:
-     * - Ưu tiên CLB gắn với đội (DangKiDoi.idCauLacBo)
+     * - Ưu tiên CLB gắn với đội (DangKiDoi.IdClb)
      * - Nếu trống, thử lấy CLB của VĐV trong đội:
      * + Nếu cả 2 cùng CLB: trả về tên CLB đó
      * + Nếu khác nhau: ghép "CLB1 / CLB2" (bỏ trùng, bỏ rỗng)
      */
     private String resolveClubForTeam(DangKiDoi team, VanDongVien[] players) {
         if (team != null) {
-            String teamClub = getClubNameById(team.getIdCauLacBo());
+            String teamClub = getClubNameById(team.getIdClb());
             if (teamClub != null && !teamClub.isBlank())
                 return teamClub;
         }
@@ -2776,7 +3076,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     Integer winnerClb = null;
                     try {
                         DangKiDoi teamWinner = (winnerSide == 0 ? teamA : teamB);
-                        winnerClb = (teamWinner != null) ? teamWinner.getIdCauLacBo() : null;
+                        winnerClb = (teamWinner != null) ? teamWinner.getIdClb() : null;
                         if ((winnerClb == null || winnerClb <= 0) && winnerTeamName != null
                                 && !winnerTeamName.isBlank()) {
                             DoiService ds = new DoiService(conn);

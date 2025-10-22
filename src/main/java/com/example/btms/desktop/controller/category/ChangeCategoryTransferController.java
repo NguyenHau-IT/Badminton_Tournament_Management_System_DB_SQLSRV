@@ -101,8 +101,8 @@ public class ChangeCategoryTransferController {
                         String clbName = "";
                         try {
                             var teamFull = doiService.getTeam(Objects.requireNonNull(t.getIdTeam()));
-                            if (teamFull.getIdCauLacBo() != null) {
-                                var clb = clbService.findOne(teamFull.getIdCauLacBo());
+                            if (teamFull.getIdClb() != null) {
+                                var clb = clbService.findOne(teamFull.getIdClb());
                                 clbName = (clb != null) ? clb.getTenClb() : "";
                             }
                         } catch (Exception ignore) {

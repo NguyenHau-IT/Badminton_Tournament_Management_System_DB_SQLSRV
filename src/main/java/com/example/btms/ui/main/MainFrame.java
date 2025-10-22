@@ -102,11 +102,15 @@ import com.example.btms.ui.player.DangKyCaNhanPanel;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.report.BaoCaoPdfPanel;
 import com.example.btms.ui.result.BienBanPanel;
+import com.example.btms.ui.result.BienBanFrame;
 import com.example.btms.ui.result.TongSapHuyChuongPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;
 import com.example.btms.ui.team.DangKyDoiPanel;
 import com.example.btms.ui.tournament.TournamentManagementComponent;
+import com.example.btms.ui.welcome.AdminWelcomePanel;
+import com.example.btms.ui.welcome.MatchWelcomePanel;
+import com.example.btms.ui.help.QuickGuidePanel;
 import com.example.btms.util.report.RegistrationPdfExporter;
 import com.example.btms.util.ui.IconUtil;
 import com.example.btms.util.ui.Ui;
@@ -144,8 +148,9 @@ public class MainFrame extends JFrame {
     private SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
     // Trang báo cáo PDF tổng hợp
     private BaoCaoPdfPanel baoCaoPdfPanel;
-    // Trang biên bản (kết quả dạng log set/điểm)
-    private BienBanPanel bienBanPanel;
+    // Trang biên bản: dùng cửa sổ riêng
+    private BienBanPanel bienBanPanel; // giữ tương thích nhưng không nhúng vào CardLayout
+    private javax.swing.JFrame bienBanWindow;
     // Unified window manager thay thế BracketWindowManager và PlayWindowManager
     private final UnifiedWindowManager windowManager = new UnifiedWindowManager();
 
@@ -164,6 +169,9 @@ public class MainFrame extends JFrame {
     // Dùng JPanel thay cho JFrame để nhúng vào MainFrame
     private final TournamentManagementComponent tournamentTabPanel = new TournamentManagementComponent(service, false); // full
     private GiaiDau selectedGiaiDau; // giải đấu đã chọn sau đăng nhập
+    private final AdminWelcomePanel adminWelcome = new AdminWelcomePanel();
+    private final MatchWelcomePanel matchWelcome = new MatchWelcomePanel();
+    private final QuickGuidePanel quickGuide = new QuickGuidePanel();
 
     private AuthService authService;
     private ContentParticipantsController contentParticipantsController; // initialized after connection
@@ -243,6 +251,13 @@ public class MainFrame extends JFrame {
         // Khởi tạo trang cài đặt sớm để luôn truy cập được
         settingsPanel = new SettingsPanel(this);
         ensureViewPresent("Cài đặt", settingsPanel);
+        // Hướng dẫn nhanh: có thể xem ngay cả trước khi đăng nhập
+        ensureViewPresent("Hướng dẫn nhanh", quickGuide);
+        // Liên kết nút "Hướng dẫn nhanh" trên màn hình chào mừng ADMIN
+        try {
+            adminWelcome.setOnOpenGuide(e -> showView("Hướng dẫn nhanh"));
+        } catch (Exception ignore) {
+        }
         // Chưa hiển thị view nào cho đến khi đăng nhập và chọn giải
 
         // Không add headerBar nữa
@@ -815,8 +830,8 @@ public class MainFrame extends JFrame {
             } catch (Throwable ignore) {
             }
             try {
-                bienBanPanel = new BienBanPanel(conn);
-                ensureViewPresent("Trang biên bản", bienBanPanel);
+                // Biên bản sẽ được mở ở cửa sổ riêng khi cần, không nhúng vào CardLayout
+                bienBanPanel = null;
             } catch (Throwable ignore) {
             }
 
@@ -848,10 +863,18 @@ public class MainFrame extends JFrame {
         }
         selectedGiaiDau = gd;
         try {
-            new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
+            new Prefs().putInt("selectedGiaiDauId", gd.getId());
             if (gd.getTenGiai() != null) {
-                new com.example.btms.config.Prefs().put("selectedGiaiDauName", gd.getTenGiai());
+                new Prefs().put("selectedGiaiDauName", gd.getTenGiai());
             }
+        } catch (Exception ignore) {
+        }
+
+        // Cập nhật tiêu đề trang chào mừng theo giải
+        try {
+            String name = gd.getTenGiai();
+            adminWelcome.setTournamentName(name);
+            matchWelcome.setTournamentName(name);
         } catch (Exception ignore) {
         }
 
@@ -859,7 +882,14 @@ public class MainFrame extends JFrame {
         registerViewsForCurrentRole();
         buildMenuBar();
         rebuildNavigationTree();
-        showView("Giải đấu");
+        // Mặc định mở trang theo mode
+        if (currentRole == Role.ADMIN) {
+            ensureViewPresent("Chào mừng (ADMINISTRATOR)", adminWelcome);
+            showView("Chào mừng (ADMINISTRATOR)");
+        } else {
+            ensureViewPresent("Chào mừng (MATCH)", matchWelcome);
+            showView("Chào mừng (MATCH)");
+        }
         // 3) Làm mới toàn bộ để các panel nạp lại theo giải vừa chọn
         refreshApplicationData();
 
@@ -945,9 +975,7 @@ public class MainFrame extends JFrame {
             // Nếu chưa chọn giải -> chỉ hiện chọn giải và cài đặt
             if (selectedGiaiDau == null) {
                 JMenu mManage = new JMenu("Quản lý");
-                if (currentRole == Role.ADMIN) {
-                    mManage.add(menuSelectTournament());
-                }
+                mManage.add(menuSelectTournament());
                 mb.add(mManage);
 
                 JMenu mOther = new JMenu("Khác");
@@ -957,9 +985,7 @@ public class MainFrame extends JFrame {
                 JMenu mManage = new JMenu("Quản lý");
                 if (currentRole == Role.ADMIN) {
                     mManage.add(menuSelectTournament());
-                }
-                mManage.add(menuItem("Giải đấu"));
-                if (currentRole == Role.ADMIN) {
+                    mManage.add(menuItem("Giải đấu"));
                     mManage.add(menuItem("Nội dung"));
                     mManage.add(menuItem("Câu lạc bộ"));
                     mManage.add(menuItem("Vận động viên"));
@@ -968,6 +994,13 @@ public class MainFrame extends JFrame {
                     mManage.add(menuItem("Đăng ký cá nhân"));
                     mManage.add(menuItem("Danh sách đăng kí"));
                     // Báo cáo PDF tổng hợp
+                    mManage.add(menuItem("Báo cáo (PDF)"));
+                } else {
+                    // MATCH mode: chức năng xem
+                    mManage.add(menuSelectTournament());
+                    mManage.add(menuItem("Sơ đồ thi đấu"));
+                    mManage.add(menuItem("Kết quả đã thi đấu"));
+                    mManage.add(menuItem("Tổng sắp huy chương"));
                     mManage.add(menuItem("Báo cáo (PDF)"));
                 }
                 mb.add(mManage);
@@ -980,17 +1013,15 @@ public class MainFrame extends JFrame {
                         miThiDau.setEnabled(false);
                     }
                     mPlay.add(miThiDau);
-                } else {
-                    JMenuItem miNhieuSan = new JMenuItem("Nhiều sân");
-                    miNhieuSan.addActionListener(e -> openThiDauWindow());
-                    if (!views.containsKey("Nhiều sân")) {
-                        miNhieuSan.setEnabled(false);
-                    }
-                    mPlay.add(miNhieuSan);
-                }
-                mPlay.add(menuItem("Giám sát"));
-                if (currentRole == Role.ADMIN) {
+                    mPlay.add(menuItem("Giám sát"));
                     mPlay.add(menuItem("Kết quả đã thi đấu"));
+                    // Mở Trang biên bản ở cửa sổ riêng
+                    JMenuItem miBienBan = new JMenuItem("Trang biên bản...");
+                    miBienBan.addActionListener(e -> openBienBanWindow());
+                    mPlay.add(miBienBan);
+                } else {
+                    // MATCH mode: chỉ cần Giám sát
+                    mPlay.add(menuItem("Giám sát"));
                 }
                 mb.add(mPlay);
 
@@ -1002,36 +1033,38 @@ public class MainFrame extends JFrame {
                     JMenuItem miSystemLogs = new JMenuItem("System Logs");
                     miSystemLogs.addActionListener(e -> openSystemLogsViewer());
                     mOther.add(miSystemLogs);
+                    // Backup DB tool (admin only)
+                    JMenuItem miBackup = new JMenuItem("Sao lưu CSDL...");
+                    miBackup.addActionListener(e -> {
+                        Connection c = null;
+                        try {
+                            c = (service != null) ? service.current() : null;
+                        } catch (Throwable ignore) {
+                        }
+                        if (c == null) {
+                            JOptionPane.showMessageDialog(this, "Chưa kết nối CSDL.", "Thông báo",
+                                    JOptionPane.INFORMATION_MESSAGE);
+                            return;
+                        }
+                        try {
+                            com.example.btms.ui.tools.DbBackupFrame f = new com.example.btms.ui.tools.DbBackupFrame(c);
+                            f.setVisible(true);
+                        } catch (Throwable ex) {
+                            JOptionPane.showMessageDialog(this, "Không mở được cửa sổ sao lưu: " + ex.getMessage(),
+                                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    mOther.add(miBackup);
                 }
+                mOther.add(menuItem("Hướng dẫn nhanh"));
                 mOther.add(menuItem("Cài đặt"));
-                // Backup DB tool
-                JMenuItem miBackup = new JMenuItem("Sao lưu CSDL...");
-                miBackup.addActionListener(e -> {
-                    Connection c = null;
-                    try {
-                        c = (service != null) ? service.current() : null;
-                    } catch (Throwable ignore) {
-                    }
-                    if (c == null) {
-                        JOptionPane.showMessageDialog(this, "Chưa kết nối CSDL.", "Thông báo",
-                                JOptionPane.INFORMATION_MESSAGE);
-                        return;
-                    }
-                    try {
-                        com.example.btms.ui.tools.DbBackupFrame f = new com.example.btms.ui.tools.DbBackupFrame(c);
-                        f.setVisible(true);
-                    } catch (Throwable ex) {
-                        JOptionPane.showMessageDialog(this, "Không mở được cửa sổ sao lưu: " + ex.getMessage(),
-                                "Lỗi", JOptionPane.ERROR_MESSAGE);
-                    }
-                });
-                mOther.add(miBackup);
                 mb.add(mOther);
             }
         }
         // Nếu chưa đăng nhập vẫn có truy cập Cài đặt (ví dụ đổi theme trước khi login)
         if (currentRole == null) {
             JMenu mOther = new JMenu("Khác");
+            mOther.add(menuItem("Hướng dẫn nhanh"));
             mOther.add(menuItem("Cài đặt"));
             mb.add(mOther);
         }
@@ -1176,6 +1209,14 @@ public class MainFrame extends JFrame {
         } catch (Exception ignore) {
         }
 
+        // Cập nhật tiêu đề trang chào mừng theo giải
+        try {
+            String name = gd.getTenGiai();
+            adminWelcome.setTournamentName(name);
+            matchWelcome.setTournamentName(name);
+        } catch (Exception ignore) {
+        }
+
         // 3) Load tất cả dữ liệu còn lại sau khi chọn giải
         System.out.println("DEBUG: Starting data initialization after tournament selection");
         try {
@@ -1205,7 +1246,14 @@ public class MainFrame extends JFrame {
         registerViewsForCurrentRole();
         buildMenuBar();
         rebuildNavigationTree();
-        showView("Giải đấu");
+        // Mặc định mở trang theo mode
+        if (currentRole == Role.ADMIN) {
+            ensureViewPresent("Chào mừng (ADMINISTRATOR)", adminWelcome);
+            showView("Chào mừng (ADMINISTRATOR)");
+        } else {
+            ensureViewPresent("Chào mừng (MATCH)", matchWelcome);
+            showView("Chào mừng (MATCH)");
+        }
         // Làm mới toàn bộ để các panel nạp lại theo giải vừa chọn
         refreshApplicationData();
 
@@ -1234,6 +1282,7 @@ public class MainFrame extends JFrame {
 
     private void registerViewsForCurrentRole() {
         if (currentRole == Role.ADMIN) {
+            ensureViewPresent("Chào mừng (ADMINISTRATOR)", adminWelcome);
             ensureViewPresent("Giải đấu", tournamentTabPanel);
             ensureViewPresent("Nội dung", noiDungPanel);
             ensureViewPresent("Câu lạc bộ", cauLacBoPanel);
@@ -1247,19 +1296,25 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Thi đấu", multiCourtPanel);
             ensureViewPresent("Giám sát", monitorTab);
             ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
-            if (bienBanPanel != null) {
-                ensureViewPresent("Trang biên bản", bienBanPanel);
-            }
+            // Trang biên bản dùng cửa sổ riêng, không nhúng vào CardLayout
             ensureViewPresent("Logs", logTab);
             ensureViewPresent("Cài đặt", settingsPanel);
             if (baoCaoPdfPanel != null) {
                 ensureViewPresent("Báo cáo (PDF)", baoCaoPdfPanel);
             }
         } else {
-            ensureViewPresent("Giải đấu", tournamentTabPanel);
-            ensureViewPresent("Nhiều sân", multiCourtPanel);
+            // MATCH mode: Welcome + Sơ đồ thi đấu, Giám sát và Kết quả
+            ensureViewPresent("Chào mừng (MATCH)", matchWelcome);
+            ensureViewPresent("Sơ đồ thi đấu", soDoThiDauPanel);
             ensureViewPresent("Giám sát", monitorTab);
-            ensureViewPresent("Cài đặt", settingsPanel);
+            ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
+            // Các trang tổng sắp và báo cáo (nếu đã được tạo)
+            if (views.containsKey("Tổng sắp huy chương")) {
+                ensureViewPresent("Tổng sắp huy chương", views.get("Tổng sắp huy chương"));
+            }
+            if (baoCaoPdfPanel != null) {
+                ensureViewPresent("Báo cáo (PDF)", baoCaoPdfPanel);
+            }
         }
     }
 
@@ -1270,10 +1325,17 @@ public class MainFrame extends JFrame {
             if (gd != null) {
                 selectedGiaiDau = gd;
                 try {
-                    new com.example.btms.config.Prefs().putInt("selectedGiaiDauId", gd.getId());
+                    new Prefs().putInt("selectedGiaiDauId", gd.getId());
                     if (gd.getTenGiai() != null) {
-                        new com.example.btms.config.Prefs().put("selectedGiaiDauName", gd.getTenGiai());
+                        new Prefs().put("selectedGiaiDauName", gd.getTenGiai());
                     }
+                } catch (Exception ignore) {
+                }
+                // Cập nhật tiêu đề trang chào mừng theo giải
+                try {
+                    String name = gd.getTenGiai();
+                    adminWelcome.setTournamentName(name);
+                    matchWelcome.setTournamentName(name);
                 } catch (Exception ignore) {
                 }
                 // Đóng cửa sổ Sơ đồ thi đấu (nếu đang mở) để lần mở sau build tabs theo giải
@@ -2173,7 +2235,7 @@ public class MainFrame extends JFrame {
             java.util.List<com.example.btms.model.draw.BocThamDoi> rows = new java.util.ArrayList<>();
             for (int i = 0; i < teams.size(); i++) {
                 var t = teams.get(i);
-                Integer idClb = t.getIdCauLacBo();
+                Integer idClb = t.getIdClb();
                 rows.add(new com.example.btms.model.draw.BocThamDoi(idGiai, idNoiDung,
                         idClb == null ? 0 : idClb, t.getTenTeam(), i, 1));
             }
@@ -2347,103 +2409,159 @@ public class MainFrame extends JFrame {
         } else if (selectedGiaiDau == null) {
             root.add(new DefaultMutableTreeNode("Vui lòng chọn giải đấu"));
         } else {
-            // 1) Nội dung của giải -> expand to all registered categories
-            DefaultMutableTreeNode ndg = new DefaultMutableTreeNode("Nội dung của giải");
-            try {
-                if (service != null && service.current() != null) {
-                    var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
-                    java.util.Map<String, Integer>[] maps = repo.loadCategories();
-                    java.util.Map<String, Integer> singles = maps[0];
-                    java.util.Map<String, Integer> doubles = maps[1];
-                    for (var entry : singles.entrySet()) {
-                        ndg.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
-                    }
-                    for (var entry : doubles.entrySet()) {
-                        ndg.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-            root.add(ndg);
-
-            // 2) Đăng ký thi đấu
-            DefaultMutableTreeNode reg = new DefaultMutableTreeNode("Đăng ký thi đấu");
-            reg.add(new DefaultMutableTreeNode("Đăng ký đội"));
-            reg.add(new DefaultMutableTreeNode("Đăng ký cá nhân"));
-            DefaultMutableTreeNode regList = new DefaultMutableTreeNode("Danh sách đăng kí");
-            try {
-                if (service != null && service.current() != null) {
-                    var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
-                    java.util.Map<String, Integer>[] maps = repo.loadCategories();
-                    java.util.Map<String, Integer> singles = maps[0];
-                    java.util.Map<String, Integer> doubles = maps[1];
-                    for (var entry : singles.entrySet()) {
-                        regList.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
-                    }
-                    for (var entry : doubles.entrySet()) {
-                        regList.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-            reg.add(regList);
-            root.add(reg);
-
-            // 3) Bốc thăm
-            DefaultMutableTreeNode draw = new DefaultMutableTreeNode("Bốc thăm");
-            // Sơ đồ thi đấu + xổ danh sách nội dung của giải
-            DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
-            try {
-                if (service != null && service.current() != null) {
-                    var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
-                    java.util.Map<String, Integer>[] maps = repo.loadCategories();
-                    java.util.Map<String, Integer> singles = maps[0];
-                    java.util.Map<String, Integer> doubles = maps[1];
-
-                    // Chỉ hiển thị các nội dung đã có bốc thăm rồi
-                    Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
-                    int idGiai = (_tmpId != null) ? _tmpId : -1;
-                    var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
-                            service.current(),
-                            new com.example.btms.repository.draw.BocThamDoiRepository(service.current()));
-                    var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
-                            new com.example.btms.repository.draw.BocThamCaNhanRepository(service.current()));
-
-                    // Cá nhân
-                    for (var entry : singles.entrySet()) {
-                        try {
-                            var list = bocThamCaNhanSvc.list(idGiai, entry.getValue());
-                            if (list != null && !list.isEmpty()) {
-                                soDoNode.add(
-                                        new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
-                            }
-                        } catch (Exception ignore2) {
+            if (currentRole == Role.ADMIN) {
+                // 1) Nội dung của giải -> expand to all registered categories
+                DefaultMutableTreeNode ndg = new DefaultMutableTreeNode("Nội dung của giải");
+                try {
+                    if (service != null && service.current() != null) {
+                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer> singles = maps[0];
+                        java.util.Map<String, Integer> doubles = maps[1];
+                        for (var entry : singles.entrySet()) {
+                            ndg.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                        }
+                        for (var entry : doubles.entrySet()) {
+                            ndg.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
                         }
                     }
-                    // Đội/Đôi
-                    for (var entry : doubles.entrySet()) {
-                        try {
-                            var list = bocThamDoiSvc.list(idGiai, entry.getValue());
-                            if (list != null && !list.isEmpty()) {
-                                soDoNode.add(
-                                        new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
-                            }
-                        } catch (Exception ignore2) {
+                } catch (Exception ignored) {
+                }
+                root.add(ndg);
+
+                // 2) Đăng ký thi đấu
+                DefaultMutableTreeNode reg = new DefaultMutableTreeNode("Đăng ký thi đấu");
+                reg.add(new DefaultMutableTreeNode("Đăng ký đội"));
+                reg.add(new DefaultMutableTreeNode("Đăng ký cá nhân"));
+                DefaultMutableTreeNode regList = new DefaultMutableTreeNode("Danh sách đăng kí");
+                try {
+                    if (service != null && service.current() != null) {
+                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer> singles = maps[0];
+                        java.util.Map<String, Integer> doubles = maps[1];
+                        for (var entry : singles.entrySet()) {
+                            regList.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
+                        }
+                        for (var entry : doubles.entrySet()) {
+                            regList.add(new DefaultMutableTreeNode(new ContentNode(entry.getKey(), entry.getValue())));
                         }
                     }
+                } catch (Exception ignored) {
                 }
-            } catch (Exception ignored) {
-            }
-            draw.add(soDoNode);
-            root.add(draw);
+                reg.add(regList);
+                root.add(reg);
 
-            // 4) Kết quả
-            DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
-            result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
-            result.add(new DefaultMutableTreeNode("Trang biên bản"));
-            result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
-            result.add(new DefaultMutableTreeNode("Báo cáo (PDF)"));
-            root.add(result);
+                // 3) Bốc thăm
+                DefaultMutableTreeNode draw = new DefaultMutableTreeNode("Bốc thăm");
+                // Sơ đồ thi đấu + xổ danh sách nội dung của giải
+                DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
+                try {
+                    if (service != null && service.current() != null) {
+                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer> singles = maps[0];
+                        java.util.Map<String, Integer> doubles = maps[1];
+
+                        // Chỉ hiển thị các nội dung đã có bốc thăm rồi
+                        Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
+                        int idGiai = (_tmpId != null) ? _tmpId : -1;
+                        var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
+                                service.current(),
+                                new com.example.btms.repository.draw.BocThamDoiRepository(service.current()));
+                        var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
+                                new com.example.btms.repository.draw.BocThamCaNhanRepository(service.current()));
+
+                        // Cá nhân
+                        for (var entry : singles.entrySet()) {
+                            try {
+                                var list = bocThamCaNhanSvc.list(idGiai, entry.getValue());
+                                if (list != null && !list.isEmpty()) {
+                                    soDoNode.add(
+                                            new DefaultMutableTreeNode(
+                                                    new ContentNode(entry.getKey(), entry.getValue())));
+                                }
+                            } catch (Exception ignore2) {
+                            }
+                        }
+                        // Đội/Đôi
+                        for (var entry : doubles.entrySet()) {
+                            try {
+                                var list = bocThamDoiSvc.list(idGiai, entry.getValue());
+                                if (list != null && !list.isEmpty()) {
+                                    soDoNode.add(
+                                            new DefaultMutableTreeNode(
+                                                    new ContentNode(entry.getKey(), entry.getValue())));
+                                }
+                            } catch (Exception ignore2) {
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+                draw.add(soDoNode);
+                root.add(draw);
+
+                // 4) Kết quả
+                DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
+                result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
+                result.add(new DefaultMutableTreeNode("Trang biên bản"));
+                result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
+                result.add(new DefaultMutableTreeNode("Báo cáo (PDF)"));
+                root.add(result);
+            } else {
+                // Client mode: chỉ hiển thị Sơ đồ thi đấu và Kết quả đã thi đấu
+                // Bốc thăm -> Sơ đồ thi đấu (chỉ những nội dung đã có bốc thăm)
+                DefaultMutableTreeNode draw = new DefaultMutableTreeNode("Bốc thăm");
+                DefaultMutableTreeNode soDoNode = new DefaultMutableTreeNode("Sơ đồ thi đấu");
+                try {
+                    if (service != null && service.current() != null) {
+                        var repo = new com.example.btms.repository.category.NoiDungRepository(service.current());
+                        java.util.Map<String, Integer>[] maps = repo.loadCategories();
+                        java.util.Map<String, Integer> singles = maps[0];
+                        java.util.Map<String, Integer> doubles = maps[1];
+
+                        Integer _tmpId = (selectedGiaiDau != null) ? selectedGiaiDau.getId() : null;
+                        int idGiai = (_tmpId != null) ? _tmpId : -1;
+                        var bocThamDoiSvc = new com.example.btms.service.draw.BocThamDoiService(
+                                service.current(),
+                                new com.example.btms.repository.draw.BocThamDoiRepository(service.current()));
+                        var bocThamCaNhanSvc = new com.example.btms.service.draw.BocThamCaNhanService(
+                                new com.example.btms.repository.draw.BocThamCaNhanRepository(service.current()));
+
+                        for (var entry : singles.entrySet()) {
+                            try {
+                                var list = bocThamCaNhanSvc.list(idGiai, entry.getValue());
+                                if (list != null && !list.isEmpty()) {
+                                    soDoNode.add(new DefaultMutableTreeNode(
+                                            new ContentNode(entry.getKey(), entry.getValue())));
+                                }
+                            } catch (Exception ignore2) {
+                            }
+                        }
+                        for (var entry : doubles.entrySet()) {
+                            try {
+                                var list = bocThamDoiSvc.list(idGiai, entry.getValue());
+                                if (list != null && !list.isEmpty()) {
+                                    soDoNode.add(new DefaultMutableTreeNode(
+                                            new ContentNode(entry.getKey(), entry.getValue())));
+                                }
+                            } catch (Exception ignore2) {
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+                draw.add(soDoNode);
+                root.add(draw);
+
+                // Kết quả -> thêm Tổng sắp và Báo cáo (MATCH mode)
+                DefaultMutableTreeNode result = new DefaultMutableTreeNode("Kết quả");
+                result.add(new DefaultMutableTreeNode("Kết quả đã thi đấu"));
+                result.add(new DefaultMutableTreeNode("Tổng sắp huy chương"));
+                result.add(new DefaultMutableTreeNode("Báo cáo (PDF)"));
+                root.add(result);
+            }
         }
 
         navModel.reload();
@@ -2514,6 +2632,10 @@ public class MainFrame extends JFrame {
                         ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
                     }
                 }
+                if ("Trang biên bản".equals(label)) {
+                    openBienBanWindow();
+                    return;
+                }
                 if (views.containsKey(label)) {
                     showView(label);
                 }
@@ -2582,9 +2704,13 @@ public class MainFrame extends JFrame {
         }
         currentRole = null;
         selectedGiaiDau = null;
-        showView("Cài đặt");
-        buildMenuBar();
-        rebuildNavigationTree();
+        // Ẩn trang chính và hiển thị lại màn hình đăng nhập
+        try {
+            setVisible(false);
+        } catch (Exception ignore) {
+        }
+        // Flow sẽ yêu cầu đăng nhập và chọn giải, sau đó tự hiển thị lại MainFrame
+        forceLoginAndTournamentSelection();
     }
 
     /**
@@ -2799,6 +2925,48 @@ public class MainFrame extends JFrame {
                 currentRole,
                 (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null),
                 multiCourtPanel != null ? multiCourtPanel.getNetworkInterface() : null);
+    }
+
+    /**
+     * Mở "Trang biên bản" ở một cửa sổ riêng. Nếu đã mở, đưa cửa sổ ra trước.
+     */
+    private void openBienBanWindow() {
+        try {
+            Connection c = (service != null) ? service.current() : null;
+            if (c == null) {
+                JOptionPane.showMessageDialog(this, "Chưa kết nối CSDL.", "Thông báo",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            if (bienBanWindow != null && bienBanWindow.isShowing()) {
+                try {
+                    bienBanWindow.toFront();
+                    bienBanWindow.requestFocus();
+                } catch (Exception ignore) {
+                }
+                return;
+            }
+            // Tạo cửa sổ mới
+            BienBanFrame f = new BienBanFrame(c);
+            f.setLocationRelativeTo(this);
+            f.setVisible(true);
+            this.bienBanWindow = f;
+            // Khi đóng cửa sổ, giải phóng tham chiếu
+            f.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosed(java.awt.event.WindowEvent e) {
+                    bienBanWindow = null;
+                }
+
+                @Override
+                public void windowClosing(java.awt.event.WindowEvent e) {
+                    bienBanWindow = null;
+                }
+            });
+        } catch (Throwable ex) {
+            JOptionPane.showMessageDialog(this, "Không mở được Trang biên bản: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /* -------------------- Inline dialogs -------------------- */

@@ -182,8 +182,8 @@ public class ContentParticipantsController {
                         String clbName = "";
                         try {
                             var teamFull = doiService.getTeam(Objects.requireNonNull(t.getIdTeam()));
-                            if (teamFull.getIdCauLacBo() != null) {
-                                var clb = clbService.findOne(teamFull.getIdCauLacBo());
+                            if (teamFull.getIdClb() != null) {
+                                var clb = clbService.findOne(teamFull.getIdClb());
                                 clbName = (clb != null) ? clb.getTenClb() : "";
                             }
                         } catch (Exception ignore) {
@@ -275,7 +275,7 @@ public class ContentParticipantsController {
         String tenTeam = (String) view.getModel().getValueAt(modelRow, 1);
         try {
             var team = doiService.getTeam(idTeam);
-            idClbInit = team.getIdCauLacBo();
+            idClbInit = team.getIdClb();
             if (team.getTenTeam() != null)
                 tenTeam = team.getTenTeam();
         } catch (RuntimeException ex) {
