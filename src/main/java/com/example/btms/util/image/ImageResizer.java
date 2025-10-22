@@ -1,12 +1,16 @@
 package com.example.btms.util.image;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import javax.imageio.ImageIO;
+
+import com.example.btms.util.log.Log;
 
 /**
  * Utility class để resize ảnh sang các kích thước khác nhau
@@ -20,14 +24,16 @@ public class ImageResizer {
     // Các kích thước cần tạo
     private static final int[] SIZES = { 16, 32, 48, 64, 128, 256 };
 
+    private final Log log = new Log();
+
     public static void main(String[] args) {
         try {
             ImageResizer resizer = new ImageResizer();
             resizer.resizeAllImages();
-            System.out.println("Đã resize thành công tất cả ảnh!");
-        } catch (Exception e) {
-            System.err.println("Lỗi khi resize ảnh: " + e.getMessage());
-            e.printStackTrace();
+            resizer.log.logTs("Đã resize thành công tất cả ảnh!");
+        } catch (IOException e) {
+            Log errorLog = new Log();
+            errorLog.logTs("Lỗi khi resize ảnh: %s", e.getMessage());
         }
     }
 

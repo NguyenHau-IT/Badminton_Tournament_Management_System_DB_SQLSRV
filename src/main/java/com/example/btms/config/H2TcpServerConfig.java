@@ -1,5 +1,6 @@
 package com.example.btms.config;
 
+import java.net.ServerSocket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
@@ -286,7 +287,7 @@ public class H2TcpServerConfig {
      * Kiểm tra xem port có đang được sử dụng không.
      */
     private boolean isPortInUse(int port) {
-        try (java.net.ServerSocket socket = new java.net.ServerSocket(port)) {
+        try (ServerSocket socket = new ServerSocket(port)) {
             return false; // Port available
         } catch (java.io.IOException e) {
             return true; // Port in use
