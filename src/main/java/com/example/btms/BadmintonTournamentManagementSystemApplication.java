@@ -77,16 +77,17 @@ public class BadmintonTournamentManagementSystemApplication {
 					p.put("net.ifName", cfg.ifName());
 					p.put("ui.network.ifName", cfg.ifName());
 				}
-			} catch (Throwable ignore) {
-			}
 
-			// Khởi động H2 TCP Server với IP đã chọn
-			try {
-				h2TcpServerConfig.startTcpServer(cfg);
-				log.logTs("✅ H2 TCP Server đã khởi động với IP: %s", cfg.ipv4Address());
-				h2TcpServerConfig.showConnectionInfo();
-			} catch (SQLException e) {
-				log.logTs("❌ Không thể khởi động H2 TCP Server: %s", e.getMessage());
+				// Khởi động H2 TCP Server với IP đã chọn
+				try {
+					h2TcpServerConfig.startTcpServer(cfg);
+					log.logTs("✅ H2 TCP Server đã khởi động với IP: %s", cfg.ipv4Address());
+					h2TcpServerConfig.showConnectionInfo();
+				} catch (SQLException e) {
+					log.logTs("❌ Không thể khởi động H2 TCP Server: %s", e.getMessage());
+				}
+
+			} catch (Throwable ignore) {
 			}
 
 			// Tạo MainFrame nhưng KHÔNG hiển thị; MainFrame sẽ tự hiển thị sau khi
