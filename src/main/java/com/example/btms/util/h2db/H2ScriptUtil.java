@@ -11,6 +11,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import com.example.btms.util.log.Log;
+
 /**
  * Tiện ích khởi tạo cơ sở dữ liệu H2 từ script SQL Server
  * Dùng cho file DB cục bộ, không cần MODE=MSSQLServer
@@ -183,7 +185,10 @@ public class H2ScriptUtil {
      * Helper method to log messages to both console and callback
      */
     private static void logMessage(LogCallback logger, String message) {
-        System.out.println(message);
+        // Use Log utility instead of System.out.println
+        Log log = new Log();
+        log.logTs("[H2-SCRIPT] %s", message);
+
         if (logger != null) {
             logger.log(message);
         }
