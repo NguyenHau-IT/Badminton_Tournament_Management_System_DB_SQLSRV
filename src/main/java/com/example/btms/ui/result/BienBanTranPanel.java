@@ -55,6 +55,7 @@ public class BienBanTranPanel extends JPanel {
     private final JLabel lblTitle = new JLabel("Biên bản trận");
     private final JLabel lblInfo = new JLabel();
     private final JButton btnRefresh = new JButton("Làm mới");
+    private final JButton btnToggleMode = new JButton("Chế độ: Xem");
     private final JButton btnExportPdf = new JButton("Xuất PDF (Dọc)");
     private final JButton btnExportPdfLandscape = new JButton("Xuất PDF (Ngang)");
 
@@ -63,6 +64,7 @@ public class BienBanTranPanel extends JPanel {
     // DateTimeFormatter hiện không dùng trong chế độ bảng
 
     private String currentMatchId;
+    private boolean editMode = false; // false: Xem, true: Sửa
 
     public BienBanTranPanel(Connection conn, String matchId) {
         Objects.requireNonNull(conn);
@@ -84,6 +86,13 @@ public class BienBanTranPanel extends JPanel {
         btnRefresh.addActionListener(e -> reload());
         top.add(new JLabel("|"));
         top.add(btnRefresh);
+        top.add(new JLabel("|"));
+        btnToggleMode.addActionListener(e -> {
+            editMode = !editMode;
+            btnToggleMode.setText(editMode ? "Chế độ: Sửa" : "Chế độ: Xem");
+            reload();
+        });
+        top.add(btnToggleMode);
         top.add(new JLabel("|"));
         btnExportPdf.addActionListener(e -> exportToPdf(false));
         top.add(btnExportPdf);
@@ -149,6 +158,9 @@ public class BienBanTranPanel extends JPanel {
         for (ChiTietVan v : sets) {
             JPanel panel = createSetTablePanel(v);
             setsContainer.add(panel);
+            if (editMode) {
+                setsContainer.add(createTokenEditorPanel(v));
+            }
             setsContainer.add(Box.createVerticalStrut(8));
         }
         setsContainer.revalidate();
@@ -222,9 +234,8 @@ public class BienBanTranPanel extends JPanel {
 
         if (!hasScoreEvent) {
             JTable emptyTable = buildEmptyTable(headers, rows);
-            JScrollPane sp = wrapWithRowHeader(emptyTable, rowHeaders, isSingles);
-            setPreferredSizeFor(sp, emptyTable, 36);
-            wrapper.add(sp);
+            JPanel panelNoScroll = wrapWithRowHeader(emptyTable, rowHeaders, isSingles, 36);
+            wrapper.add(panelNoScroll);
             return wrapper;
         }
 
@@ -297,9 +308,8 @@ public class BienBanTranPanel extends JPanel {
             lastModel = model;
             lastCol = col;
 
-            JScrollPane sp = wrapWithRowHeader(table, rowHeaders, isSingles);
-            setPreferredSizeFor(sp, table, colWidth);
-            wrapper.add(sp);
+            JPanel panelNoScroll = wrapWithRowHeader(table, rowHeaders, isSingles, colWidth);
+            wrapper.add(panelNoScroll);
             wrapper.add(Box.createVerticalStrut(6));
         }
 
@@ -327,9 +337,8 @@ public class BienBanTranPanel extends JPanel {
                     table.getColumnModel().getColumn(i).setPreferredWidth(colWidth);
                     table.getColumnModel().getColumn(i).setMinWidth(colWidth);
                 }
-                JScrollPane sp = wrapWithRowHeader(table, rowHeaders, isSingles);
-                setPreferredSizeFor(sp, table, colWidth);
-                wrapper.add(sp);
+                JPanel panelNoScroll = wrapWithRowHeader(table, rowHeaders, isSingles, colWidth);
+                wrapper.add(panelNoScroll);
                 wrapper.add(Box.createVerticalStrut(6));
                 lastModel = model;
                 targetCol = 2; // để 2 cột trống đầu trang mới
@@ -340,6 +349,135 @@ public class BienBanTranPanel extends JPanel {
         }
 
         return wrapper;
+    }
+
+    /**
+     * Panel chỉnh sửa token cho một set: xem/xóa/thêm P1/P2/SWAP và lưu ngay.
+     */
+    private JPanel createTokenEditorPanel(ChiTietVan v) {
+        JPanel editor = new JPanel(new BorderLayout(6, 6));
+        editor.setBorder(BorderFactory.createTitledBorder("Chỉnh sửa token (Set " + v.getSetNo() + ")"));
+
+        // Model token
+        javax.swing.DefaultListModel<String> model = new javax.swing.DefaultListModel<>();
+        List<String> toks = parseTokens(v.getDauThoiGian());
+        for (String t : toks)
+            model.addElement(t);
+
+        // Danh sách token
+        JList<String> list = new JList<>(model);
+        list.setVisibleRowCount(6);
+        JScrollPane sp = new JScrollPane(list);
+        editor.add(sp, BorderLayout.CENTER);
+
+        // Nút thao tác
+        JPanel btns = new JPanel();
+        btns.setLayout(new BoxLayout(btns, BoxLayout.Y_AXIS));
+        JButton addA = new JButton("+1 A");
+        JButton addB = new JButton("+1 B");
+        JButton addSwap = new JButton("Thêm SWAP");
+        JButton del = new JButton("Xóa đã chọn");
+        addSwap.setEnabled(v.getSetNo() != null && v.getSetNo() == 2); // SWAP chỉ áp dụng ý nghĩa ở set 2
+
+        addA.addActionListener(e -> {
+            model.addElement("P1@" + System.currentTimeMillis());
+            saveTokensForSet(v.getIdTranDau(), v.getSetNo(), listModelToTokens(model));
+        });
+        addB.addActionListener(e -> {
+            model.addElement("P2@" + System.currentTimeMillis());
+            saveTokensForSet(v.getIdTranDau(), v.getSetNo(), listModelToTokens(model));
+        });
+        addSwap.addActionListener(e -> {
+            model.addElement("SWAP@" + System.currentTimeMillis());
+            saveTokensForSet(v.getIdTranDau(), v.getSetNo(), listModelToTokens(model));
+        });
+        del.addActionListener(e -> {
+            int[] sel = list.getSelectedIndices();
+            if (sel == null || sel.length == 0)
+                return;
+            // Không cho xóa hết để tránh DAU_THOI_GIAN rỗng (service không cho phép)
+            if (sel.length >= model.size()) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Không thể xóa hết tất cả token. Hãy giữ lại ít nhất 1 token hoặc thêm token mới trước.",
+                        "Xóa token", javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            // Xóa từ cuối để không lệch index
+            for (int i = sel.length - 1; i >= 0; i--)
+                model.removeElementAt(sel[i]);
+            saveTokensForSet(v.getIdTranDau(), v.getSetNo(), listModelToTokens(model));
+        });
+
+        for (JButton b : new JButton[] { addA, addB, addSwap, del }) {
+            b.setAlignmentX(LEFT_ALIGNMENT);
+            btns.add(b);
+            btns.add(Box.createVerticalStrut(6));
+        }
+        editor.add(btns, BorderLayout.EAST);
+
+        return editor;
+    }
+
+    private static List<String> parseTokens(String raw) {
+        List<String> out = new ArrayList<>();
+        if (raw == null || raw.isBlank())
+            return out;
+        String[] parts = raw.split(";");
+        for (String s : parts) {
+            String t = s.trim();
+            if (t.isEmpty())
+                continue;
+            // Chỉ chấp nhận 3 loại token
+            if (t.startsWith("P1@") || t.startsWith("P2@") || t.startsWith("SWAP@")) {
+                out.add(t);
+            }
+        }
+        return out;
+    }
+
+    private static List<String> listModelToTokens(javax.swing.DefaultListModel<String> m) {
+        List<String> out = new ArrayList<>();
+        for (int i = 0; i < m.size(); i++)
+            out.add(m.get(i));
+        return out;
+    }
+
+    private void saveTokensForSet(String matchId, Integer setNo, List<String> tokens) {
+        if (matchId == null || setNo == null)
+            return;
+        try {
+            if (tokens == null || tokens.isEmpty()) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                        "Danh sách token trống. Hãy thêm P1/P2 hoặc SWAP.",
+                        "Lưu token", javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int[] totals = computeTotals(tokens);
+            String dau = String.join("; ", tokens);
+            vanService.update(matchId, setNo, totals[0], totals[1], dau);
+            // Sau khi lưu, reload để cập nhật bảng hiển thị
+            reload();
+        } catch (Exception ex) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Lỗi lưu token: " + ex.getMessage(),
+                    "Lưu token", javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private static int[] computeTotals(List<String> tokens) {
+        int a = 0, b = 0;
+        if (tokens == null)
+            return new int[] { 0, 0 };
+        for (String t : tokens) {
+            if (t == null)
+                continue;
+            String s = t.trim();
+            if (s.startsWith("P1@"))
+                a++;
+            else if (s.startsWith("P2@"))
+                b++;
+        }
+        return new int[] { a, b };
     }
 
     private static JTable buildEmptyTable(String[] headers, int rows) {
@@ -366,32 +504,66 @@ public class BienBanTranPanel extends JPanel {
         return table;
     }
 
-    private static JScrollPane wrapWithRowHeader(JTable table, String[] rowHeaders, boolean isSingles) {
+    private static JPanel wrapWithRowHeader(JTable table, String[] rowHeaders, boolean isSingles, int colWidth) {
+        int rowHeight = table.getRowHeight();
+        int rows = table.getRowCount();
+        int headerWidth = computeHeaderWidth(rowHeaders, table);
+        int tableWidth = table.getColumnCount() * colWidth;
+        int tableHeight = rows * rowHeight;
+
+        // Row header list
         JList<String> rowHeader = new JList<>(rowHeaders);
-        rowHeader.setFixedCellWidth(140);
-        rowHeader.setFixedCellHeight(table.getRowHeight());
+        rowHeader.setFixedCellWidth(headerWidth);
+        rowHeader.setFixedCellHeight(rowHeight);
         rowHeader.setCellRenderer((list, value, index, isSelected, cellHasFocus) -> {
             JLabel l = new JLabel(value == null ? "" : value);
             l.setHorizontalAlignment(JLabel.CENTER);
             l.setVerticalAlignment(JLabel.CENTER);
             l.setOpaque(true);
-            int bottom = 1; // giữ đường kẻ cho mọi hàng; với nội dung đơn giờ chỉ còn 2 hàng nên không cần
-                            // gộp
+            int bottom = 1;
             l.setBorder(BorderFactory.createMatteBorder(0, 0, bottom, 1, table.getGridColor()));
             l.setToolTipText(value);
             return l;
         });
         rowHeader.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        rowHeader.setPreferredSize(new Dimension(headerWidth, tableHeight));
 
-        JScrollPane sp = new JScrollPane(table);
-        sp.setRowHeaderView(rowHeader);
-        return sp;
+        // Ensure the JTable sizes to show all content (no inner scrollbars)
+        table.setPreferredSize(new Dimension(tableWidth, tableHeight));
+
+        JPanel container = new JPanel(new BorderLayout());
+        container.add(rowHeader, BorderLayout.WEST);
+        container.add(table, BorderLayout.CENTER);
+        container.setPreferredSize(new Dimension(headerWidth + tableWidth, tableHeight + 2));
+        return container;
     }
 
-    private static void setPreferredSizeFor(JScrollPane sp, JTable table, int colWidth) {
-        sp.setPreferredSize(new Dimension(
-                Math.min(31 * colWidth + 64, 1100),
-                table.getRowCount() * table.getRowHeight() + table.getTableHeader().getPreferredSize().height + 6));
+    /**
+     * Tính chiều rộng cột tiêu đề hàng (tên VĐV/đội) theo độ dài chuỗi và font hiện
+     * tại,
+     * có giới hạn min/max để giao diện ổn định.
+     */
+    private static int computeHeaderWidth(String[] rowHeaders, JTable table) {
+        int min = 160; // rộng hơn mặc định để tên dài đỡ bị cắt
+        int max = 360; // tránh quá rộng chiếm chỗ cột điểm
+        int pad = 40; // đệm cho khoảng cách/tràn viền
+        int w = min;
+        try {
+            java.awt.FontMetrics fm = table.getFontMetrics(table.getFont());
+            if (rowHeaders != null && fm != null) {
+                for (String s : rowHeaders) {
+                    if (s == null)
+                        s = "";
+                    w = Math.max(w, fm.stringWidth(s) + pad);
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        if (w < min)
+            w = min;
+        if (w > max)
+            w = max;
+        return w;
     }
 
     private MatchSummary findSummaryByMatchId(String id) {
