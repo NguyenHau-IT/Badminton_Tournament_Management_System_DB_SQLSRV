@@ -1406,6 +1406,17 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
+                        // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
+                        try {
+                            boolean reset = maybePromptResetExistingMatch(currentMatchId, header, true, fullNameA,
+                                    fullNameB);
+                            if (reset) {
+                                // Lần +1 đầu tiên sau khi đặt lại phải ghi mới
+                                restartSetPending = true;
+                            }
+                        } catch (Exception exPrompt) {
+                            logger.logTs("Lỗi khi xác nhận đặt lại trận có sẵn: %s", exPrompt.getMessage());
+                        }
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
@@ -1462,6 +1473,16 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                     if (existing != null && !existing.isBlank()) {
                         currentMatchId = existing;
                         logger.logTs("Dùng lại ID_TRẬN đã có: %s", currentMatchId);
+                        // Hỏi người dùng có muốn đặt lại (xóa chi tiết ván) hay không
+                        try {
+                            boolean reset = maybePromptResetExistingMatch(currentMatchId, header, false, nameA, nameB);
+                            if (reset) {
+                                // Lần +1 đầu tiên sau khi đặt lại phải ghi mới
+                                restartSetPending = true;
+                            }
+                        } catch (Exception exPrompt) {
+                            logger.logTs("Lỗi khi xác nhận đặt lại trận có sẵn: %s", exPrompt.getMessage());
+                        }
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
@@ -1485,6 +1506,108 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
             logger.startSingles(header, nameA, idA, nameB, idB, bo);
             updateRemoteLinkUi();
         }
+    }
+
+    /**
+     * Khi phát hiện trận đã có sẵn ID trong sơ đồ/DB, hiển thị thông tin và hỏi
+     * người dùng có muốn ĐẶT LẠI không. Nếu chọn Đặt lại, sẽ xóa toàn bộ bản ghi
+     * CHI_TIET_VAN của trận này để ghi lại từ đầu.
+     *
+     * @param matchId   ID_TRẬN đã tồn tại
+     * @param header    Nội dung đang chọn
+     * @param isDoubles true nếu là ĐÔI, false nếu là ĐƠN
+     * @param nameA     Tên bên A (hiển thị)
+     * @param nameB     Tên bên B (hiển thị)
+     * @return true nếu người dùng chọn Đặt lại (đã xóa chi tiết ván); false nếu giữ
+     *         nguyên
+     */
+    private boolean maybePromptResetExistingMatch(String matchId, String header, boolean isDoubles, String nameA,
+            String nameB) {
+        if (conn == null || matchId == null || matchId.isBlank())
+            return false;
+        try {
+            ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
+            var cur = msvc.get(matchId);
+            ChiTietVanService vs = new ChiTietVanService(new ChiTietVanRepository(conn));
+            List<com.example.btms.model.match.ChiTietVan> sets = vs.listByMatch(matchId);
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("Trận này đã có sẵn trong CSDL.\n\n");
+            sb.append("ID: ").append(matchId).append('\n');
+            sb.append("Nội dung: ").append(header).append(isDoubles ? " (Đôi)" : " (Đơn)").append('\n');
+            sb.append("A: ").append(nameA != null ? nameA : "-").append('\n');
+            sb.append("B: ").append(nameB != null ? nameB : "-").append('\n');
+            try {
+                java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter
+                        .ofPattern("dd/MM/yyyy HH:mm:ss");
+                sb.append("Thể thức: BO").append(cur.getTheThuc() != null ? cur.getTheThuc() : 0);
+                sb.append(", Sân: ").append(cur.getSan() != null ? cur.getSan() : 0).append('\n');
+                sb.append("Bắt đầu: ")
+                        .append(cur.getBatDau() != null ? cur.getBatDau().format(dtf) : "-")
+                        .append("  |  Cập nhật: ")
+                        .append(cur.getKetThuc() != null ? cur.getKetThuc().format(dtf) : "-")
+                        .append('\n');
+            } catch (Exception ignore) {
+            }
+            sb.append("Số chi tiết ván hiện có: ").append(sets != null ? sets.size() : 0).append('\n');
+            // Hiển thị điểm các ván và tỉ số ván thắng tổng
+            if (sets != null && !sets.isEmpty()) {
+                try {
+                    // Sắp xếp theo số ván tăng dần nếu có
+                    sets.sort(java.util.Comparator.comparing(
+                            com.example.btms.model.match.ChiTietVan::getSetNo,
+                            java.util.Comparator.nullsLast(Integer::compareTo)));
+                } catch (Exception ignore) {
+                }
+                int gamesA = 0, gamesB = 0;
+                sb.append("Điểm các ván:\n");
+                for (var v : sets) {
+                    Integer setNo = v.getSetNo();
+                    int d1 = v.getTongDiem1() != null ? v.getTongDiem1() : 0;
+                    int d2 = v.getTongDiem2() != null ? v.getTongDiem2() : 0;
+                    sb.append("  Ván ").append(setNo != null ? setNo : 0).append(": ")
+                            .append(d1).append(" - ").append(d2).append('\n');
+                    if (d1 != d2) {
+                        if (d1 > d2)
+                            gamesA++;
+                        else
+                            gamesB++;
+                    }
+                }
+                sb.append("Ván thắng: ").append(gamesA).append(" - ").append(gamesB).append("\n\n");
+            } else {
+                sb.append('\n');
+            }
+            sb.append(
+                    "Bạn có muốn ĐẶT LẠI trận này?\nChọn 'Có' để xóa toàn bộ chi tiết ván (CHI_TIET_VAN) và ghi lại từ đầu.\nChọn 'Không' để tiếp tục sử dụng dữ liệu hiện có.");
+
+            int ans = JOptionPane.showConfirmDialog(this, sb.toString(),
+                    "Trận đã có ID — đặt lại?", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (ans == JOptionPane.YES_OPTION) {
+                int deleted = 0;
+                if (sets != null) {
+                    for (var v : sets) {
+                        try {
+                            if (v != null && v.getSetNo() != null)
+                                vs.delete(matchId, v.getSetNo());
+                            deleted++;
+                        } catch (Exception ignore) {
+                        }
+                    }
+                }
+                logger.logTs("Đã xóa %d bản ghi CHI_TIET_VAN cho matchId=%s", deleted, matchId);
+                try {
+                    JOptionPane.showMessageDialog(this,
+                            "Đã đặt lại trận. Chi tiết ván đã được xóa (" + deleted + ").\nBạn có thể ghi lại từ đầu.",
+                            "Đặt lại thành công", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ignore) {
+                }
+                return true;
+            }
+        } catch (Exception ex) {
+            logger.logTs("Lỗi khi hiển thị thông tin trận đã có: %s", ex.getMessage());
+        }
+        return false;
     }
 
     /**
