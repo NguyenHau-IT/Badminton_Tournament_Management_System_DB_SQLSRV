@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Dimension;
 import java.awt.Color;
+import java.awt.Graphics2D;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +14,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -53,6 +55,8 @@ public class BienBanTranPanel extends JPanel {
     private final JLabel lblTitle = new JLabel("Biên bản trận");
     private final JLabel lblInfo = new JLabel();
     private final JButton btnRefresh = new JButton("Làm mới");
+    private final JButton btnExportPdf = new JButton("Xuất PDF (Dọc)");
+    private final JButton btnExportPdfLandscape = new JButton("Xuất PDF (Ngang)");
 
     // Container hiển thị các bảng set (mỗi set một bảng 4x31)
     private final JPanel setsContainer = new JPanel();
@@ -80,6 +84,12 @@ public class BienBanTranPanel extends JPanel {
         btnRefresh.addActionListener(e -> reload());
         top.add(new JLabel("|"));
         top.add(btnRefresh);
+        top.add(new JLabel("|"));
+        btnExportPdf.addActionListener(e -> exportToPdf(false));
+        top.add(btnExportPdf);
+        top.add(new JLabel("|"));
+        btnExportPdfLandscape.addActionListener(e -> exportToPdf(true));
+        top.add(btnExportPdfLandscape);
         add(top, BorderLayout.NORTH);
 
         // Khu vực trung tâm: danh sách các bảng theo từng set
@@ -148,10 +158,10 @@ public class BienBanTranPanel extends JPanel {
     // Tạo bảng cho một set. Đôi: 4 hàng (2 trên P1, 2 dưới P2). Đơn: 2 hàng (P1 một
     // hàng, P2 một hàng)
     private JPanel createSetTablePanel(ChiTietVan v) {
-        // Header cột 1..31
+        // Header cột: bỏ đánh số cột → để trống
         String[] headers = new String[31];
         for (int i = 0; i < 31; i++) {
-            headers[i] = String.valueOf(i + 1);
+            headers[i] = "";
         }
 
         // Wrapper chính: có thể chứa nhiều bảng (mỗi bảng 31 cột)
@@ -175,8 +185,12 @@ public class BienBanTranPanel extends JPanel {
             title += " (" + leftScore + " - " + rightScore + ")";
         } catch (Exception ignore) {
         }
-        wrapper.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), title, TitledBorder.LEFT,
-                TitledBorder.TOP));
+        wrapper.setBorder(BorderFactory.createTitledBorder(
+                null, // không có viền
+                title, // tiêu đề
+                TitledBorder.LEFT, // căn trái
+                TitledBorder.TOP // căn trên
+        ));
 
         // Lấy thông tin tên VĐV/đội và loại nội dung (đơn/đôi)
         MatchSummary ms = findSummaryByMatchId(currentMatchId);
@@ -459,6 +473,75 @@ public class BienBanTranPanel extends JPanel {
             this.isSingles = isSingles;
             this.nameA = nameA;
             this.nameB = nameB;
+        }
+    }
+
+    /* =================== PDF EXPORT =================== */
+    private void exportToPdf(boolean landscape) {
+        try {
+            if (setsContainer.getComponentCount() == 0) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Chưa có dữ liệu để xuất PDF.",
+                        "Xuất PDF", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            // Chọn file
+            JFileChooser fc = new JFileChooser();
+            fc.setDialogTitle("Lưu biên bản thành PDF");
+            String suffix = landscape ? "-ngang" : "";
+            fc.setSelectedFile(
+                    new java.io.File(
+                            "bien-ban-" + (currentMatchId != null ? currentMatchId : "match") + suffix + ".pdf"));
+            int ans = fc.showSaveDialog(this);
+            if (ans != JFileChooser.APPROVE_OPTION)
+                return;
+            java.io.File out = fc.getSelectedFile();
+
+            // Đảm bảo layout đầy đủ trước khi chụp
+            setsContainer.revalidate();
+            setsContainer.doLayout();
+            Dimension pref = setsContainer.getPreferredSize();
+            int compW = Math.max(pref.width, setsContainer.getWidth());
+            int compH = pref.height;
+            if (compW <= 0 || compH <= 0) {
+                javax.swing.JOptionPane.showMessageDialog(this, "Không thể render nội dung.",
+                        "Xuất PDF", javax.swing.JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // PDF (A4) bằng OpenPDF
+            com.lowagie.text.Document doc = new com.lowagie.text.Document(
+                    landscape ? com.lowagie.text.PageSize.A4.rotate() : com.lowagie.text.PageSize.A4);
+            com.lowagie.text.pdf.PdfWriter.getInstance(doc, new java.io.FileOutputStream(out));
+            doc.open();
+
+            float pageW = doc.getPageSize().getWidth() - doc.leftMargin() - doc.rightMargin();
+            float pageH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin();
+
+            // Render theo từng lát dọc để tránh ảnh quá cao
+            int slice = Math.min(compH, 1600); // px mỗi trang
+            for (int y = 0; y < compH; y += slice) {
+                int h = Math.min(slice, compH - y);
+                java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(compW, h,
+                        java.awt.image.BufferedImage.TYPE_INT_RGB);
+                Graphics2D g2 = img.createGraphics();
+                g2.setColor(java.awt.Color.WHITE);
+                g2.fillRect(0, 0, compW, h);
+                g2.translate(0, -y);
+                setsContainer.paint(g2);
+                g2.dispose();
+
+                com.lowagie.text.Image pic = com.lowagie.text.Image.getInstance(img, null);
+                pic.scaleToFit(pageW, pageH);
+                doc.add(pic);
+            }
+
+            doc.close();
+            javax.swing.JOptionPane.showMessageDialog(this, "Đã xuất PDF: " + out.getAbsolutePath(),
+                    "Xuất PDF", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Lỗi xuất PDF: " + ex.getMessage(),
+                    "Xuất PDF", javax.swing.JOptionPane.ERROR_MESSAGE);
         }
     }
 }
