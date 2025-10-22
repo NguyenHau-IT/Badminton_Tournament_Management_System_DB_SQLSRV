@@ -105,7 +105,7 @@ public class DoiRepository {
         String clubName = null;
 
         final String sql = "SELECT clb.TEN_CLB FROM DANG_KI_DOI dkd " +
-                "LEFT JOIN dbo.CAU_LAC_BO clb ON clb.ID = dkd.ID_CAU_LAC_BO " +
+                "LEFT JOIN dbo.CAU_LAC_BO clb ON clb.ID = dkd.ID_CLB " +
                 "WHERE dkd.ID_TEAM = ?";
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -133,7 +133,7 @@ public class DoiRepository {
     public int fetchIdClbByTeamName(String teamName, int idNoiDung, int idGiai) {
         int idClb = -1;
 
-        final String sql = "SELECT ID_CAU_LAC_BO FROM DANG_KI_DOI " +
+        final String sql = "SELECT ID_CLB FROM DANG_KI_DOI " +
                 "WHERE TEN_TEAM = ? AND ID_NOI_DUNG = ? AND ID_GIAI = ?";
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -143,13 +143,13 @@ public class DoiRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    idClb = rs.getInt("ID_CAU_LAC_BO");
+                    idClb = rs.getInt("ID_CLB");
                 }
             }
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(
                     null,
-                    "Đọc ID_CAU_LAC_BO theo tên team lỗi: " + ex.getMessage(),
+                    "Đọc ID_CLB theo tên team lỗi: " + ex.getMessage(),
                     "Lỗi DB",
                     JOptionPane.ERROR_MESSAGE);
         }

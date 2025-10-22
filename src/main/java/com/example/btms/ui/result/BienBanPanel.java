@@ -50,6 +50,7 @@ import com.example.btms.service.player.VanDongVienService;
  */
 public class BienBanPanel extends JPanel {
     private final Prefs prefs = new Prefs();
+    private final Connection connection; // lưu lại kết nối để mở cửa sổ chi tiết
     private final NoiDungService noiDungService;
     private final ChiTietTranDauService tranDauService;
     private final ChiTietVanService vanService;
@@ -60,6 +61,7 @@ public class BienBanPanel extends JPanel {
     private final JLabel lblGiai = new JLabel();
     private final JComboBox<Object> cboNoiDung = new JComboBox<>();
     private final JButton btnRefresh = new JButton("Làm mới");
+    private final JButton btnOpenDetail = new JButton("Xem chi tiết...");
     private final javax.swing.JTextField txtSearchId = new javax.swing.JTextField(24);
     private final JButton btnSearchId = new JButton("Tìm ID");
 
@@ -81,6 +83,7 @@ public class BienBanPanel extends JPanel {
 
     public BienBanPanel(Connection conn) {
         Objects.requireNonNull(conn, "Connection null");
+        this.connection = conn;
         this.noiDungService = new NoiDungService(new NoiDungRepository(conn));
         this.tranDauService = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
         this.vanService = new ChiTietVanService(new ChiTietVanRepository(conn));
@@ -119,6 +122,11 @@ public class BienBanPanel extends JPanel {
         // press Enter to search
         txtSearchId.addActionListener(e -> searchByMatchId());
         p.add(btnSearchId);
+
+        // Open per-match window for selected row
+        btnOpenDetail.addActionListener(e -> openSelectedMatchDetailWindow());
+        p.add(new JLabel(" | "));
+        p.add(btnOpenDetail);
         return p;
     }
 
@@ -126,6 +134,15 @@ public class BienBanPanel extends JPanel {
         matchTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         matchTable.setRowHeight(26);
         matchTable.getSelectionModel().addListSelectionListener(this::onMatchSelected);
+        // Double-click to open dedicated match window
+        matchTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    openSelectedMatchDetailWindow();
+                }
+            }
+        });
         JScrollPane left = new JScrollPane(matchTable);
         left.setBorder(BorderFactory.createTitledBorder("Danh sách trận"));
 
@@ -412,6 +429,42 @@ public class BienBanPanel extends JPanel {
             // Not in current list: attempt to load details directly
             loadMatchDetail(key);
         }
+    }
+
+    // Open detail window for the currently selected match
+    private void openSelectedMatchDetailWindow() {
+        int row = matchTable.getSelectedRow();
+        if (row < 0) {
+            return;
+        }
+        String id = String.valueOf(matchModel.getValueAt(row, 5));
+        try {
+            java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+            java.sql.Connection c = (this.connection != null) ? this.connection : resolveConnection(owner);
+            if (c == null) {
+                throw new IllegalStateException("Chưa có kết nối CSDL");
+            }
+            com.example.btms.ui.result.BienBanTranFrame f = new com.example.btms.ui.result.BienBanTranFrame(c, id);
+            if (owner != null) {
+                f.setLocationRelativeTo(owner);
+            }
+            f.setVisible(true);
+        } catch (Throwable ex) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Không mở được biên bản trận: " + String.valueOf(ex.getMessage()),
+                    "Lỗi", javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private java.sql.Connection resolveConnection(java.awt.Window owner) {
+        try {
+            if (owner instanceof com.example.btms.ui.main.MainFrame mf) {
+                return mf.service().current();
+            }
+        } catch (Throwable ignore) {
+        }
+        // As a fallback, return null which will cause the frame to error early
+        return null;
     }
 
     private static String nullToEmpty(String s) {

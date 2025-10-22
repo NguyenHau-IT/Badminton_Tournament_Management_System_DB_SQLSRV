@@ -726,7 +726,7 @@ public class DangKyDoiDialog extends JDialog {
                         return false;
                     }
                     boolean sameName = t.getTenTeam().trim().equalsIgnoreCase(ten);
-                    boolean sameClub = java.util.Objects.equals(t.getIdCauLacBo(), selClbId);
+                    boolean sameClub = java.util.Objects.equals(t.getIdClb(), selClbId);
                     boolean notSelf = (editingTeamId == null)
                             || !java.util.Objects.equals(t.getIdTeam(), editingTeamId);
                     // Chỉ chặn nếu trùng TÊN và cùng CLB trong cùng nội dung của giải

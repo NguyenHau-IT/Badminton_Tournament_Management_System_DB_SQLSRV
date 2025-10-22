@@ -102,6 +102,7 @@ import com.example.btms.ui.player.DangKyCaNhanPanel;
 import com.example.btms.ui.player.VanDongVienManagementPanel;
 import com.example.btms.ui.report.BaoCaoPdfPanel;
 import com.example.btms.ui.result.BienBanPanel;
+import com.example.btms.ui.result.BienBanFrame;
 import com.example.btms.ui.result.TongSapHuyChuongPanel;
 import com.example.btms.ui.screenshot.ScreenshotTab;
 import com.example.btms.ui.settings.SettingsPanel;
@@ -147,8 +148,9 @@ public class MainFrame extends JFrame {
     private SoDoThiDauPanel soDoThiDauPanel; // sơ đồ thi đấu trực quan
     // Trang báo cáo PDF tổng hợp
     private BaoCaoPdfPanel baoCaoPdfPanel;
-    // Trang biên bản (kết quả dạng log set/điểm)
-    private BienBanPanel bienBanPanel;
+    // Trang biên bản: dùng cửa sổ riêng
+    private BienBanPanel bienBanPanel; // giữ tương thích nhưng không nhúng vào CardLayout
+    private javax.swing.JFrame bienBanWindow;
     // Unified window manager thay thế BracketWindowManager và PlayWindowManager
     private final UnifiedWindowManager windowManager = new UnifiedWindowManager();
 
@@ -828,8 +830,8 @@ public class MainFrame extends JFrame {
             } catch (Throwable ignore) {
             }
             try {
-                bienBanPanel = new BienBanPanel(conn);
-                ensureViewPresent("Trang biên bản", bienBanPanel);
+                // Biên bản sẽ được mở ở cửa sổ riêng khi cần, không nhúng vào CardLayout
+                bienBanPanel = null;
             } catch (Throwable ignore) {
             }
 
@@ -1013,6 +1015,10 @@ public class MainFrame extends JFrame {
                     mPlay.add(miThiDau);
                     mPlay.add(menuItem("Giám sát"));
                     mPlay.add(menuItem("Kết quả đã thi đấu"));
+                    // Mở Trang biên bản ở cửa sổ riêng
+                    JMenuItem miBienBan = new JMenuItem("Trang biên bản...");
+                    miBienBan.addActionListener(e -> openBienBanWindow());
+                    mPlay.add(miBienBan);
                 } else {
                     // MATCH mode: chỉ cần Giám sát
                     mPlay.add(menuItem("Giám sát"));
@@ -1290,9 +1296,7 @@ public class MainFrame extends JFrame {
             ensureViewPresent("Thi đấu", multiCourtPanel);
             ensureViewPresent("Giám sát", monitorTab);
             ensureViewPresent("Kết quả đã thi đấu", screenshotTab);
-            if (bienBanPanel != null) {
-                ensureViewPresent("Trang biên bản", bienBanPanel);
-            }
+            // Trang biên bản dùng cửa sổ riêng, không nhúng vào CardLayout
             ensureViewPresent("Logs", logTab);
             ensureViewPresent("Cài đặt", settingsPanel);
             if (baoCaoPdfPanel != null) {
@@ -2231,7 +2235,7 @@ public class MainFrame extends JFrame {
             java.util.List<com.example.btms.model.draw.BocThamDoi> rows = new java.util.ArrayList<>();
             for (int i = 0; i < teams.size(); i++) {
                 var t = teams.get(i);
-                Integer idClb = t.getIdCauLacBo();
+                Integer idClb = t.getIdClb();
                 rows.add(new com.example.btms.model.draw.BocThamDoi(idGiai, idNoiDung,
                         idClb == null ? 0 : idClb, t.getTenTeam(), i, 1));
             }
@@ -2628,6 +2632,10 @@ public class MainFrame extends JFrame {
                         ensureViewPresent("Bốc thăm thi đấu", bocThamThiDauPanel);
                     }
                 }
+                if ("Trang biên bản".equals(label)) {
+                    openBienBanWindow();
+                    return;
+                }
                 if (views.containsKey(label)) {
                     showView(label);
                 }
@@ -2917,6 +2925,48 @@ public class MainFrame extends JFrame {
                 currentRole,
                 (selectedGiaiDau != null ? selectedGiaiDau.getTenGiai() : null),
                 multiCourtPanel != null ? multiCourtPanel.getNetworkInterface() : null);
+    }
+
+    /**
+     * Mở "Trang biên bản" ở một cửa sổ riêng. Nếu đã mở, đưa cửa sổ ra trước.
+     */
+    private void openBienBanWindow() {
+        try {
+            Connection c = (service != null) ? service.current() : null;
+            if (c == null) {
+                JOptionPane.showMessageDialog(this, "Chưa kết nối CSDL.", "Thông báo",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            if (bienBanWindow != null && bienBanWindow.isShowing()) {
+                try {
+                    bienBanWindow.toFront();
+                    bienBanWindow.requestFocus();
+                } catch (Exception ignore) {
+                }
+                return;
+            }
+            // Tạo cửa sổ mới
+            BienBanFrame f = new BienBanFrame(c);
+            f.setLocationRelativeTo(this);
+            f.setVisible(true);
+            this.bienBanWindow = f;
+            // Khi đóng cửa sổ, giải phóng tham chiếu
+            f.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosed(java.awt.event.WindowEvent e) {
+                    bienBanWindow = null;
+                }
+
+                @Override
+                public void windowClosing(java.awt.event.WindowEvent e) {
+                    bienBanWindow = null;
+                }
+            });
+        } catch (Throwable ex) {
+            JOptionPane.showMessageDialog(this, "Không mở được Trang biên bản: " + ex.getMessage(),
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /* -------------------- Inline dialogs -------------------- */

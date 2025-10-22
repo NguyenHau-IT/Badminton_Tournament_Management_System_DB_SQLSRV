@@ -31,7 +31,7 @@ public class DangKiDoiService {
                 throw new IllegalArgumentException("TEN_TEAM không được rỗng");
             current.setTenTeam(tenTeam.trim());
         }
-        current.setIdCauLacBo(idClb);
+        current.setIdClb(idClb);
         teamRepo.update(current);
     }
 

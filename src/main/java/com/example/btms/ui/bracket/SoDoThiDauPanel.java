@@ -631,7 +631,14 @@ public class SoDoThiDauPanel extends JPanel {
                     javax.swing.JComboBox<?> cboTeamA = (javax.swing.JComboBox<?>) fTeamA.get(panel);
                     javax.swing.JComboBox<?> cboTeamB = (javax.swing.JComboBox<?>) fTeamB.get(panel);
 
+                    // Chuyển chế độ đơn/đôi đúng cách (gọi toggle để UI + dữ liệu cập nhật)
                     cbDoubles.setSelected(isTeam);
+                    try {
+                        java.lang.reflect.Method mToggle = panel.getClass().getDeclaredMethod("toggleSinglesOrDoubles");
+                        mToggle.setAccessible(true);
+                        mToggle.invoke(panel);
+                    } catch (Exception ignore) {
+                    }
                     if (!header.isBlank()) {
                         if (isTeam) {
                             selectByString(cboHeaderDoubles, header);
@@ -814,11 +821,15 @@ public class SoDoThiDauPanel extends JPanel {
     private static void selectByString(javax.swing.JComboBox<?> cb, String text) {
         if (cb == null || text == null)
             return;
+        String needle = text.trim();
         for (int i = 0; i < cb.getItemCount(); i++) {
             Object it = cb.getItemAt(i);
-            if (it != null && it.toString().trim().equals(text)) {
-                cb.setSelectedIndex(i);
-                return;
+            if (it != null) {
+                String s = it.toString().trim();
+                if (s.equalsIgnoreCase(needle)) {
+                    cb.setSelectedIndex(i);
+                    return;
+                }
             }
         }
     }
@@ -827,10 +838,12 @@ public class SoDoThiDauPanel extends JPanel {
     private static void selectTeamByName(javax.swing.JComboBox<?> cb, String teamName) {
         if (cb == null || teamName == null)
             return;
+        String needle = teamName.trim();
         for (int i = 0; i < cb.getItemCount(); i++) {
             Object obj = cb.getItemAt(i);
             if (obj instanceof com.example.btms.model.team.DangKiDoi it) {
-                if (it.getTenTeam() != null && it.getTenTeam().trim().equals(teamName)) {
+                String s = it.getTenTeam() != null ? it.getTenTeam().trim() : "";
+                if (s.equalsIgnoreCase(needle)) {
                     cb.setSelectedIndex(i);
                     return;
                 }
