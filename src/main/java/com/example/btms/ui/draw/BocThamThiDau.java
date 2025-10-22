@@ -246,7 +246,7 @@ public class BocThamThiDau extends JPanel {
                 List<DangKiDoi> teams = doiService.listTeams(idGiai, nd.getId());
                 int idx = 0;
                 for (DangKiDoi t : teams) {
-                    Integer idClb = t.getIdCauLacBo();
+                    Integer idClb = t.getIdClb();
                     if (idClb == null)
                         idClb = 0;
                     String clbName = clbNameCache.getOrDefault(idClb, idClb == 0 ? "" : ("CLB#" + idClb));

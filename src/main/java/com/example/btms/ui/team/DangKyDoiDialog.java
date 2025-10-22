@@ -717,16 +717,25 @@ public class DangKyDoiDialog extends JDialog {
         try {
             NoiDung ndSel = getSelectedNoiDung();
 
-            // Kiểm tra trùng tên đội trong cùng (giải, nội dung)
+            // Kiểm tra trùng tên đội trong cùng (giải, nội dung, CLB)
             try {
                 List<com.example.btms.model.team.DangKiDoi> exist = teamService.listTeams(idGiai, ndSel.getId());
-                boolean dup = exist.stream().anyMatch(t -> t != null
-                        && t.getTenTeam() != null
-                        && t.getTenTeam().trim().equalsIgnoreCase(ten)
-                        && (editingTeamId == null || !java.util.Objects.equals(t.getIdTeam(), editingTeamId)));
+                final Integer selClbId = idClb; // có thể null
+                boolean dup = exist.stream().anyMatch(t -> {
+                    if (t == null || t.getTenTeam() == null) {
+                        return false;
+                    }
+                    boolean sameName = t.getTenTeam().trim().equalsIgnoreCase(ten);
+                    boolean sameClub = java.util.Objects.equals(t.getIdClb(), selClbId);
+                    boolean notSelf = (editingTeamId == null)
+                            || !java.util.Objects.equals(t.getIdTeam(), editingTeamId);
+                    // Chỉ chặn nếu trùng TÊN và cùng CLB trong cùng nội dung của giải
+                    return sameName && sameClub && notSelf;
+                });
                 if (dup) {
                     JOptionPane.showMessageDialog(this,
-                            "Tên đội đã tồn tại trong nội dung này. Vui lòng đổi tên khác.",
+                            "Tên đội đã tồn tại trong nội dung này của cùng CLB.\n" +
+                                    "Vui lòng đổi tên khác.",
                             "Trùng tên đội",
                             JOptionPane.WARNING_MESSAGE);
                     return;

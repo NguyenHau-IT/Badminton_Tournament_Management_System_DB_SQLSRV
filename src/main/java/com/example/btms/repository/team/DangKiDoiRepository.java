@@ -24,8 +24,8 @@ public class DangKiDoiRepository {
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, t.getIdGiai());
             ps.setInt(2, t.getIdNoiDung());
-            if (t.getIdCauLacBo() != null)
-                ps.setInt(3, t.getIdCauLacBo());
+            if (t.getIdClb() != null)
+                ps.setInt(3, t.getIdClb());
             else
                 ps.setNull(3, Types.INTEGER);
             ps.setString(4, t.getTenTeam());
@@ -90,8 +90,8 @@ public class DangKiDoiRepository {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, t.getIdGiai());
             ps.setInt(2, t.getIdNoiDung());
-            if (t.getIdCauLacBo() != null)
-                ps.setInt(3, t.getIdCauLacBo());
+            if (t.getIdClb() != null)
+                ps.setInt(3, t.getIdClb());
             else
                 ps.setNull(3, Types.INTEGER);
             ps.setString(4, t.getTenTeam());

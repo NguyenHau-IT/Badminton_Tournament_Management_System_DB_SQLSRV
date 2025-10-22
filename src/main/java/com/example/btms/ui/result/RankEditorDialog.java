@@ -313,8 +313,8 @@ public class RankEditorDialog extends JDialog {
             Map<String, TeamItem> index = new HashMap<>();
             List<TeamItem> opts = new ArrayList<>();
             for (DangKiDoi t : teams) {
-                String club = safeClubNameByClbId(t.getIdCauLacBo());
-                TeamItem ti = new TeamItem(t.getIdTeam(), t.getIdCauLacBo(), t.getTenTeam(), club);
+                String club = safeClubNameByClbId(t.getIdClb());
+                TeamItem ti = new TeamItem(t.getIdTeam(), t.getIdClb(), t.getTenTeam(), club);
                 opts.add(ti);
                 index.put(normalizeTeam(t.getTenTeam()), ti);
             }
