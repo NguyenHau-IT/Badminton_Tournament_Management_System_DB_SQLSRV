@@ -10,7 +10,7 @@ public class LoginFrame extends JFrame {
     // ---- UI
     private final JTextField tfUser = new JTextField(20);
     private final JPasswordField pfPass = new JPasswordField(20);
-    private final JComboBox<String> cboMode = new JComboBox<>(new String[] { "Client", "Admin" });
+    private final JComboBox<String> cboMode = new JComboBox<>(new String[] { "MATCH", "ADMINISTRATOR" });
     private final JLabel lblStatus = new JLabel(" ");
 
     private final JButton btnLogin = new JButton("Đăng nhập");
@@ -24,7 +24,7 @@ public class LoginFrame extends JFrame {
         // mặc định
         tfUser.setText("admin");
         pfPass.setText("set");
-        cboMode.setSelectedIndex(1); // Admin
+        cboMode.setSelectedIndex(1); // ADMINISTRATOR
         setInputsEnabled(false); // chờ controller bật khi DB ready
 
         pack();

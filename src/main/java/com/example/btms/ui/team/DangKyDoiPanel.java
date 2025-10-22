@@ -208,10 +208,10 @@ public class DangKyDoiPanel extends JPanel {
                 List<DangKiDoi> teams = teamService.listTeams(idGiai, nd.getId());
                 for (DangKiDoi t : teams) {
                     String clbName = "";
-                    if (t.getIdCauLacBo() != null) {
+                    if (t.getIdClb() != null) {
                         try {
                             for (CauLacBo c : clbService.findAll()) {
-                                if (c.getId() != null && c.getId().equals(t.getIdCauLacBo())) {
+                                if (c.getId() != null && c.getId().equals(t.getIdClb())) {
                                     clbName = c.getTenClb();
                                     break;
                                 }
@@ -312,7 +312,7 @@ public class DangKyDoiPanel extends JPanel {
         try {
             // Lấy đội để biết CLB
             com.example.btms.model.team.DangKiDoi team = teamService.getTeam(idTeam);
-            idClbInit = team.getIdCauLacBo();
+            idClbInit = team.getIdClb();
         } catch (RuntimeException ex) {
             // Không chặn sửa nếu lỗi, chỉ log
             System.err.println("Không lấy được đội: " + ex.getMessage());

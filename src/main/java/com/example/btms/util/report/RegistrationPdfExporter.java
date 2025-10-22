@@ -419,10 +419,10 @@ public final class RegistrationPdfExporter {
         Row r = new Row();
         r.noiDung = safe(nd.getTenNoiDung());
         r.tenDoi = safe(t.getTenTeam());
-        r.clbId = t.getIdCauLacBo();
-        r.clb = (t.getIdCauLacBo() == null) ? ""
+        r.clbId = t.getIdClb();
+        r.clb = (t.getIdClb() == null) ? ""
                 : safe(Objects.toString(
-                        Optional.ofNullable(d.clbById.get(t.getIdCauLacBo())).map(CauLacBo::getTenClb).orElse("")));
+                        Optional.ofNullable(d.clbById.get(t.getIdClb())).map(CauLacBo::getTenClb).orElse("")));
         try {
             List<ChiTietDoi> members = d.chiTietSvc.listMembers(t.getIdTeam());
             members.sort(java.util.Comparator.comparing(ChiTietDoi::getIdVdv));

@@ -6,23 +6,23 @@ public class DangKiDoi {
     private Integer idTeam; // auto-increment
     private Integer idGiai;
     private Integer idNoiDung;
-    private Integer idCauLacBo; // có thể null (đội tự do)
+    private Integer idClb; // có thể null (đội tự do)
     private String tenTeam;
 
     public DangKiDoi() {
     }
 
     public DangKiDoi(Integer idTeam, Integer idGiai, Integer idNoiDung,
-            Integer idCauLacBo, String tenTeam) {
+            Integer idClb, String tenTeam) {
         this.idTeam = idTeam;
         this.idGiai = idGiai;
         this.idNoiDung = idNoiDung;
-        this.idCauLacBo = idCauLacBo;
+        this.idClb = idClb;
         this.tenTeam = tenTeam;
     }
 
-    public DangKiDoi(Integer idGiai, Integer idNoiDung, Integer idCauLacBo, String tenTeam) {
-        this(null, idGiai, idNoiDung, idCauLacBo, tenTeam);
+    public DangKiDoi(Integer idGiai, Integer idNoiDung, Integer idClb, String tenTeam) {
+        this(null, idGiai, idNoiDung, idClb, tenTeam);
     }
 
     public Integer getIdTeam() {
@@ -49,12 +49,12 @@ public class DangKiDoi {
         this.idNoiDung = idNoiDung;
     }
 
-    public Integer getIdCauLacBo() {
-        return idCauLacBo;
+    public Integer getIdClb() {
+        return idClb;
     }
 
-    public void setIdCauLacBo(Integer idCauLacBo) {
-        this.idCauLacBo = idCauLacBo;
+    public void setIdClb(Integer idClb) {
+        this.idClb = idClb;
     }
 
     public String getTenTeam() {
