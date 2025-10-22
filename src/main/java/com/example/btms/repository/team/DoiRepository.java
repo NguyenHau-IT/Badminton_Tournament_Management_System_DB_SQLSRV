@@ -157,4 +157,35 @@ public class DoiRepository {
         return idClb;
     }
 
+    /**
+     * Lấy ID_TEAM theo tên team và nội dung.
+     * Nếu không tìm thấy, trả về -1.
+     */
+    public int fetchTeamIdByTeamName(String teamName, int idNoiDung, int idGiai) {
+        int teamId = -1;
+
+        final String sql = "SELECT ID_TEAM FROM DANG_KI_DOI " +
+                "WHERE TEN_TEAM = ? AND ID_NOI_DUNG = ? AND ID_GIAI = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, teamName);
+            ps.setInt(2, idNoiDung);
+            ps.setInt(3, idGiai);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    teamId = rs.getInt("ID_TEAM");
+                }
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Đọc ID_TEAM theo tên team lỗi: " + ex.getMessage(),
+                    "Lỗi DB",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+
+        return teamId;
+    }
+
 }
