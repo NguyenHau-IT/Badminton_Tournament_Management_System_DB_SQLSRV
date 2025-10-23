@@ -762,13 +762,22 @@ public class BienBanTranPanel extends JPanel {
         rowHeader.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         rowHeader.setPreferredSize(new Dimension(headerWidth, tableHeight));
 
+        // Loại bỏ margin và insets của JList để có kích thước chính xác
+        rowHeader.setBorder(null);
+        rowHeader.setBackground(table.getBackground());
+
         // Ensure the JTable sizes to show all content (no inner scrollbars)
         table.setPreferredSize(new Dimension(tableWidth, tableHeight));
 
         JPanel container = new JPanel(new BorderLayout());
         container.add(rowHeader, BorderLayout.WEST);
         container.add(table, BorderLayout.CENTER);
-        container.setPreferredSize(new Dimension(headerWidth + tableWidth, tableHeight + 2));
+
+        // Container có kích thước chính xác bằng table
+        Dimension containerSize = new Dimension(headerWidth + tableWidth, tableHeight);
+        container.setPreferredSize(containerSize);
+        container.setMinimumSize(containerSize);
+        container.setMaximumSize(containerSize);
 
         // Add thick black border around entire table
         container.setBorder(BorderFactory.createMatteBorder(3, 3, 3, 3, Color.BLACK));
@@ -1028,17 +1037,27 @@ public class BienBanTranPanel extends JPanel {
                 return;
             java.io.File out = fc.getSelectedFile();
 
-            // Đảm bảo layout đầy đủ trước khi chụp
-            setsContainer.revalidate();
-            setsContainer.doLayout();
+            // Đảm bảo layout đầy đủ trước khi chụp - multiple passes
+            for (int i = 0; i < 3; i++) {
+                setsContainer.revalidate();
+                setsContainer.doLayout();
+                this.revalidate();
+                this.doLayout();
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException ignore) {
+                }
+            }
+
             Dimension pref = setsContainer.getPreferredSize();
             int compW = Math.max(pref.width, setsContainer.getWidth());
-            int compH = pref.height;
-            if (compW <= 0 || compH <= 0) {
-                javax.swing.JOptionPane.showMessageDialog(this, "Không thể render nội dung.",
-                        "Xuất PDF", javax.swing.JOptionPane.WARNING_MESSAGE);
-                return;
-            }
+            int compH = Math.max(pref.height, setsContainer.getHeight());
+
+            // Đảm bảo có kích thước tối thiểu cho sets content
+            if (compW <= 0)
+                compW = 1116; // width cho 31 cột * 36px
+            if (compH <= 0)
+                compH = 300; // height mặc định cho ít nhất 1 set
 
             // PDF A4 ngang với padding 10px (khoảng 7pt)
             com.lowagie.text.Rectangle pageSize = com.lowagie.text.PageSize.A4.rotate(); // luôn xuất ngang
@@ -1167,6 +1186,12 @@ public class BienBanTranPanel extends JPanel {
 
             // Draw the sets content below the header with padding
             gFull.translate(0, headerH + paddingBetween);
+
+            // Đảm bảo setsContainer có size phù hợp trước khi paint
+            setsContainer.setSize(compW, compH);
+            setsContainer.validate();
+
+            // Paint sets content
             setsContainer.paint(gFull);
             gFull.dispose();
 
