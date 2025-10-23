@@ -64,8 +64,7 @@ public class BienBanTranPanel extends JPanel {
     private final JLabel lblInfo = new JLabel();
     private final JButton btnRefresh = new JButton("Làm mới");
     private final JButton btnToggleMode = new JButton("Chế độ: Xem");
-    private final JButton btnExportPdf = new JButton("Xuất PDF (Dọc)");
-    private final JButton btnExportPdfLandscape = new JButton("Xuất PDF (Ngang)");
+    private final JButton btnExportPdf = new JButton("Xuất PDF");
 
     // Container hiển thị các bảng set (mỗi set một bảng 4x31)
     private final JPanel setsContainer = new JPanel();
@@ -103,11 +102,8 @@ public class BienBanTranPanel extends JPanel {
         });
         top.add(btnToggleMode);
         top.add(new JLabel("|"));
-        btnExportPdf.addActionListener(e -> exportToPdf(false));
-        // top.add(btnExportPdf);
-        // top.add(new JLabel("|"));
-        btnExportPdfLandscape.addActionListener(e -> exportToPdf(true));
-        top.add(btnExportPdfLandscape);
+        btnExportPdf.addActionListener(e -> exportToPdf());
+        top.add(btnExportPdf);
         add(top, BorderLayout.NORTH);
 
         // Khu vực trung tâm: danh sách các bảng theo từng set
@@ -729,7 +725,7 @@ public class BienBanTranPanel extends JPanel {
     private static JPanel wrapWithRowHeader(JTable table, String[] rowHeaders, boolean isSingles, int colWidth) {
         int rowHeight = table.getRowHeight();
         int rows = table.getRowCount();
-        int headerWidth = computeHeaderWidth(rowHeaders, table);
+        int headerWidth = computeHeaderWidth(rowHeaders, table, isSingles);
         int tableWidth = table.getColumnCount() * colWidth;
         int tableHeight = rows * rowHeight;
 
@@ -834,10 +830,12 @@ public class BienBanTranPanel extends JPanel {
      * tại,
      * có giới hạn min/max để giao diện ổn định.
      */
-    private static int computeHeaderWidth(String[] rowHeaders, JTable table) {
-        int min = 160; // rộng hơn mặc định để tên dài đỡ bị cắt
-        int max = 360; // tránh quá rộng chiếm chỗ cột điểm
-        int pad = 40; // đệm cho khoảng cách/tràn viền
+    private static int computeHeaderWidth(String[] rowHeaders, JTable table, boolean isSingles) {
+        // Phân biệt đơn/đôi để đặt giới hạn phù hợp
+        int min = isSingles ? 160 : 140; // đôi thì min nhỏ hơn
+        int max = isSingles ? 360 : 280; // đôi thì max nhỏ hơn để tránh viền quá rộng
+        int pad = isSingles ? 40 : 30; // đôi thì padding nhỏ hơn
+
         int w = min;
         try {
             java.awt.FontMetrics fm = table.getFontMetrics(table.getFont());
@@ -1011,7 +1009,7 @@ public class BienBanTranPanel extends JPanel {
     }
 
     /* =================== PDF EXPORT =================== */
-    private void exportToPdf(boolean landscape) {
+    private void exportToPdf() {
         try {
             if (setsContainer.getComponentCount() == 0) {
                 javax.swing.JOptionPane.showMessageDialog(this, "Chưa có dữ liệu để xuất PDF.",
@@ -1022,10 +1020,9 @@ public class BienBanTranPanel extends JPanel {
             // Chọn file
             JFileChooser fc = new JFileChooser();
             fc.setDialogTitle("Lưu biên bản thành PDF");
-            String suffix = "";
             fc.setSelectedFile(
                     new java.io.File(
-                            "bien-ban-" + (currentMatchId != null ? currentMatchId : "match") + suffix + ".pdf"));
+                            "bien-ban-" + (currentMatchId != null ? currentMatchId : "match") + ".pdf"));
             int ans = fc.showSaveDialog(this);
             if (ans != JFileChooser.APPROVE_OPTION)
                 return;
@@ -1043,12 +1040,9 @@ public class BienBanTranPanel extends JPanel {
                 return;
             }
 
-            // PDF (A4) bằng OpenPDF - use smaller margins so content appears larger
-            com.lowagie.text.Rectangle pageSize = landscape ? com.lowagie.text.PageSize.A4.rotate()
-                    : com.lowagie.text.PageSize.A4;
-            // margins in points (12pt ~ 0.17 inch). Reduced margins to maximize usable
-            // area.
-            float marginPts = 12f;
+            // PDF A4 ngang với padding 10px (khoảng 7pt)
+            com.lowagie.text.Rectangle pageSize = com.lowagie.text.PageSize.A4.rotate(); // luôn xuất ngang
+            float marginPts = 7f; // padding 10px ~ 7pt
             com.lowagie.text.Document doc = new com.lowagie.text.Document(pageSize, marginPts, marginPts, marginPts,
                     marginPts);
             com.lowagie.text.pdf.PdfWriter.getInstance(doc, new java.io.FileOutputStream(out));
@@ -1060,7 +1054,7 @@ public class BienBanTranPanel extends JPanel {
             // Render header + content into one full image, then slice into pages.
             // Make header larger and add padding between header and tables
             int headerH = 240; // increased header height to fit larger fonts
-            int paddingBetween = 10; // px gap between header and sets (reduced per request)
+            int paddingBetween = 10; // px gap between header and sets
             int totalH = headerH + paddingBetween + compH;
 
             java.awt.image.BufferedImage full = new java.awt.image.BufferedImage(compW, totalH,
@@ -1176,13 +1170,50 @@ public class BienBanTranPanel extends JPanel {
             setsContainer.paint(gFull);
             gFull.dispose();
 
-            // Slice the big image into page-sized pieces
-            int slice = Math.min(totalH, 1600); // px mỗi trang
-            for (int y = 0; y < totalH; y += slice) {
-                int h = Math.min(slice, totalH - y);
-                java.awt.image.BufferedImage img = full.getSubimage(0, y, compW, h);
+            // Scale và chia thành các trang nếu cần
+            // Tính tỷ lệ scale để fit full width của trang A4 ngang
+            float scaleX = pageW / compW;
+            float scaleY = pageH / totalH;
+            float scale = Math.min(scaleX, scaleY); // giữ tỷ lệ và fit trong trang
+
+            // Nếu nội dung nhỏ hơn trang, scale up để fill trang
+            if (scale > 1.0f) {
+                scale = Math.min(scaleX, 1.5f); // không scale quá lớn, tối đa 1.5x
+            }
+
+            float scaledW = compW * scale;
+            float scaledH = totalH * scale;
+
+            // Chia thành các trang nếu nội dung quá cao
+            float maxHeightPerPage = pageH;
+            int totalPages = (int) Math.ceil(scaledH / maxHeightPerPage);
+
+            for (int page = 0; page < totalPages; page++) {
+                if (page > 0) {
+                    doc.newPage();
+                }
+
+                int startY = (int) (page * maxHeightPerPage / scale);
+                int endY = (int) Math.min(totalH, (page + 1) * maxHeightPerPage / scale);
+                int sliceH = endY - startY;
+
+                if (sliceH <= 0)
+                    break;
+
+                java.awt.image.BufferedImage img = full.getSubimage(0, startY, compW, sliceH);
                 com.lowagie.text.Image pic = com.lowagie.text.Image.getInstance(img, null);
-                pic.scaleToFit(pageW, pageH);
+
+                // Scale to fit width và center horizontally
+                pic.scaleAbsolute(scaledW, sliceH * scale);
+                float offsetX = (pageW - scaledW) / 2;
+                if (offsetX > 0) {
+                    pic.setAbsolutePosition(doc.leftMargin() + offsetX,
+                            doc.bottomMargin() + (pageH - sliceH * scale) / 2);
+                } else {
+                    pic.setAbsolutePosition(doc.leftMargin(),
+                            doc.bottomMargin() + (pageH - sliceH * scale) / 2);
+                }
+
                 doc.add(pic);
             }
 
@@ -1201,7 +1232,7 @@ public class BienBanTranPanel extends JPanel {
      */
     private void paintPdfHeader(Graphics2D g, int width, String matchId, String san, String noidung, String ngay,
             String giai, String startTime, String endTime, String durationMinutes, String clubLeft, String clubRight) {
-        int margin = 12;
+        int margin = 10; // padding 10px cho header
         int y = margin;
         // Title (larger)
         java.awt.Font titleFont = new java.awt.Font("Serif", java.awt.Font.BOLD, 35);
@@ -1226,7 +1257,7 @@ public class BienBanTranPanel extends JPanel {
         int boxH = 84;
         int leftW = Math.min(260, width / 4);
         int rightW = leftW;
-        int centerW = width - leftW - rightW - margin * 4;
+        int centerW = width - leftW - rightW - margin * 2; // sử dụng margin mới là 10px
 
         // Left column labels with underlines (and fill values)
         int lx = margin;
@@ -1282,7 +1313,7 @@ public class BienBanTranPanel extends JPanel {
         }
 
         // Center small block: 4 columns x 6 rows with merged cells
-        int cx = lx + leftW + margin;
+        int cx = lx + leftW + margin - 15; // di chuyển bảng qua trái 15px
         // move center block lower to avoid overlapping left-side underlines
         int cy = y + 36; // was y + 6, increased so the left fields (Mã số trận, ...) remain visible
         int blockW = centerW;
