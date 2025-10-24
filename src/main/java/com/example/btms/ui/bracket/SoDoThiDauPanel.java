@@ -907,8 +907,9 @@ public class SoDoThiDauPanel extends JPanel {
             // Create PDF (A4 landscape) and embed image scaled to fit
             // Make content larger on paper: tighter margins and near-full scaling
             // left, right, top, bottom margins (pt)
+            // Use tighter margins: left=8pt, right=8pt, top=24pt, bottom=8pt
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
+                    com.lowagie.text.PageSize.A4.rotate(), 8, 8, 24, 8);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 // Header/footer event with tournament name (no sponsor logo in header; sponsor
@@ -949,7 +950,16 @@ public class SoDoThiDauPanel extends JPanel {
                 // stays on one page
                 float scaleW = maxW / trimmed.getWidth();
                 float scaleH = maxH / trimmed.getHeight();
-                float scale = Math.min(scaleW, scaleH) * 0.990f;
+                // Prefer to use the page width so the bracket fills horizontally,
+                // but ensure the scaled height does not exceed available height.
+                float preferredScale = scaleW * 0.995f; // small safety margin
+                float scale;
+                if (trimmed.getHeight() * preferredScale <= maxH) {
+                    scale = preferredScale;
+                } else {
+                    // Fallback to a safe fit (both dims) when height would overflow
+                    scale = Math.min(scaleW, scaleH) * 0.99f;
+                }
                 if (scale <= 0f)
                     scale = 1f;
                 // Reduce vertical size by ~N px (default 10px) by slightly decreasing scale
@@ -995,7 +1005,7 @@ public class SoDoThiDauPanel extends JPanel {
                 com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                 pdfImg.scalePercent(scale * 100f);
                 // Align to the left margin so it looks "sát trái"
-                pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                 pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                 pdfImg.setSpacingAfter(0f);
                 doc.add(pdfImg);
@@ -1036,8 +1046,9 @@ public class SoDoThiDauPanel extends JPanel {
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
 
+            // Use tighter margins for file export as well
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 60, 16);
+                    com.lowagie.text.PageSize.A4.rotate(), 8, 8, 24, 8);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 String tournament = new Prefs().get("selectedGiaiDauName", null);
@@ -1068,7 +1079,16 @@ public class SoDoThiDauPanel extends JPanel {
                 float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
                 float scaleW = maxW / trimmed.getWidth();
                 float scaleH = maxH / trimmed.getHeight();
-                float scale = Math.min(scaleW, scaleH) * 0.990f;
+                // Prefer to use the page width so the bracket fills horizontally,
+                // but ensure the scaled height does not exceed available height.
+                float preferredScale = scaleW * 0.995f; // small safety margin
+                float scale;
+                if (trimmed.getHeight() * preferredScale <= maxH) {
+                    scale = preferredScale;
+                } else {
+                    // Fallback to a safe fit (both dims) when height would overflow
+                    scale = Math.min(scaleW, scaleH) * 0.99f;
+                }
                 if (scale <= 0f)
                     scale = 1f;
                 try {
@@ -1097,7 +1117,7 @@ public class SoDoThiDauPanel extends JPanel {
                 }
                 com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                 pdfImg.scalePercent(scale * 100f);
-                pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                 pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                 pdfImg.setSpacingAfter(0f);
                 doc.add(pdfImg);
@@ -1156,8 +1176,9 @@ public class SoDoThiDauPanel extends JPanel {
             }
             String path = file.getAbsolutePath().toLowerCase().endsWith(".pdf") ? file.getAbsolutePath()
                     : file.getAbsolutePath() + ".pdf";
+            // Smaller margins for multi-page export
             com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                    com.lowagie.text.PageSize.A4.rotate(), 8, 10, 10, 16);
+                    com.lowagie.text.PageSize.A4.rotate(), 8, 8, 24, 8);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(path)) {
                 com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                 pdfFont(12f, com.lowagie.text.Font.NORMAL);
@@ -1206,7 +1227,16 @@ public class SoDoThiDauPanel extends JPanel {
                     float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
                     float scaleW = maxW / trimmed.getWidth();
                     float scaleH = maxH / trimmed.getHeight();
-                    float scale = Math.min(scaleW, scaleH) * 0.990f;
+                    // Prefer to use the page width so the bracket fills horizontally,
+                    // but ensure the scaled height does not exceed available height.
+                    float preferredScale = scaleW * 0.995f; // small safety margin
+                    float scale;
+                    if (trimmed.getHeight() * preferredScale <= maxH) {
+                        scale = preferredScale;
+                    } else {
+                        // Fallback to a safe fit (both dims) when height would overflow
+                        scale = Math.min(scaleW, scaleH) * 0.99f;
+                    }
                     if (scale <= 0f)
                         scale = 1f;
                     try {
@@ -1235,7 +1265,7 @@ public class SoDoThiDauPanel extends JPanel {
                     }
                     com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                     pdfImg.scalePercent(scale * 100f);
-                    pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                    pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                     pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                     pdfImg.setSpacingAfter(0f);
                     doc.add(pdfImg);
@@ -1308,8 +1338,9 @@ public class SoDoThiDauPanel extends JPanel {
                 String fileName = suggestBracketPdfFileName();
                 java.io.File f = new java.io.File(dir, fileName);
                 // write single PDF for this nội dung
+                // Use tighter margins for each-file export
                 com.lowagie.text.Document doc = new com.lowagie.text.Document(
-                        com.lowagie.text.PageSize.A4.rotate(), 8, 10, 10, 16);
+                        com.lowagie.text.PageSize.A4.rotate(), 8, 8, 24, 8);
                 try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
                     com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(doc, fos);
                     pdfFont(12f, com.lowagie.text.Font.NORMAL);
@@ -1348,7 +1379,16 @@ public class SoDoThiDauPanel extends JPanel {
                     float maxH = doc.getPageSize().getHeight() - doc.topMargin() - doc.bottomMargin() - titleReserve;
                     float scaleW = maxW / trimmed.getWidth();
                     float scaleH = maxH / trimmed.getHeight();
-                    float scale = Math.min(scaleW, scaleH) * 0.990f;
+                    // Prefer to use the page width so the bracket fills horizontally,
+                    // but ensure the scaled height does not exceed available height.
+                    float preferredScale = scaleW * 0.995f; // small safety margin
+                    float scale;
+                    if (trimmed.getHeight() * preferredScale <= maxH) {
+                        scale = preferredScale;
+                    } else {
+                        // Fallback to a safe fit (both dims) when height would overflow
+                        scale = Math.min(scaleW, scaleH) * 0.99f;
+                    }
                     if (scale <= 0f)
                         scale = 1f;
                     try {
@@ -1377,7 +1417,7 @@ public class SoDoThiDauPanel extends JPanel {
                     }
                     com.lowagie.text.Image pdfImg = com.lowagie.text.Image.getInstance(trimmed, null);
                     pdfImg.scalePercent(scale * 100f);
-                    pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                    pdfImg.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
                     pdfImg.setSpacingBefore(getBracketImageOffsetBeforePt());
                     pdfImg.setSpacingAfter(0f);
                     doc.add(pdfImg);
@@ -1600,7 +1640,10 @@ public class SoDoThiDauPanel extends JPanel {
             }
         } catch (NumberFormatException ignore) {
         }
-        return -20f; // move up a bit more by default
+        // Reduce top padding by default so the bracket image sits higher on the page.
+        // Previously shifted by -20pt; increase to -35pt to remove extra top white
+        // space.
+        return -35f;
     }
 
     // Reduce bracket image height by N pixels (on the rendered bitmap) by
@@ -1608,14 +1651,16 @@ public class SoDoThiDauPanel extends JPanel {
     // Pref key: bracket.image.reduce.height.px, default 10px.
     private int getReduceBracketHeightPx() {
         try {
-            int val = prefs.getInt("bracket.image.reduce.height.px", 10);
+            // Increase default reduction so exported bracket images are slightly
+            // shorter on the page. Default previously 10px; raise to 30px.
+            int val = prefs.getInt("bracket.image.reduce.height.px", 30);
             if (val < 0)
                 return 0;
             if (val > 100)
                 return 100; // clamp
             return val;
         } catch (Throwable ignore) {
-            return 10;
+            return 30;
         }
     }
 
@@ -1703,8 +1748,7 @@ public class SoDoThiDauPanel extends JPanel {
         private final com.lowagie.text.Image rightLogo;
         private final com.lowagie.text.pdf.BaseFont baseFont;
         private final String tournamentName;
-        private final java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
-        private final java.util.Date printDate = new java.util.Date();
+        // Footer removed: no date/time or page number are used anymore
 
         ReportPageEvent(com.lowagie.text.Image leftLogo, com.lowagie.text.Image rightLogo,
                 com.lowagie.text.pdf.BaseFont baseFont, String tournamentName) {
@@ -1720,7 +1764,6 @@ public class SoDoThiDauPanel extends JPanel {
             float left = document.left();
             float right = document.right();
             float top = document.top();
-            float bottom = document.bottom();
 
             // Header left logo at top-left, drawn above the content area to avoid overlap
             if (leftLogo != null) {
@@ -1765,23 +1808,7 @@ public class SoDoThiDauPanel extends JPanel {
                 cb.endText();
             }
 
-            // Footer: date/time (left) and page x/y (right)
-            cb.beginText();
-            try {
-                com.lowagie.text.pdf.BaseFont bf = (baseFont != null)
-                        ? baseFont
-                        : com.lowagie.text.pdf.BaseFont.createFont();
-                cb.setFontAndSize(bf, 9f);
-            } catch (com.lowagie.text.DocumentException e) {
-                System.err.println("footer BaseFont DocumentException: " + e.getMessage());
-            } catch (java.io.IOException e) {
-                System.err.println("footer BaseFont IOException: " + e.getMessage());
-            }
-            String leftTxt = "In lúc: " + sdf.format(printDate);
-            String rightTxt = String.format("Trang %d", writer.getPageNumber());
-            cb.showTextAligned(com.lowagie.text.Element.ALIGN_LEFT, leftTxt, left, bottom - 12f, 0);
-            cb.showTextAligned(com.lowagie.text.Element.ALIGN_RIGHT, rightTxt, right, bottom - 12f, 0);
-            cb.endText();
+            // Footer removed by request: no date/time or page numbers are printed here.
         }
     }
 
@@ -2782,18 +2809,15 @@ public class SoDoThiDauPanel extends JPanel {
         // cột)
         private int columns = 5;
         private int[] spots = { 16, 8, 4, 2, 1 };
-        private static final int CELL_WIDTH = 200; // tăng chiều ngang ô (rộng hơn để hiển thị tên)
+        private static final int CELL_WIDTH = 150; // tăng chiều ngang ô (rộng hơn để hiển thị tên)
         private static final int CELL_HEIGHT = 30;
-        // Ô cuối (vô địch) sẽ to hơn một chút để nổi bật
-        private static final int FINAL_CELL_WIDTH = 300;
-        private static final int FINAL_CELL_HEIGHT = 36;
         // Độ dịch lên cho các vòng trong (cột > 1) để nằm hơi cao hơn so với chính giữa
-        private static final int INNER_UP_OFFSET = 20; // px
+        private static final int INNER_UP_OFFSET = 15; // px
         // Độ dịch sang phải cơ sở cho mỗi mức sâu hơn (cột > 1). Tổng offset =
         // (col-1)*BASE
-        private static final int BASE_INNER_RIGHT_OFFSET = 60; // px mỗi cột (giãn thêm theo chiều ngang)
+        private static final int BASE_INNER_RIGHT_OFFSET = 30; // px mỗi cột (giãn thêm theo chiều ngang)
         // Giảm khoảng trống phía trên (trước đây dùng 62) và dời sơ đồ xuống nhẹ
-        private static final int START_Y = 20; // px
+        private static final int START_Y = 10; // px
         // Canvas width will be expanded dynamically based on the longest name
 
         private List<String> participants = new ArrayList<>(); // tên tại cột seedColumn
@@ -2814,11 +2838,11 @@ public class SoDoThiDauPanel extends JPanel {
         private final List<Slot> slots = new ArrayList<>();
 
         private int cellWidthForCol(int col) {
-            return (col == columns) ? FINAL_CELL_WIDTH : CELL_WIDTH;
+            return CELL_WIDTH;
         }
 
         private int cellHeightForCol(int col) {
-            return (col == columns) ? FINAL_CELL_HEIGHT : CELL_HEIGHT;
+            return CELL_HEIGHT;
         }
 
         BracketCanvas() {
@@ -3265,12 +3289,12 @@ public class SoDoThiDauPanel extends JPanel {
         private void rebuildSlots() {
             slots.clear();
             int orderCounter = 1; // continuous numbering
-            int baseStep = getVerticalBase();
+            int baseStep = 28;
             for (int col = 1; col <= columns; col++) {
                 int spotCount = spots[col - 1];
                 int verticalStep = (int) (baseStep * Math.pow(2, col - 1)); // bước của cột hiện tại (tăng chiều dọc)
                 for (int t = 0; t < spotCount; t++) {
-                    int x = 35 + (col - 1) * 200 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
+                    int x = 15 + (col - 1) * 180 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
                                                                                                         // (giãn ngang)
                     int baseY = START_Y + t * verticalStep;
                     // Cột 1 giữ nguyên. Cột >1: giữa hai ô con rồi đẩy lên một chút.
@@ -3504,21 +3528,6 @@ public class SoDoThiDauPanel extends JPanel {
                 return v;
             } catch (RuntimeException ignore) {
                 return 12;
-            }
-        }
-
-        // Base unit for vertical spacing between competitors in the seed column. Higher
-        // values make the whole bracket taller.
-        private int getVerticalBase() {
-            try {
-                int v = SoDoThiDauPanel.this.prefs.getInt("bracket.verticalStepBase", 50); // default 50 (>40)
-                if (v < 28)
-                    v = 28; // keep readable and avoid overlap in deep columns
-                if (v > 80)
-                    v = 80; // cap to avoid excessive canvas size
-                return v;
-            } catch (RuntimeException ignore) {
-                return 50;
             }
         }
     }

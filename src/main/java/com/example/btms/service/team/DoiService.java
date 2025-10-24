@@ -44,4 +44,9 @@ public class DoiService {
     public int getIdClbByTeamName(String teamName, int idNoiDung, int idGiai) {
         return teamRepo.fetchIdClbByTeamName(teamName, idNoiDung, idGiai);
     }
+
+    /** Lấy ID_TEAM theo tên team và nội dung. */
+    public int getTeamIdByTeamName(String teamName, int idNoiDung, int idGiai) {
+        return teamRepo.fetchTeamIdByTeamName(teamName, idNoiDung, idGiai);
+    }
 }
