@@ -68,8 +68,8 @@ import com.lowagie.text.DocumentException;
 /**
  * Trang "Sơ đồ thi đấu" hiển thị bracket loại trực tiếp 16 -> 1 (5 cột)
  * theo các công thức được yêu cầu:
- * TOA_DO_X = 35 + (COL - 1) * 160
- * TOA_DO_Y = 62 + THU_TU * (40 * 2^(COL-1))
+ * TOA_DO_X = 20 + (COL - 1) * 140
+ * TOA_DO_Y = 40 + THU_TU * (32 * 2^(COL-1))
  * VI_TRI = THU_TU + 1 (số thứ tự hiển thị)
  *
  * Cột 1: 16 chỗ (vòng 1)
@@ -932,7 +932,7 @@ public class SoDoThiDauPanel extends JPanel {
                 doc.open();
                 // Title
                 String ndName = lblNoiDungValue.getText();
-                String titleStr = (ndName != null && !ndName.isBlank()) ? ("SƠ ĐỒ THI ĐẤU - " + ndName)
+                String titleStr = (ndName != null && !ndName.isBlank()) ? (ndName)
                         : "SƠ ĐỒ THI ĐẤU";
                 com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
@@ -1066,7 +1066,7 @@ public class SoDoThiDauPanel extends JPanel {
                         tournament));
                 doc.open();
                 String ndName = lblNoiDungValue.getText();
-                String titleStr = (ndName != null && !ndName.isBlank()) ? ("SƠ ĐỒ THI ĐẤU - " + ndName)
+                String titleStr = (ndName != null && !ndName.isBlank()) ? (ndName)
                         : "SƠ ĐỒ THI ĐẤU";
                 com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                 com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
@@ -1197,7 +1197,7 @@ public class SoDoThiDauPanel extends JPanel {
                     loadBestAvailable();
                     // Title
                     String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
-                    String titleStr = !ndName.isBlank() ? ("SƠ ĐỒ THI ĐẤU - " + ndName) : "SƠ ĐỒ THI ĐẤU";
+                    String titleStr = !ndName.isBlank() ? (ndName) : "SƠ ĐỒ THI ĐẤU";
                     com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                     title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
@@ -1349,7 +1349,7 @@ public class SoDoThiDauPanel extends JPanel {
                             tournament));
                     doc.open();
                     String ndName = (nd.getTenNoiDung() != null) ? nd.getTenNoiDung().trim() : "";
-                    String titleStr = !ndName.isBlank() ? ("SƠ ĐỒ THI ĐẤU - " + ndName) : "SƠ ĐỒ THI ĐẤU";
+                    String titleStr = !ndName.isBlank() ? (ndName) : "SƠ ĐỒ THI ĐẤU";
                     com.lowagie.text.Font titleFont = pdfFont(16f, com.lowagie.text.Font.BOLD);
                     com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph(titleStr, titleFont);
                     title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
@@ -2040,16 +2040,16 @@ public class SoDoThiDauPanel extends JPanel {
             int N = list.size();
             int M; // block size in that column
             int seedCol; // 1..columns
-            if (N > 16) {
+            if (N > 32) {
+                // Switch to 64-team bracket
+                canvas.setBracketSize(64);
+                M = 64;
+                seedCol = 1;
+            } else if (N > 16) {
                 // Switch to 32-team bracket
                 canvas.setBracketSize(32);
-                if (N >= 17) {
-                    M = 32;
-                    seedCol = 1;
-                } else { // unreachable, but keep structure
-                    M = 32;
-                    seedCol = 1;
-                }
+                M = 32;
+                seedCol = 1;
             } else {
                 // 16-team bracket
                 canvas.setBracketSize(16);
@@ -2138,7 +2138,11 @@ public class SoDoThiDauPanel extends JPanel {
             int N = list.size();
             int M;
             int seedCol;
-            if (N > 16) {
+            if (N > 32) {
+                canvas.setBracketSize(64);
+                M = 64;
+                seedCol = 1;
+            } else if (N > 16) {
                 canvas.setBracketSize(32);
                 M = 32;
                 seedCol = 1;
@@ -2231,13 +2235,14 @@ public class SoDoThiDauPanel extends JPanel {
             }
             if (list == null || list.isEmpty())
                 return false;
-            // Detect saved bracket size by max order; 32-seed tree has 63 slots
+            // Detect saved bracket size by max order; 64-seed tree has 127 slots, 32-seed
+            // has 63, 16-seed has 31
             int maxOrder = 0;
             for (SoDoDoi r : list) {
                 if (r.getViTri() != null && r.getViTri() > maxOrder)
                     maxOrder = r.getViTri();
             }
-            canvas.setBracketSize(maxOrder > 31 ? 32 : 16);
+            canvas.setBracketSize(maxOrder > 63 ? 64 : (maxOrder > 31 ? 32 : 16));
             List<String> blanks = new ArrayList<>();
             int seedSpots = canvas.getSeedSpotsCount();
             for (int i = 0; i < seedSpots; i++)
@@ -2278,7 +2283,7 @@ public class SoDoThiDauPanel extends JPanel {
                 if (r.getViTri() != null && r.getViTri() > maxOrder)
                     maxOrder = r.getViTri();
             }
-            canvas.setBracketSize(maxOrder > 31 ? 32 : 16);
+            canvas.setBracketSize(maxOrder > 63 ? 64 : (maxOrder > 31 ? 32 : 16));
             List<String> blanks = new ArrayList<>();
             int seedSpots = canvas.getSeedSpotsCount();
             for (int i = 0; i < seedSpots; i++)
@@ -2809,15 +2814,15 @@ public class SoDoThiDauPanel extends JPanel {
         // cột)
         private int columns = 5;
         private int[] spots = { 16, 8, 4, 2, 1 };
-        private static final int CELL_WIDTH = 150; // tăng chiều ngang ô (rộng hơn để hiển thị tên)
-        private static final int CELL_HEIGHT = 30;
+        private static final int CELL_WIDTH = 120; // giảm chiều ngang ô để tiết kiệm không gian
+        private static final int CELL_HEIGHT = 24; // giảm chiều cao ô
         // Độ dịch lên cho các vòng trong (cột > 1) để nằm hơi cao hơn so với chính giữa
-        private static final int INNER_UP_OFFSET = 15; // px
+        private static final int INNER_UP_OFFSET = 15; // px (tăng từ 12 lên 20 để đẩy cao hơn)
         // Độ dịch sang phải cơ sở cho mỗi mức sâu hơn (cột > 1). Tổng offset =
         // (col-1)*BASE
-        private static final int BASE_INNER_RIGHT_OFFSET = 30; // px mỗi cột (giãn thêm theo chiều ngang)
-        // Giảm khoảng trống phía trên (trước đây dùng 62) và dời sơ đồ xuống nhẹ
-        private static final int START_Y = 10; // px
+        private static final int BASE_INNER_RIGHT_OFFSET = 25; // px mỗi cột (giảm từ 30)
+        // Giảm khoảng trống phía trên và dời sơ đồ xuống nhẹ
+        private static final int START_Y = 10; // px (tăng từ 10 để khớp công thức mới)
         // Canvas width will be expanded dynamically based on the longest name
 
         private List<String> participants = new ArrayList<>(); // tên tại cột seedColumn
@@ -2848,7 +2853,7 @@ public class SoDoThiDauPanel extends JPanel {
         BracketCanvas() {
             setOpaque(true);
             setBackground(Color.WHITE);
-            setFont(getFont().deriveFont(Font.PLAIN, 12f));
+            setFont(getFont().deriveFont(Font.PLAIN, 10f)); // giảm font từ 12f xuống 10f
             rebuildSlots();
             // simple edit: double-click a slot to edit text when edit mode is on
             MouseAdapter ma = new MouseAdapter() {
@@ -3194,7 +3199,10 @@ public class SoDoThiDauPanel extends JPanel {
         }
 
         void setBracketSize(int size) {
-            if (size >= 32) {
+            if (size >= 64) {
+                this.columns = 7;
+                this.spots = new int[] { 64, 32, 16, 8, 4, 2, 1 };
+            } else if (size >= 32) {
                 this.columns = 6;
                 this.spots = new int[] { 32, 16, 8, 4, 2, 1 };
             } else {
@@ -3289,13 +3297,15 @@ public class SoDoThiDauPanel extends JPanel {
         private void rebuildSlots() {
             slots.clear();
             int orderCounter = 1; // continuous numbering
-            int baseStep = 28;
+            int baseStep = 32; // giảm từ 28 để phù hợp với công thức mới
             for (int col = 1; col <= columns; col++) {
                 int spotCount = spots[col - 1];
                 int verticalStep = (int) (baseStep * Math.pow(2, col - 1)); // bước của cột hiện tại (tăng chiều dọc)
                 for (int t = 0; t < spotCount; t++) {
-                    int x = 15 + (col - 1) * 180 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
+                    // Công thức mới: TOA_DO_X = 20 + (COL - 1) * 140
+                    int x = 20 + (col - 1) * 140 + (col > 1 ? (col - 1) * BASE_INNER_RIGHT_OFFSET : 0); // dịch phải
                                                                                                         // (giãn ngang)
+                    // Công thức mới: TOA_DO_Y = 40 + THU_TU * (32 * 2^(COL-1))
                     int baseY = START_Y + t * verticalStep;
                     // Cột 1 giữ nguyên. Cột >1: giữa hai ô con rồi đẩy lên một chút.
                     int y;
@@ -3328,8 +3338,7 @@ public class SoDoThiDauPanel extends JPanel {
                 }
             }
             // Cập nhật preferred size dựa trên xa nhất, gồm cả phần tràn tên ở bên phải
-            int baseMaxX = 35 + (columns - 1) * 200 + cellWidthForCol(columns) + 40; // khớp với spacing mới + ô cuối to
-                                                                                     // hơn
+            int baseMaxX = 20 + (columns - 1) * 165 + cellWidthForCol(columns) + 40; // khớp với spacing mới + ô nhỏ hơn
             int fontSize = getBracketNameFontSize();
             Font f = getFont().deriveFont(Font.PLAIN, (float) fontSize);
             java.awt.FontMetrics fm = getFontMetrics(f);
@@ -3337,14 +3346,14 @@ public class SoDoThiDauPanel extends JPanel {
             for (Slot s : slots) {
                 if (s.text != null && !s.text.isBlank()) {
                     int textW = fm.stringWidth(s.text);
-                    int right = s.x + 10 + textW; // x + padding + text width
+                    int right = s.x + 4 + textW; // x + padding + text width (giảm từ 10 xuống 4)
                     if (right > maxRight)
                         maxRight = right;
                 }
             }
-            int maxX = Math.max(baseMaxX, maxRight + 40); // thêm 40px để có khoảng trống
+            int maxX = Math.max(baseMaxX, maxRight + 10); // thêm 30px để có khoảng trống (giảm từ 40)
             int lastColSpots = spots[0];
-            int maxY = START_Y + (lastColSpots) * (baseStep) + 400; // dư chút để scroll
+            int maxY = START_Y + (lastColSpots) * (baseStep) + 50; // dư chút để scroll (giảm từ 400)
             setPreferredSize(new Dimension(maxX, maxY));
             revalidate();
         }
@@ -3365,9 +3374,7 @@ public class SoDoThiDauPanel extends JPanel {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            // Vẽ nhãn cột
-            g2.setFont(getFont());
-            // Vẽ ô
+            // Vẽ ô (nhãn cột đã được bỏ)
             for (Slot s : slots) {
                 int w = cellWidthForCol(s.col);
                 int h = cellHeightForCol(s.col);
@@ -3463,9 +3470,9 @@ public class SoDoThiDauPanel extends JPanel {
                     int descent = fm.getDescent();
                     // Center text vertically within visual rect, with a tiny top padding
                     int centeredBaseline = yVis + (visH - (ascent + descent)) / 2 + ascent;
-                    int minBaseline = yVis + ascent + 2; // ensure a small top padding
-                    int textY = Math.max(minBaseline, centeredBaseline);
-                    g2.drawString(txt, s.x + 10, textY);
+                    int minBaseline = yVis + ascent + 1; // giảm top padding từ 2 xuống 1
+                    int textY = Math.max(minBaseline, centeredBaseline) - 2; // move up thêm 2px
+                    g2.drawString(txt, s.x + 4, textY); // giảm left padding từ 10 xuống 4
 
                     // Draw score under the slot if present
                     String score = getScoreOverride(s.col, s.thuTu);
@@ -3520,14 +3527,14 @@ public class SoDoThiDauPanel extends JPanel {
 
         private int getBracketNameFontSize() {
             try {
-                int v = SoDoThiDauPanel.this.prefs.getInt("bracket.nameFontSize", 12);
-                if (v < 10)
-                    v = 10;
-                if (v > 24)
-                    v = 24;
+                int v = SoDoThiDauPanel.this.prefs.getInt("bracket.nameFontSize", 10);
+                if (v < 8) // giảm min từ 10 xuống 8
+                    v = 8;
+                if (v > 20) // giảm max từ 24 xuống 20
+                    v = 20;
                 return v;
             } catch (RuntimeException ignore) {
-                return 12;
+                return 10; // giảm fallback từ 12 xuống 10
             }
         }
     }
