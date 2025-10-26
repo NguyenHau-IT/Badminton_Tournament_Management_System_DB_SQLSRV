@@ -187,6 +187,11 @@ Lưu ý: Xác thực PIN hiện tại do tầng ứng dụng xử lý (và có t
 - Client-side throttling (web) khoảng 80ms để mượt mà và tránh dồn cập nhật.
 - Nếu SSE không khả dụng, client sẽ fallback sang polling.
 
+### Mô hình thực thi tuần tự per-court (2025+)
+- Từ phiên bản 2.1, mọi thao tác cập nhật trạng thái sân đều được thực thi tuần tự qua `SerialExecutor` (per-court), sử dụng virtual threads (Java 21) làm backing executor.
+- Điều này đảm bảo không race condition khi thao tác đồng thời nhiều sân, đồng thời cho phép mở rộng số lượng sân lớn mà không bị giới hạn bởi số lượng thread vật lý.
+- API nội bộ `submitToCourt` giúp các thao tác cập nhật điểm số, trạng thái trận đấu, ghi DB... đều an toàn và hiệu quả.
+
 ---
 
 ## 🔒 Bảo mật & CORS

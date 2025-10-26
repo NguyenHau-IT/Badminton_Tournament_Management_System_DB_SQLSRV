@@ -68,6 +68,12 @@ Spring Boot (Web + REST API + SSE)  ←→  SQL Server (JDBC/Hikari/JPA)
   └── REST API (/api/court/**, /api/scoreboard/**) + SSE stream
 ```
 
+#### Mô hình thực thi đa sân (2025+)
+- Mỗi sân (`CourtSession`) được gán một `SerialExecutor` riêng, đảm bảo mọi thao tác cập nhật trạng thái (điểm số, lịch sử, DB) đều được thực thi tuần tự (FIFO) trên sân đó.
+- Tất cả các `SerialExecutor` dùng chung một backing executor dựa trên virtual threads (Java 21), giúp mở rộng số lượng sân lớn mà không tốn nhiều OS thread vật lý.
+- API `submitToCourt(courtId, Runnable)` cho phép các service/UI gửi tác vụ cần thực thi lên đúng hàng đợi của sân, nhận về `CompletableFuture` để theo dõi hoàn tất.
+- Ưu điểm: loại bỏ hoàn toàn race condition trên từng sân, không giới hạn số lượng sân bởi thread pool, tối ưu hiệu suất và khả năng mở rộng.
+
 **Đặc điểm:**
 - Ứng dụng desktop và dịch vụ web đồng quy trình (fat-jar Spring Boot, mở Swing UI trong JVM không headless).
 - Giao tiếp real-time qua SSE (Server-Sent Events) và/hoặc polling dự phòng.
@@ -636,6 +642,11 @@ graph LR
 - **Lazy Loading**: JPA lazy loading cho entities
 - **Static Resource Caching**: Browser caching cho CSS/JS
 - **SSE Efficiency**: Event-driven updates thay vì polling
+
+#### Quản lý thread & đa sân hiện đại
+- Từ phiên bản 2.1, mọi thao tác cập nhật trạng thái sân đều được thực thi tuần tự qua `SerialExecutor` (per-court), sử dụng virtual threads (Java 21) làm backing executor.
+- Điều này đảm bảo không race condition khi thao tác đồng thời nhiều sân, đồng thời cho phép mở rộng số lượng sân lớn mà không bị giới hạn bởi số lượng thread vật lý.
+- API `submitToCourt` giúp các thao tác cập nhật điểm số, trạng thái trận đấu, ghi DB... đều an toàn và hiệu quả.
 
 #### Resource Management
 - **Memory Usage**: Monitor và display trên status bar
