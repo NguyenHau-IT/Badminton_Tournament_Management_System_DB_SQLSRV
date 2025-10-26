@@ -131,9 +131,15 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
         panel.setBorder(BorderFactory.createTitledBorder("Quản lý sân mới"));
 
         // Combo box chọn sân
-        JComboBox<String> courtCombo = new JComboBox<>(
-                new String[] { "Sân 1", "Sân 2", "Sân 3", "Sân 4", "Sân 5", "Sân 6", "Sân 7", "Sân 8", "Sân 9",
-                        "Sân 10" });
+        // Tạo danh sách 50 sân
+        String[] courts = new String[50];
+        for (int i = 0; i < courts.length; i++) {
+            courts[i] = "Sân " + (i + 1);
+        }
+
+        // Tạo combo box
+        JComboBox<String> courtCombo = new JComboBox<>(courts);
+
         courtCombo.setPreferredSize(new Dimension(100, 30));
         courtCombo.setFont(new Font("SansSerif", Font.BOLD, 13));
 
@@ -901,8 +907,11 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
      * Chọn courtId kế tiếp có sẵn trong combo box
      */
     private void selectNextAvailableCourt(JComboBox<String> courtCombo) {
-        String[] allCourts = { "Sân 1", "Sân 2", "Sân 3", "Sân 4", "Sân 5", "Sân 6", "Sân 7", "Sân 8", "Sân 9",
-                "Sân 10" };
+        // Tạo danh sách 50 sân: "Sân 1" -> "Sân 50"
+        String[] allCourts = new String[50];
+        for (int i = 0; i < 50; i++) {
+            allCourts[i] = "Sân " + (i + 1);
+        }
 
         for (String court : allCourts) {
             if (courtManager.getCourt(court) == null) {
@@ -917,4 +926,5 @@ public class MultiCourtControlPanel extends JPanel implements PropertyChangeList
             courtCombo.setSelectedItem(allCourts[0]);
         }
     }
+
 }

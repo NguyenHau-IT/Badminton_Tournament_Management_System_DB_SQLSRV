@@ -7,9 +7,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 
 import com.example.btms.model.match.BadmintonMatch;
 import com.example.btms.model.match.CourtSession;
+import com.example.btms.util.threading.SerialExecutor;
 
 /**
  * Service quản lý nhiều sân cầu lông trên một máy
@@ -19,7 +23,14 @@ public class CourtManagerService {
 
     private final Map<String, CourtSession> courtSessions = new ConcurrentHashMap<>();
     private final Map<String, BadmintonMatch> courtMatches = new ConcurrentHashMap<>();
+    // Mỗi sân có một SerialExecutor để đảm bảo các thao tác trên sân đó chạy tuần
+    // tự
+    private final Map<String, SerialExecutor> courtExecutors = new ConcurrentHashMap<>();
     private final PropertyChangeSupport pcs = new PropertyChangeSupport(this);
+
+    // Backing executor dùng chung cho tất cả SerialExecutor của sân: Virtual
+    // Threads (Java 21)
+    private static final ExecutorService COURT_BACKING_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private CourtManagerService() {
     }
@@ -35,6 +46,8 @@ public class CourtManagerService {
         CourtSession session = new CourtSession(courtId, header, new BadmintonMatch());
         courtSessions.put(courtId, session);
         courtMatches.put(courtId, session.match);
+        // Tạo SerialExecutor cho sân này
+        courtExecutors.put(courtId, new SerialExecutor(COURT_BACKING_EXECUTOR, "Court-" + courtId));
 
         pcs.firePropertyChange("courtAdded", null, courtId);
         return session;
@@ -94,6 +107,14 @@ public class CourtManagerService {
     public void removeCourt(String courtId) {
         CourtSession session = courtSessions.remove(courtId);
         courtMatches.remove(courtId);
+        // Dọn executor hàng đợi cho sân này
+        SerialExecutor ex = courtExecutors.remove(courtId);
+        if (ex != null) {
+            try {
+                ex.clearQueue();
+            } catch (Exception ignore) {
+            }
+        }
 
         if (session != null) {
             // Đóng display frame nếu có
@@ -128,7 +149,28 @@ public class CourtManagerService {
         }
         courtSessions.clear();
         courtMatches.clear();
+        // Dọn tất cả executor hàng đợi (backing executor shared vẫn giữ để tái sử dụng)
+        for (SerialExecutor ex : courtExecutors.values()) {
+            try {
+                ex.clearQueue();
+            } catch (Exception ignore) {
+            }
+        }
+        courtExecutors.clear();
         pcs.firePropertyChange("allCourtsClosed", null, null);
+    }
+
+    /**
+     * Gửi một tác vụ cần thực thi tuần tự theo sân (đảm bảo không race trên state
+     * của sân đó).
+     * Trả về CompletableFuture để caller theo dõi hoàn tất.
+     */
+    public CompletableFuture<Void> submitToCourt(String courtId, Runnable task) {
+        SerialExecutor ex = courtExecutors.get(courtId);
+        if (ex == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Court not found: " + courtId));
+        }
+        return ex.submit(task);
     }
 
     /**
