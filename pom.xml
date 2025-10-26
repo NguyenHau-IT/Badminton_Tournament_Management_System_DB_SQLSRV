@@ -5,7 +5,7 @@
 
     <groupId>com.example</groupId>
     <artifactId>btms</artifactId>
-    <version>2.0.0</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>Badminton Tournament Management System (BTMS)</name>
 
@@ -32,12 +32,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -49,7 +47,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- H2 in-memory/database for local testing -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
@@ -60,7 +57,6 @@
             <artifactId>flatlaf</artifactId>
             <version>3.4</version>
         </dependency>
-
         <dependency>
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf-extras</artifactId>
@@ -72,14 +68,12 @@
             <artifactId>core</artifactId>
             <version>3.5.2</version>
         </dependency>
-
         <dependency>
             <groupId>com.google.zxing</groupId>
             <artifactId>javase</artifactId>
             <version>3.5.2</version>
         </dependency>
 
-        <!-- OkHttp với version explicit -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
@@ -108,13 +102,11 @@
             <version>1.4</version>
         </dependency>
 
-        <!-- PDF generation (OpenPDF - MPL/LGPL) -->
         <dependency>
             <groupId>com.github.librepdf</groupId>
             <artifactId>openpdf</artifactId>
             <version>1.3.39</version>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -133,8 +125,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-
-                <!-- Giữ repackage để build ra fat jar -->
                 <executions>
                     <execution>
                         <id>repackage</id>
@@ -145,7 +135,7 @@
                 </executions>
             </plugin>
 
-            <!-- jpackage tạo MSI; cài mặc định theo ${install.dir} -->
+            <!-- jpackage tạo MSI -->
             <plugin>
                 <groupId>org.panteleyev</groupId>
                 <artifactId>jpackage-maven-plugin</artifactId>
@@ -158,36 +148,24 @@
                             <goal>jpackage</goal>
                         </goals>
                         <configuration>
-                            <!-- Nơi sinh file MSI: để trong target/dist để khỏi phụ thuộc ổ D -->
                             <destination>${dist.dir}</destination>
-
-                            <!-- Thư mục chứa jar đã repackage -->
                             <input>${project.build.directory}</input>
 
                             <name>${app.name}</name>
                             <appVersion>${project.version}</appVersion>
-                            <vendor>NGUYEN VIET HAU</vendor>
-                            <description>
-                                Badminton Tournament Management System: handle players, scheduling, scoring, and statistics.
-                            </description>
+                            <vendor>BTMS</vendor>
+                            <description>BTMS - Badminton Tournament Management System.</description>
 
                             <type>MSI</type>
-
-                            <!-- Dùng fat-jar của Spring Boot -->
                             <mainJar>${project.build.finalName}.jar</mainJar>
 
-                            <!-- Icon & options Windows -->
                             <icon>src/main/resources/icons/app.ico</icon>
                             <winMenu>true</winMenu>
                             <winMenuGroup>${app.name}</winMenuGroup>
                             <winShortcut>true</winShortcut>
-
-                            <!-- Cho phép người dùng đổi thư mục cài nếu muốn -->
                             <winDirChooser>true</winDirChooser>
 
-                            <!-- CÀI MẶC ĐỊNH: dùng profile để set D:\BET hoặc fallback C:\Program Files\BET -->
                             <installDir>${install.dir}</installDir>
-
                             <winUpgradeUuid>6b1d7f39-9c8a-4a11-9c36-6e0be3e2c2a1</winUpgradeUuid>
                             <licenseFile>src/main/resources/license.txt</licenseFile>
                             <javaOptions>
@@ -202,7 +180,7 @@
 
     <!-- Profiles auto-chọn installDir theo sự tồn tại của ổ D -->
     <profiles>
-        <!-- Nếu CÓ ổ D: cài mặc định D:\BET -->
+        <!-- Nếu CÓ ổ D: cài mặc định D:\BTMS -->
         <profile>
             <id>default-d</id>
             <activation>
@@ -224,7 +202,7 @@
                 </file>
             </activation>
             <properties>
-                <install.dir>C:\BTMS</install.dir>
+                <install.dir>C:\Program Files\BTMS</install.dir>
             </properties>
         </profile>
     </profiles>
