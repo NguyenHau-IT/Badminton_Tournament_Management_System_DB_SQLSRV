@@ -17,7 +17,7 @@
 ## 🎯 Tổng quan hệ thống
 
 Hệ thống quản lý đa sân cầu lông cho phép:
-- **Quản lý nhiều sân** trên cùng một máy tính (tối đa 5 sân)
+- **Quản lý nhiều sân** trên cùng một máy tính (không giới hạn cứng, tuỳ cấu hình; mặc định có thể mở rất nhiều sân nhờ mô hình thread hiện đại)
 - **Điều khiển trận đấu** từ giao diện desktop với đầy đủ tính năng
 - **Điều khiển từ xa** qua web interface với mã PIN bảo mật
 - **Giám sát real-time** tất cả các sân từ một màn hình
@@ -224,6 +224,10 @@ Tạo file `jvm-optimization.conf`:
   ├── ⏱️ Thời gian: 23:45
   └── 🔗 Web: http://192.168.1.100:2345/scoreboard/1234
   ```
+
+**Lưu ý:**
+- Hệ thống sử dụng mô hình thực thi tuần tự cho từng sân (`SerialExecutor` per court, backing bằng virtual threads Java 21), đảm bảo mọi thao tác cập nhật trạng thái (điểm số, lịch sử, DB) đều an toàn, không race condition, và có thể mở rộng số lượng sân lớn mà không bị giới hạn bởi số lượng thread vật lý.
+- Mọi thao tác cập nhật trạng thái sân đều được thực thi qua API `submitToCourt`, giúp các thao tác đồng thời trên nhiều sân luôn an toàn và hiệu quả.
 
 **Mở điều khiển sân cụ thể:**
 - **Click vào tab sân** trong MultiCourtControlPanel
