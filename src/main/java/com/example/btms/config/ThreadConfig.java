@@ -51,7 +51,7 @@ public class ThreadConfig {
     public ExecutorService ioIntensiveExecutor() {
         log.info("💾 Creating I/O Intensive Thread Pool");
         this.ioIntensiveExecutor = Executors.newFixedThreadPool(
-                Math.max(8, Runtime.getRuntime().availableProcessors() * 2),
+                Math.max(30, Runtime.getRuntime().availableProcessors() * 2),
                 new NamedThreadFactory("IO-Intensive"));
         return this.ioIntensiveExecutor;
     }
