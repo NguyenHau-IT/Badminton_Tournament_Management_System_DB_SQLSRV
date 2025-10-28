@@ -160,22 +160,6 @@
                                     <targetPath>screenshots</targetPath>
                                     <filtering>false</filtering>
                                 </resource>
-                                <!-- 3 thư mục bổ sung -->
-                                <resource>
-                                    <directory>${project.basedir}/backup</directory>
-                                    <targetPath>backup</targetPath>
-                                    <filtering>false</filtering>
-                                </resource>
-                                <resource>
-                                    <directory>${project.basedir}/icons</directory>
-                                    <targetPath>icons</targetPath>
-                                    <filtering>false</filtering>
-                                </resource>
-                                <resource>
-                                    <directory>${project.basedir}/sounds</directory>
-                                    <targetPath>sounds</targetPath>
-                                    <filtering>false</filtering>
-                                </resource>
                             </resources>
                         </configuration>
                     </execution>
