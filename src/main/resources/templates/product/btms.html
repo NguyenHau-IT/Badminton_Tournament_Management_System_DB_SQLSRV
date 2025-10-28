@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>BTMS · Hệ thống quản lý giải cầu lông</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700&display=swap" rel="stylesheet" />
+	<link th:href="@{/css/product/btms.css}" href="../../static/css/product/btms.css" rel="stylesheet" />
+	<link rel="stylesheet" href="/src/main/resources/static/css/product/btms.css" />
+</head>
+<body>
+<header class="hero">
+	<div class="hero-content">
+		<div>
+			<span class="tag">Phiên bản 2.0.0</span>
+			<h1>Badminton Tournament Management System</h1>
+			<p>
+				Giải pháp quản lý giải cầu lông đa sân được thiết kế thân thiện cho ban tổ chức.
+				BTMS giúp điều khiển bảng điểm, theo dõi trạng thái trận đấu trên mọi thiết bị và cài đặt nhanh trên máy Windows.
+			</p>
+		</div>
+		<div class="hero-actions">
+			<a href="#" class="btn-primary">Tải bộ cài Windows (minh hoạ)</a>
+			<a href="#kham-pha" class="btn-outline">Khám phá tính năng</a>
+		</div>
+	</div>
+</header>
+
+<main>
+	<section id="tong-quan" class="page-section">
+		<div class="section-heading">
+			<h2>BTMS là gì?</h2>
+			<p>
+				Hệ thống kết hợp ứng dụng máy tính và trang web để quản lý toàn bộ hoạt động của giải đấu cầu lông: vận hành trận, giám sát đa sân, phát hành bảng điểm tới thiết bị người xem.
+			</p>
+		</div>
+		<div class="grid columns-3">
+			<article class="card">
+				<h3>Vận hành linh hoạt</h3>
+				<p>Giao diện điều khiển trên máy tính kết hợp trang web nội bộ, giúp mọi dữ liệu được đồng bộ tức thời giữa các bộ phận.</p>
+			</article>
+			<article class="card">  
+				<h3>Vận hành đa sân</h3>
+				<p>Quản lý tối ưu 5 sân song song, mỗi sân được bảo vệ bằng mã PIN riêng để điều khiển qua trình duyệt.</p>
+			</article>
+			<article class="card">
+				<h3>Cài đặt nhanh</h3>
+				<p>Gói cài đặt được chuẩn bị sẵn kèm hướng dẫn chi tiết, giúp thiết lập mạng và dữ liệu ngay từ lần đầu sử dụng.</p>
+			</article>
+		</div>
+	</section>
+
+	<section id="muc-tieu" class="page-section feature-matrix">
+		<div class="section-heading">
+			<h2>Mục tiêu & phạm vi đáp ứng</h2>
+			<p>BTMS được thiết kế cho ban tổ chức giải cầu lông mong muốn vận hành ổn định, cập nhật tức thời và có thể mở rộng trong tương lai.</p>
+		</div>
+		<div class="grid columns-2">
+			<article class="card">
+				<h3>Ban tổ chức giải</h3>
+				<ul class="highlight-list">
+					<li>Thiết lập nội dung, bảng đấu, câu lạc bộ và đăng ký vận động viên.</li>
+					<li>Theo dõi tức thời trạng thái từng sân, lịch sử thi đấu và kết quả.</li>
+					<li>Quản lý dữ liệu tập trung, dễ sao lưu và xuất báo cáo.</li>
+				</ul>
+			</article>
+			<article class="card">
+				<h3>Trọng tài & điều phối viên</h3>
+				<ul class="highlight-list">
+					<li>Điều khiển điểm số, đổi sân, kết thúc ván ngay trên desktop hoặc thiết bị di động.</li>
+					<li>Hệ thống cập nhật tức thì lên bảng điểm hiển thị và đến người xem.</li>
+					<li>Chế độ PIN bảo vệ từng sân, đảm bảo quyền truy cập hợp lệ.</li>
+				</ul>
+			</article>
+		</div>
+	</section>
+
+	<section id="kham-pha" class="page-section">
+		<div class="section-heading">
+			<h2>Tính năng nổi bật</h2>
+			<p>Những điểm nhấn quan trọng nhất của BTMS ở phiên bản hiện tại.</p>
+		</div>
+		<div class="matrix-grid">
+			<article>
+				<span class="tag">Điều khiển tức thì</span>
+				<h3>Điều khiển bảng điểm đa thiết bị</h3>
+				<p>Ứng dụng trên máy tính và trang web theo mã PIN cùng cập nhật trong nháy mắt, hỗ trợ thao tác cảm ứng.</p>
+			</article>
+			<article>
+				<span class="tag">Quản lý giải đấu</span>
+				<h3>Quản lý giải đấu toàn diện</h3>
+				<p>Các phần quản lý giải, nội dung thi đấu, câu lạc bộ, đăng ký và lịch sử kết quả đều nằm chung trong một nơi.</p>
+			</article>
+			<article>
+				<span class="tag">Cài đặt</span>
+				<h3>Gói cài đặt đầy đủ</h3>
+				<p>Bộ cài Windows 10/11 kèm sẵn mọi thành phần cần thiết, tự động hướng dẫn kết nối dữ liệu ngay khi mở.</p>
+			</article>
+			<article>
+				<span class="tag">Kết nối</span>
+				<h3>Hoạt động trên LAN</h3>
+				<p>Chạy ổn định trong mạng nội bộ của giải đấu, cho phép kết nối từ điện thoại, máy tính bảng hoặc màn hình hiển thị điểm.</p>
+			</article>
+			<article>
+				<span class="tag">Lưu trữ</span>
+				<h3>Lưu vết và báo cáo</h3>
+				<p>Ghi nhận đầy đủ trạng thái sân, lịch sử điểm, hình chụp bảng điểm để rà soát và tổng kết sau giải.</p>
+			</article>
+			<article>
+				<span class="tag">Định hướng</span>
+				<h3>Định hướng tương lai</h3>
+				<p>Lộ trình 2.1 hướng tới đa ngôn ngữ, tăng bảo mật; phiên bản 3.0 dự kiến bổ sung phân tích thông minh và ứng dụng di động.</p>
+			</article>
+		</div>
+	</section>
+
+	<section id="lo-trinh" class="page-section">
+		<div class="section-heading">
+			<h2>Lộ trình phát triển</h2>
+			<p>BTMS tiếp tục được cải tiến với định hướng rõ ràng cho phiên bản 2.1 và 3.0.</p>
+		</div>
+		<div class="timeline">
+			<div class="timeline-item">
+				<h3>Hiện tại · v2.0.0</h3>
+				<p>Hoàn thiện nền tảng đa sân, cập nhật tức thì, quản lý giải đấu và bộ cài đặt thân thiện.</p>
+			</div>
+			<div class="timeline-item">
+				<h3>Đang lên kế hoạch · v2.1</h3>
+				<p>Hỗ trợ đa ngôn ngữ, tăng cường bảo mật, sao lưu trên đám mây và ứng dụng hỗ trợ trọng tài.</p>
+			</div>
+			<div class="timeline-item">
+				<h3>Tương lai · v3.0</h3>
+				<p>Mở rộng để phục vụ nhiều địa điểm cùng lúc, bổ sung phân tích thông minh, phát trực tiếp và xếp hạng người chơi.</p>
+			</div>
+		</div>
+	</section>
+</main>
+
+<footer class="footer">
+	<div class="footer-inner">
+		<h2>Chuẩn bị triển khai BTMS?</h2>
+		<p>
+			Nhóm phát triển sẵn sàng đồng hành cùng các giải cầu lông chuyên nghiệp trong việc số hoá vận hành.
+			Liên hệ để nhận bộ cài chính thức, tài liệu cấu hình, hoặc trao đổi về nhu cầu tuỳ chỉnh.
+		</p>
+		<p>&copy; BTMS · Nguyen Viet Hau</p>
+	</div>
+</footer>
+
+</body>
+</html>
