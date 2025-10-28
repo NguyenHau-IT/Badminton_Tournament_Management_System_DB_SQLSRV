@@ -62,20 +62,32 @@ public class SoDoDoiService {
     }
 
     /**
-     * Liên kết ID trận cho slot theo tên đội (TEN_TEAM) — cập nhật tất cả vị trí
-     * khớp.
-     * Trả về số bản ghi được cập nhật.
+     * Liên kết ID trận cho đội trong một sơ đồ.
+     * CHỈ gán vào slot trống để bảo tồn lịch sử các trận đấu trước đó.
+     * Trả về số bản ghi được cập nhật (0 hoặc 1).
      */
     public int linkTranDauByTeamName(int idGiai, int idNoiDung, String tenTeam, String matchId) {
-        int updated = 0;
         List<SoDoDoi> rows = list(idGiai, idNoiDung);
-        for (SoDoDoi r : rows) {
-            if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenTeam)
-                    && r.getIdTranDau() == null) {
-                updated += repo.updateTranDau(idGiai, idNoiDung, r.getViTri(), matchId);
+
+        // Lọc ra các slot của đội này
+        List<SoDoDoi> teamSlots = rows.stream()
+                .filter(r -> r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(tenTeam))
+                .sorted((a, b) -> Integer.compare(b.getViTri(), a.getViTri())) // Sắp xếp theo vị trí giảm dần (vòng mới
+                                                                               // nhất trước)
+                .toList();
+
+        if (teamSlots.isEmpty())
+            return 0;
+
+        // CHỈ gán vào slot trống để bảo tồn lịch sử
+        for (SoDoDoi slot : teamSlots) {
+            if (slot.getIdTranDau() == null) {
+                return repo.updateTranDau(idGiai, idNoiDung, slot.getViTri(), matchId);
             }
         }
-        return updated;
+
+        // Không tìm thấy slot trống → không gán (giữ nguyên lịch sử)
+        return 0;
     }
 
     /* helper */
