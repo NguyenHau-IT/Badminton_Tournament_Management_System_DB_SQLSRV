@@ -65,18 +65,32 @@ public class SoDoCaNhanService {
     }
 
     /**
-     * Liên kết ID trận cho tất cả slot của VĐV trong một sơ đồ (theo ID_VDV).
-     * Trả về số bản ghi được cập nhật.
+     * Liên kết ID trận cho VĐV trong một sơ đồ.
+     * CHỈ gán vào slot trống để bảo tồn lịch sử các trận đấu trước đó.
+     * Trả về số bản ghi được cập nhật (0 hoặc 1).
      */
     public int linkTranDauByVdv(int idGiai, int idNoiDung, int idVdv, String matchId) {
-        int updated = 0;
         List<SoDoCaNhan> rows = list(idGiai, idNoiDung);
-        for (SoDoCaNhan r : rows) {
-            if (r.getIdVdv() != null && r.getIdVdv() == idVdv && r.getIdTranDau() == null) {
-                updated += repo.updateTranDau(idGiai, idNoiDung, r.getViTri(), matchId);
+
+        // Lọc ra các slot của VĐV này
+        List<SoDoCaNhan> vdvSlots = rows.stream()
+                .filter(r -> r.getIdVdv() != null && r.getIdVdv() == idVdv)
+                .sorted((a, b) -> Integer.compare(b.getViTri(), a.getViTri())) // Sắp xếp theo vị trí giảm dần (vòng mới
+                                                                               // nhất trước)
+                .toList();
+
+        if (vdvSlots.isEmpty())
+            return 0;
+
+        // CHỈ gán vào slot trống để bảo tồn lịch sử
+        for (SoDoCaNhan slot : vdvSlots) {
+            if (slot.getIdTranDau() == null) {
+                return repo.updateTranDau(idGiai, idNoiDung, slot.getViTri(), matchId);
             }
         }
-        return updated;
+
+        // Không tìm thấy slot trống → không gán (giữ nguyên lịch sử)
+        return 0;
     }
 
     // Helpers
