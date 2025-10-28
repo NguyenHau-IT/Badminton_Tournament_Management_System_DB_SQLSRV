@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Giới thiệu về BTMS</title>
+	<link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" href="/css/bootstrap.min.css">
+	<link rel="stylesheet" th:href="@{/css/aboutus/aboutus.css}" href="../../static/css/aboutus/aboutus.css">
+</head>
+<body class="aboutus-bg">
+	<div class="container aboutus-container py-5">
+		<div class="row align-items-center mb-5">
+			<div class="col-md-6 text-center text-md-start">
+				<h1 class="aboutus-title mb-3">Về Chúng Tôi</h1>
+				<h2 class="aboutus-appname mb-4">Badminton Tournament Management System (BTMS)</h2>
+				<p class="aboutus-lead">BTMS là hệ thống quản lý giải đấu cầu lông đa sân, kết hợp giữa ứng dụng desktop mạnh mẽ và giao diện web hiện đại, giúp tổ chức, điều hành và giám sát các giải đấu một cách chuyên nghiệp, hiệu quả và minh bạch.</p>
+			</div>
+			<div class="col-md-6 d-flex align-items-center justify-content-center" style="min-height: 260px;">
+				<img th:src="@{/icons/btms-logo.png}" src="/icons/btms-logo.png" alt="BTMS Logo" class="aboutus-logo" style="max-width: 100%; max-height: 60vh; width: auto; height: auto; display: block; margin: 0 auto; object-fit: contain;" />
+			</div>
+		</div>
+
+		<div class="row mb-5">
+			<div class="col-md-4 mb-4 mb-md-0">
+				<div class="aboutus-card h-100 p-4 text-center">
+					<h3 class="aboutus-section-title mb-3">Sứ mệnh</h3>
+					<p>Đưa công nghệ vào quản lý và tổ chức các giải đấu cầu lông, nâng cao trải nghiệm cho ban tổ chức, trọng tài và vận động viên, đồng thời thúc đẩy sự phát triển của phong trào cầu lông hiện đại.</p>
+				</div>
+			</div>
+			<div class="col-md-4 mb-4 mb-md-0">
+				<div class="aboutus-card h-100 p-4 text-center">
+					<h3 class="aboutus-section-title mb-3">Giá trị cốt lõi</h3>
+					<ul class="aboutus-values list-unstyled mb-0">
+						<li>🎯 Chuyên nghiệp & Minh bạch</li>
+						<li>⚡ Hiệu quả & Thời gian thực</li>
+						<li>🤝 Kết nối cộng đồng</li>
+						<li>🚀 Đổi mới & Sáng tạo</li>
+					</ul>
+				</div>
+			</div>
+			<div class="col-md-4">
+				<div class="aboutus-card h-100 p-4 text-center">
+					<h3 class="aboutus-section-title mb-3">Đội ngũ phát triển</h3>
+					<p>BTMS được phát triển bởi <b>Nguyen Viet Hau</b> cùng cộng sự, với kinh nghiệm sâu rộng về công nghệ, thể thao và tổ chức sự kiện.</p>
+				</div>
+			</div>
+		</div>
+
+		<div class="row mt-5">
+			<div class="col-12 text-center">
+				<h4 class="aboutus-connect mb-3">Kết nối với chúng tôi</h4>
+				<p class="mb-4">Hãy liên hệ để hợp tác, tư vấn triển khai hoặc đóng góp ý kiến phát triển hệ thống!</p>
+				<div class="aboutus-social mb-3">
+					<a href="mailto:btms.contact@gmail.com" class="aboutus-social-link me-3" title="Email"><i class="bi bi-envelope"></i> btms.contact@gmail.com</a>
+					<a href="https://www.facebook.com/btmsapp" class="aboutus-social-link me-3" target="_blank" title="Facebook"><i class="bi bi-facebook"></i> Facebook</a>
+					<a href="https://zalo.me/123456789" class="aboutus-social-link" target="_blank" title="Zalo"><i class="bi bi-chat-dots"></i> Zalo</a>
+				</div>
+				<div class="aboutus-address text-muted">
+					<i class="bi bi-geo-alt"></i> Hà Nội, Việt Nam
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
