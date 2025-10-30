@@ -384,17 +384,18 @@ public class SoDoThiDauPanel extends JPanel {
                 BracketCanvas.Slot s = canvas.slotAt(e.getPoint());
                 if (s == null)
                     return;
-                // Xác định cặp trong cùng vòng (cùng cột)
-                BracketCanvas.Slot partner = null;
-                int partnerIdx = (s.thuTu % 2 == 0) ? s.thuTu + 1 : s.thuTu - 1;
+                // Luôn lấy VĐV nằm trên là VĐV 1 (A), dưới là VĐV 2 (B)
+                int idxA = (s.thuTu % 2 == 0) ? s.thuTu : s.thuTu - 1;
+                int idxB = idxA + 1;
+                BracketCanvas.Slot slotA = null, slotB = null;
                 for (BracketCanvas.Slot it : canvas.getSlots()) {
-                    if (it.col == s.col && it.thuTu == partnerIdx) {
-                        partner = it;
-                        break;
-                    }
+                    if (it.col == s.col && it.thuTu == idxA)
+                        slotA = it;
+                    if (it.col == s.col && it.thuTu == idxB)
+                        slotB = it;
                 }
-                String a = (s.text != null) ? s.text.trim() : "";
-                String b = (partner != null && partner.text != null) ? partner.text.trim() : "";
+                String a = (slotA != null && slotA.text != null) ? slotA.text.trim() : "";
+                String b = (slotB != null && slotB.text != null) ? slotB.text.trim() : "";
                 if (a.isBlank() || b.isBlank()) {
                     JOptionPane.showMessageDialog(SoDoThiDauPanel.this,
                             "Cặp này chưa đủ tên để mở trận.",
