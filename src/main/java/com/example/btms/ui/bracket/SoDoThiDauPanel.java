@@ -82,6 +82,8 @@ import com.lowagie.text.DocumentException;
  * thì hiển thị "Slot n".
  */
 public class SoDoThiDauPanel extends JPanel {
+    // Timer tự động reload sơ đồ mỗi 10 giây
+    private final javax.swing.Timer autoRefreshTimer;
 
     // Main tabs: "Sơ đồ" (bracket) and "Thi đấu" (embedded MultiCourtControlPanel)
     private final JTabbedPane mainTabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
@@ -207,6 +209,11 @@ public class SoDoThiDauPanel extends JPanel {
         } catch (Throwable ignore) {
         }
         updateCanvasForMode();
+
+        // Khởi động timer tự động reload mỗi 10 giây
+        autoRefreshTimer = new javax.swing.Timer(10000, e -> reloadData());
+        autoRefreshTimer.setRepeats(true);
+        autoRefreshTimer.start();
     }
 
     /**
@@ -303,6 +310,8 @@ public class SoDoThiDauPanel extends JPanel {
             }
         } catch (Exception ignore) {
         }
+        // Đảm bảo luôn cập nhật lại canvas khi reload
+        canvas.repaint();
     }
 
     /**
