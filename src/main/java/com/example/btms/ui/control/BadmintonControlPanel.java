@@ -3142,10 +3142,11 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         if (games[0] == games[1])
             return;
         int winnerSide = (games[0] > games[1]) ? 0 : 1;
-        if (!isDoubles)
+        if (!isDoubles) {
             autoAdvanceSingles(idGiai, idNoiDung, winnerSide);
-        else
+        } else {
             autoAdvanceDoubles(idGiai, idNoiDung, winnerSide);
+        }
     }
 
     private void autoAdvanceSingles(int idGiai, int idNoiDung, int winnerSide) {
