@@ -1,35 +1,33 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{fragments/layouts}">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BTMS Official</title>
+  <title>BTMS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-  <link th:href="@{/css/landing/landing.css}" href="../../static/css/landing/landing.css" rel="stylesheet" />
-  <!-- Live Server / static-preview fallback when not running Spring Boot -->
-  <link rel="stylesheet" href="/src/main/resources/static/css/landing/landing.css" />
+  <link th:href="@{/css/home/home.css}" href="../../static/css/home/home.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/main/resources/static/css/home/home.css" />
 </head>
 
 <body>
-  <div th:replace="fragments/header :: header"></div>
-
-  <main class="landing-wrapper" data-scroll-container>
+  <div layout:fragment="content">
     <section id="slide-1" class="slide hero">
       <div class="content slide1-content">
         <h1>BTMS</h1>
         <h2>Modern multi-court badminton management</h2>
-        <p>Kết hợp ứng dụng desktop và web real-time để điều khiển bảng điểm, cập nhật dữ liệu đa sân, theo dõi giải đấu mọi lúc mọi nơi.</p>
+        <p>Kết hợp ứng dụng desktop và web real-time để điều khiển bảng điểm, cập nhật dữ liệu đa sân, theo dõi giải đấu
+          mọi lúc mọi nơi.</p>
         <div class="actions slide1-actions">
           <a href="#slide-3" class="btn-primary slide1-btn1">Khám phá sự kiện</a>
-          <a href="#slide-2" class="btn-secondary slide1-btn2">Tính năng BTMS</a>
+          <a href="#slide-2" class="btn-secondary slide1-btn2">Ứng dụng BTMS</a>
         </div>
       </div>
       <div class="scroll-hint slide1-scroll">
-        <span>Cuộn xuống</span><br>
         <i class="bi bi-mouse"></i>
       </div>
     </section>
@@ -63,15 +61,14 @@
     <section id="slide-3" class="slide call-to-action">
       <div class="content slide3-content">
         <h2>Thể thao cầu lông</h2>
-        <p>Truy cập bảng điểm trực tiếp, xem chi tiết trận đấu và đăng ký tham gia các giải đấu cầu lông chuyên nghiệp.</p>
+        <p>Truy cập bảng điểm trực tiếp, xem chi tiết trận đấu và đăng ký tham gia các giải đấu cầu lông chuyên nghiệp.
+        </p>
         <div class="actions slide3-actions">
-          <a href="/badmintonEvent" class="btn-primary slide3-btn1">Khám phá giải đấu</a>
-          <a href="/scoreboard" class="btn-secondary slide3-btn2">Xem bảng điểm trực tuyến</a>
+          <a th:href="@{/badmintonTournament/badmintonTournament}" href="../badmintonTournament/badmintonTournament.html" class="btn-primary slide3-btn1">Khám phá giải đấu</a>
         </div>
       </div>
     </section>
-  </main>
-<div th:replace="fragments/footer :: footer"></div>
+  </div>
 
   <script>
     (function () {
@@ -92,7 +89,7 @@
         document.body.classList.toggle('footer-visible', currentIndex === slides.length - 1);
         setTimeout(() => {
           animating = false;
-        }, 650);
+        }, 1000);
       };
 
       const handleWheel = (event) => {

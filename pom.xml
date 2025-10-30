@@ -32,6 +32,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>nz.net.ultraq.thymeleaf</groupId>
+            <artifactId>thymeleaf-layout-dialect</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
@@ -139,31 +145,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
-                <executions>
-                    <execution>
-                        <id>copy-extra-resources</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/app-resources</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>${project.basedir}/database</directory>
-                                    <targetPath>database</targetPath>
-                                    <filtering>false</filtering>
-                                </resource>
-                                <resource>
-                                    <directory>${project.basedir}/screenshots</directory>
-                                    <targetPath>screenshots</targetPath>
-                                    <filtering>false</filtering>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
+                <version>3.3.0</version>
             </plugin>
 
             <!-- jpackage tạo MSI, kèm resourceDir -->
