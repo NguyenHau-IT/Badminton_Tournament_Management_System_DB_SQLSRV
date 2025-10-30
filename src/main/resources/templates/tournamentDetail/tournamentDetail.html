@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết giải đấu</title>
+    <link th:href="@{/css/tournamentDetail/tournamentDetail.css}" href="../../static/css/tournamentDetail/tournamentDetail.css" rel="stylesheet" />
+</head>
+<body>
+    <div th:replace="fragments/header :: header"></div>
+    <main class="tournament-detail-container">
+        <section class="tournament-detail-card">
+            <div class="tournament-detail-image"></div>
+            <div class="tournament-detail-info">
+                <h1>Giải cầu lông trẻ toàn quốc 2025</h1>
+                <p><b>Thời gian:</b> 12/12/2025 - 18/12/2025</p>
+                <p><b>Trạng thái:</b> Sắp diễn ra</p>
+                <p><b>Địa điểm:</b> Nhà thi đấu Quốc gia</p>
+                <p><b>Đội tham dự:</b> CLB Hải Dương, CLB Bắc Giang...</p>
+                <p><b>VĐV nổi bật:</b> Nguyễn Văn X, Lê Thị Y</p>
+                <p><b>HLV:</b> Trần Văn Z</p>
+                <p><b>Mô tả:</b> Đây là giải đấu thường niên dành cho các vận động viên trẻ xuất sắc trên toàn quốc, nhằm phát hiện và bồi dưỡng tài năng mới cho bộ môn cầu lông Việt Nam.</p>
+            </div>
+        </section>
+    </main>
+    <div th:replace="fragments/footer :: footer"></div>
+</body>
+</html>
