@@ -2183,12 +2183,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private void updateBracketScoresOnFinish(String matchId) {
         if (conn == null || matchId == null || matchId.isBlank())
             return;
-        // Tự động đưa VĐV/Đội thắng vào vòng kế tiếp
-        try {
-            autoAdvanceWinnerToNextRound(currentMatchId);
-        } catch (Exception advEx) {
-            logger.logTs("Lỗi auto-advance winner: %s", advEx.getMessage());
-        }
+        // NOTE: Auto-advance đã được gọi trong onFinish(), không gọi lại ở đây để tránh
+        // trùng lặp
 
         // Lấy context hiện tại
         String header = currentHeader();
@@ -3129,19 +3125,39 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         if (matchId != null && !matchId.isBlank()) {
             logger.logTs("Auto-advance triggered for matchId=%s", matchId);
         }
+
+        // Validation: Đảm bảo trận đấu đã thực sự kết thúc
+        if (match == null || !match.isMatchFinished()) {
+            logger.logTs("Auto-advance skipped: Trận đấu chưa kết thúc hoặc match=null");
+            return;
+        }
+
         String header = currentHeader();
         int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
-        if (header == null || header.isBlank() || idGiai <= 0)
+        if (header == null || header.isBlank() || idGiai <= 0) {
+            logger.logTs("Auto-advance skipped: Thiếu header=%s hoặc idGiai=%d", header, idGiai);
             return;
+        }
+
         boolean isDoubles = doubles.isSelected();
         Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
-        if (idNoiDung == null || idNoiDung <= 0)
+        if (idNoiDung == null || idNoiDung <= 0) {
+            logger.logTs("Auto-advance skipped: Không tìm thấy idNoiDung cho header=%s, isDoubles=%s", header,
+                    isDoubles);
             return;
+        }
 
-        int[] games = match != null ? match.getGames() : new int[] { 0, 0 };
-        if (games[0] == games[1])
+        int[] games = match.getGames();
+        logger.logTs("Auto-advance: Games A=%d, B=%d", games[0], games[1]);
+
+        if (games[0] == games[1]) {
+            logger.logTs("Auto-advance skipped: Trận hòa (%d-%d)", games[0], games[1]);
             return;
+        }
+
         int winnerSide = (games[0] > games[1]) ? 0 : 1;
+        logger.logTs("Auto-advance: Winner side=%d (%s)", winnerSide, winnerSide == 0 ? "A" : "B");
+
         if (!isDoubles) {
             autoAdvanceSingles(idGiai, idNoiDung, winnerSide);
         } else {
@@ -3153,15 +3169,27 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         try {
             SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
             java.util.List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
-            if (rows == null || rows.isEmpty())
+            if (rows == null || rows.isEmpty()) {
+                logger.logTs("Auto-advance (đơn) skipped: Không có dữ liệu sơ đồ cho idGiai=%d, idNoiDung=%d", idGiai,
+                        idNoiDung);
                 return;
+            }
 
             String nameA = sel(cboNameA);
             String nameB = sel(cboNameB);
+            logger.logTs("Auto-advance (đơn): nameA='%s', nameB='%s'", nameA, nameB);
+
             Integer idVdvA = (nameA == null || nameA.isBlank()) ? null : singlesNameToId.get(nameA);
             Integer idVdvB = (nameB == null || nameB.isBlank()) ? null : singlesNameToId.get(nameB);
-            if (idVdvA == null || idVdvA <= 0 || idVdvB == null || idVdvB <= 0)
+
+            if (idVdvA == null || idVdvA <= 0 || idVdvB == null || idVdvB <= 0) {
+                logger.logTs("Auto-advance (đơn) skipped: Không tìm thấy ID VĐV - idVdvA=%s, idVdvB=%s", idVdvA,
+                        idVdvB);
+                logger.logTs("singlesNameToId map size: %d", singlesNameToId.size());
                 return;
+            }
+
+            logger.logTs("Auto-advance (đơn): idVdvA=%d, idVdvB=%d, winnerSide=%d", idVdvA, idVdvB, winnerSide);
 
             int columns = detectColumnsByMaxOrder(rows);
             int[] offsets = columnOffsets(columns);
@@ -3195,15 +3223,22 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         try {
             SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
             java.util.List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
-            if (rows == null || rows.isEmpty())
+            if (rows == null || rows.isEmpty()) {
+                logger.logTs("Auto-advance (đôi) skipped: Không có dữ liệu sơ đồ cho idGiai=%d, idNoiDung=%d", idGiai,
+                        idNoiDung);
                 return;
+            }
 
             DangKiDoi teamA = (DangKiDoi) cboTeamA.getSelectedItem();
             DangKiDoi teamB = (DangKiDoi) cboTeamB.getSelectedItem();
             String tenA = teamA != null ? teamA.getTenTeam() : null;
             String tenB = teamB != null ? teamB.getTenTeam() : null;
-            if (tenA == null || tenA.isBlank() || tenB == null || tenB.isBlank())
+            logger.logTs("Auto-advance (đôi): tenA='%s', tenB='%s', winnerSide=%d", tenA, tenB, winnerSide);
+
+            if (tenA == null || tenA.isBlank() || tenB == null || tenB.isBlank()) {
+                logger.logTs("Auto-advance (đôi) skipped: Thiếu tên đội - tenA='%s', tenB='%s'", tenA, tenB);
                 return;
+            }
 
             int columns = detectColumnsByMaxOrder(rows);
             int[] offsets = columnOffsets(columns);
@@ -3319,10 +3354,16 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private void upsertSinglesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
             int winnerVdv) {
         try {
+            logger.logTs("Upsert singles slot: idGiai=%d, idNoiDung=%d, parentOrder=%d, winnerVdv=%d",
+                    idGiai, idNoiDung, parentOrder, winnerVdv);
+
             SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
             com.example.btms.model.bracket.SoDoCaNhan existing = null;
             try {
                 existing = ssvc.getOne(idGiai, idNoiDung, parentOrder);
+                if (existing != null) {
+                    logger.logTs("Found existing slot at parentOrder=%d with VĐV=%d", parentOrder, existing.getIdVdv());
+                }
             } catch (Exception ignore) {
             }
             if (existing != null) {
@@ -3330,26 +3371,36 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         winnerVdv,
                         existing.getToaDoX(), existing.getToaDoY(), parentCol,
                         java.time.LocalDateTime.now(), null, null);
+                logger.logTs("Updated existing slot: parentOrder=%d, new VĐV=%d", parentOrder, winnerVdv);
             } else {
                 int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
                 ssvc.create(idGiai, idNoiDung, winnerVdv,
                         xy[0], xy[1], parentOrder, parentCol,
                         java.time.LocalDateTime.now(), null, null);
+                logger.logTs("Created new slot: parentOrder=%d, VĐV=%d", parentOrder, winnerVdv);
             }
             logger.logTs("Auto-advance (đơn): đưa VĐV #%d vào VI_TRI=%d (cột %d, t=%d)", winnerVdv, parentOrder,
                     parentCol, parentThuTu);
         } catch (Exception ex) {
             logger.logTs("Lỗi upsert slot cha (đơn): %s", ex.getMessage());
+            ex.printStackTrace(); // Add stack trace for debugging
         }
     }
 
     private void upsertDoublesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
             String winnerTeamName, Integer winnerClb) {
         try {
+            logger.logTs("Upsert doubles slot: idGiai=%d, idNoiDung=%d, parentOrder=%d, winnerTeam='%s', winnerClb=%s",
+                    idGiai, idNoiDung, parentOrder, winnerTeamName, winnerClb);
+
             SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
             com.example.btms.model.bracket.SoDoDoi existing = null;
             try {
                 existing = dsvc.getOne(idGiai, idNoiDung, parentOrder);
+                if (existing != null) {
+                    logger.logTs("Found existing slot at parentOrder=%d with team='%s'", parentOrder,
+                            existing.getTenTeam());
+                }
             } catch (Exception ignore) {
             }
             if (existing != null) {
@@ -3357,16 +3408,19 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         winnerClb, winnerTeamName,
                         existing.getToaDoX(), existing.getToaDoY(), parentCol,
                         java.time.LocalDateTime.now(), null, null);
+                logger.logTs("Updated existing slot: parentOrder=%d, new team='%s'", parentOrder, winnerTeamName);
             } else {
                 int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
                 dsvc.create(idGiai, idNoiDung, winnerClb, winnerTeamName,
                         xy[0], xy[1], parentOrder, parentCol,
                         java.time.LocalDateTime.now(), null, null);
+                logger.logTs("Created new slot: parentOrder=%d, team='%s'", parentOrder, winnerTeamName);
             }
             logger.logTs("Auto-advance (đôi): đưa ĐỘI '%s' vào VI_TRI=%d (cột %d, t=%d)", winnerTeamName,
                     parentOrder, parentCol, parentThuTu);
         } catch (Exception ex) {
             logger.logTs("Lỗi upsert slot cha (đôi): %s", ex.getMessage());
+            ex.printStackTrace(); // Add stack trace for debugging
         }
     }
 
