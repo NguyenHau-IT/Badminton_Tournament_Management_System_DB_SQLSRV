@@ -1,202 +1,36 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
+
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Tổng quan hệ thống cầu lông</title>
-	<link th:href="@{/css/badmintonTournament/badmintonTournament.css}" href="../../static/css/badmintonTournament/badmintonTournament.css" rel="stylesheet" />
+	<link th:href="@{/css/badmintonTournament/badmintonTournament.css}"
+		href="../../static/css/badmintonTournament/badmintonTournament.css" rel="stylesheet" />
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-<main class="badminton-overview">
-	<div th:fragment="introContent">
-		<p>Đây là nội dung giới thiệu thể thức thi đấu (introContent fragment).</p>
-	</div>
-	<div th:replace="badmintonTournamentSections/hero/hero.html"></div>
-	<div th:replace="badmintonTournamentSections/news/news.html"></div>
-	<div th:replace="badmintonTournamentSections/intro/intro.html"></div>
-	<div th:replace="badmintonTournamentSections/ranking/ranking.html"></div>
-	<div th:replace="badmintonTournamentSections/stats/stats.html"></div>
-	<div th:replace="badmintonTournamentSections/schedule/schedule.html"></div>
-	<div th:replace="badmintonTournamentSections/teams/teams.html"></div>
-	<div th:replace="badmintonTournamentSections/extensions/extensions.html"></div>
-</main>
-			</ul>
-		</section>
+	<script th:src="@{/js/badmintonTournament/badmintonTournament.js}"
+		src="../../static/js/badmintonTournament/badmintonTournament.js"></script>
+</head>
+
+<body>
+	<div th:replace="fragments/header :: header" replace="fragments/header :: header"></div>
+	<main class="badminton-overview">
+		
+
+		<div th:fragment="introContent">
+			<p>Đây là nội dung giới thiệu thể thức thi đấu (introContent fragment).</p>
+		</div>
+		<div th:replace="badmintonTournamentSections/hero/hero.html"></div>
+		<div th:replace="badmintonTournamentSections/news/news.html"></div>
+		<div th:replace="badmintonTournamentSections/intro/intro.html"></div>
+		<div th:replace="badmintonTournamentSections/ranking/ranking.html"></div>
+		<div th:replace="badmintonTournamentSections/stats/stats.html"></div>
+		<div th:replace="badmintonTournamentSections/schedule/schedule.html"></div>
+		<div th:replace="badmintonTournamentSections/teams/teams.html"></div>
+		<div th:replace="badmintonTournamentSections/extensions/extensions.html"></div>
 	</main>
 
 	<div th:replace="fragments/footer :: footer"></div>
+</body>
 
-	<script>
-		// Dropdown menu for tournament status
-		document.addEventListener('DOMContentLoaded', function() {
-			const dropdownBtn = document.getElementById('tournamentDropdownBtn');
-			const dropdownMenu = document.getElementById('tournamentDropdownMenu');
-			const dropdownLabel = document.getElementById('dropdownLabel');
-			const tabContents = document.querySelectorAll('.tournament-tab-content');
-			// Hiển thị mặc định tất cả
-			tabContents.forEach(c => c.style.display = '');
-			// Dropdown toggle
-			if(dropdownBtn && dropdownMenu) {
-				dropdownBtn.addEventListener('click', function(e) {
-					e.stopPropagation();
-					const expanded = dropdownBtn.getAttribute('aria-expanded') === 'true';
-					dropdownBtn.setAttribute('aria-expanded', !expanded);
-					dropdownMenu.style.display = expanded ? 'none' : 'block';
-				});
-				// Dropdown item click
-				dropdownMenu.querySelectorAll('a').forEach(item => {
-					item.addEventListener('click', function(e) {
-						e.preventDefault();
-						const tab = this.getAttribute('data-tab');
-						// Đổi label
-						dropdownLabel.textContent = this.textContent;
-						// Ẩn/hiện các tab content
-						if(tab === 'all') {
-							tabContents.forEach(c => c.style.display = '');
-						} else {
-							tabContents.forEach(c => {
-								if(c.id === 'tab-' + tab) c.style.display = '';
-								else c.style.display = 'none';
-							});
-						}
-						dropdownMenu.style.display = 'none';
-						dropdownBtn.setAttribute('aria-expanded', 'false');
-					});
-				});
-				// Đóng dropdown khi click ngoài
-				document.addEventListener('click', function() {
-					dropdownMenu.style.display = 'none';
-					dropdownBtn.setAttribute('aria-expanded', 'false');
-				});
-			}
-		});
-
-	// Dropdown for badminton intro
-	const introBtn = document.getElementById('introToggleBtn');
-	const introContent = document.getElementById('introContent');
-	const introArrow = document.getElementById('introArrow');
-	if (introBtn && introContent && introArrow) {
-		introBtn.addEventListener('click', function() {
-			const expanded = introBtn.getAttribute('aria-expanded') === 'true';
-			introBtn.setAttribute('aria-expanded', !expanded);
-			introContent.classList.toggle('show');
-			introContent.classList.toggle('hide');
-			introArrow.textContent = expanded ? '►' : '▼';
-		});
-	}
-	</script>
-	<style>
-		/* Dropdown styles for tournament status */
-			.tournament-dropdown {
-				display: block;
-				margin: 12px 0 18px 0;
-				position: relative;
-				max-width: 320px;
-			}
-		.dropdown-toggle {
-			background: #fff;
-			color: #0d47a1;
-			border: 1px solid #b0bec5;
-			border-radius: 24px;
-			padding: 8px 22px;
-			font-size: 1.08em;
-			font-weight: 600;
-			cursor: pointer;
-			display: flex;
-			align-items: center;
-			gap: 8px;
-			min-width: 180px;
-			transition: border 0.2s;
-		}
-		.dropdown-toggle[aria-expanded="true"] {
-			border-color: #43a047;
-		}
-		.dropdown-menu {
-			position: absolute;
-			left: 0;
-			top: 110%;
-			background: #fff;
-			border: 1px solid #b0bec5;
-			border-radius: 12px;
-			box-shadow: 0 4px 16px #0001;
-			min-width: 180px;
-			z-index: 20;
-			padding: 0;
-			margin: 0;
-			list-style: none;
-		}
-			.tournament-dropdown {
-				display: flex;
-				justify-content: center;
-				margin: 18px 0 24px 0;
-				position: relative;
-				max-width: 340px;
-				width: 100%;
-				z-index: 30;
-			}
-			.dropdown-toggle {
-				background: linear-gradient(90deg, #43a047 0%, #1976d2 100%);
-				color: #fff;
-				border: none;
-				border-radius: 32px;
-				padding: 12px 32px 12px 24px;
-				font-size: 1.13em;
-				font-weight: 700;
-				cursor: pointer;
-				display: flex;
-				align-items: center;
-				gap: 12px;
-				min-width: 200px;
-				box-shadow: 0 4px 18px #1976d22a;
-				transition: box-shadow 0.2s, background 0.2s;
-				position: relative;
-			}
-			.dropdown-toggle:hover, .dropdown-toggle[aria-expanded="true"] {
-				box-shadow: 0 8px 32px #1976d244;
-				background: linear-gradient(90deg, #388e3c 0%, #1565c0 100%);
-			}
-			.dropdown-toggle i {
-				font-size: 1.2em;
-				transition: transform 0.3s cubic-bezier(.4,0,.2,1);
-			}
-			.dropdown-toggle[aria-expanded="true"] i {
-				transform: rotate(-180deg);
-			}
-			.dropdown-menu {
-				position: absolute;
-				left: 0;
-				top: 110%;
-				background: #fff;
-				border: none;
-				border-radius: 18px;
-				box-shadow: 0 8px 32px #1976d244;
-				min-width: 200px;
-				z-index: 40;
-				padding: 6px 0;
-				margin: 0;
-				list-style: none;
-				animation: fadeInDropdown 0.22s cubic-bezier(.4,0,.2,1);
-			}
-			@keyframes fadeInDropdown {
-				from { opacity: 0; transform: translateY(-10px); }
-				to { opacity: 1; transform: translateY(0); }
-			}
-			.dropdown-menu li a {
-				display: block;
-				padding: 12px 28px;
-				color: #1976d2;
-				text-decoration: none;
-				font-weight: 600;
-				border-radius: 12px;
-				margin: 2px 8px;
-				transition: background 0.18s, color 0.18s;
-			}
-			.dropdown-menu li a:hover {
-				background: linear-gradient(90deg, #e3f2fd 0%, #c8e6c9 100%);
-				color: #388e3c;
-			}
-			.tournament-tabs { display: none; }
-			@media (max-width: 600px) {
-				.tournament-dropdown { max-width: 100%; padding: 0 8px; }
-				.dropdown-toggle, .dropdown-menu { min-width: 140px; font-size: 1em; }
-				.dropdown-menu li a { padding: 10px 16px; }
-			}
+</html>
