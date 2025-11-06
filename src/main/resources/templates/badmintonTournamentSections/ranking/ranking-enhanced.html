@@ -1,0 +1,258 @@
+<!-- Tournament Ranking Section -->
+<section th:fragment="ranking" class="tournament-ranking py-5">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <h2 class="section-title">Bảng xếp hạng</h2>
+            <p class="section-description">Theo dõi thứ hạng và thành tích của các vận động viên</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="ranking-controls mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="searchPlayer" 
+                               placeholder="Tìm kiếm vận động viên...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="filterTournament">
+                        <option value="">Tất cả giải đấu</option>
+                        <option value="t1">Giải Xuân 2025</option>
+                        <option value="t2">Giải Hè 2025</option>
+                        <option value="t3">Giải Thu 2025</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="filterClub">
+                        <option value="">Tất cả câu lạc bộ</option>
+                        <option value="c1">CLB Thiên Long</option>
+                        <option value="c2">CLB Phượng Hoàng</option>
+                        <option value="c3">CLB Victory</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ranking Tabs -->
+        <ul class="nav nav-pills ranking-tabs justify-content-center mb-4" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#mens-singles" type="button">
+                    <i class="bi bi-person me-2"></i>Nam Đơn
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#womens-singles" type="button">
+                    <i class="bi bi-person me-2"></i>Nữ Đơn
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mens-doubles" type="button">
+                    <i class="bi bi-people me-2"></i>Nam Đôi
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#womens-doubles" type="button">
+                    <i class="bi bi-people me-2"></i>Nữ Đôi
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#mixed-doubles" type="button">
+                    <i class="bi bi-people me-2"></i>Đôi Nam Nữ
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Men's Singles -->
+            <div class="tab-pane fade show active" id="mens-singles" role="tabpanel">
+                <div class="ranking-table-wrapper">
+                    <table class="table ranking-table">
+                        <thead>
+                            <tr>
+                                <th width="60">Hạng</th>
+                                <th width="80"></th>
+                                <th>Vận động viên</th>
+                                <th>Câu lạc bộ</th>
+                                <th width="100" class="text-center">Điểm</th>
+                                <th width="120" class="text-center">Thắng/Thua</th>
+                                <th width="100" class="text-center">Tỷ lệ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="rank-item" data-rank="1">
+                                <td class="rank-number">
+                                    <span class="rank-badge gold">1</span>
+                                </td>
+                                <td class="player-avatar">
+                                    <img src="/icons/avatar.png" alt="Player" class="avatar-img">
+                                </td>
+                                <td class="player-name">
+                                    <strong>Nguyễn Văn A</strong>
+                                    <span class="rank-change up">
+                                        <i class="bi bi-arrow-up"></i> +2
+                                    </span>
+                                </td>
+                                <td class="player-club">
+                                    <span class="club-badge">CLB Thiên Long</span>
+                                </td>
+                                <td class="text-center">
+                                    <strong class="points">1,250</strong>
+                                </td>
+                                <td class="text-center">
+                                    <span class="match-stats">
+                                        <span class="wins">15</span>/<span class="losses">3</span>
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="win-rate high">83.3%</span>
+                                </td>
+                            </tr>
+
+                            <tr class="rank-item" data-rank="2">
+                                <td class="rank-number">
+                                    <span class="rank-badge silver">2</span>
+                                </td>
+                                <td class="player-avatar">
+                                    <img src="/icons/avatar.png" alt="Player" class="avatar-img">
+                                </td>
+                                <td class="player-name">
+                                    <strong>Trần Văn B</strong>
+                                    <span class="rank-change same">
+                                        <i class="bi bi-dash"></i> 0
+                                    </span>
+                                </td>
+                                <td class="player-club">
+                                    <span class="club-badge">CLB Phượng Hoàng</span>
+                                </td>
+                                <td class="text-center">
+                                    <strong class="points">1,180</strong>
+                                </td>
+                                <td class="text-center">
+                                    <span class="match-stats">
+                                        <span class="wins">14</span>/<span class="losses">4</span>
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="win-rate high">77.8%</span>
+                                </td>
+                            </tr>
+
+                            <tr class="rank-item" data-rank="3">
+                                <td class="rank-number">
+                                    <span class="rank-badge bronze">3</span>
+                                </td>
+                                <td class="player-avatar">
+                                    <img src="/icons/avatar.png" alt="Player" class="avatar-img">
+                                </td>
+                                <td class="player-name">
+                                    <strong>Lê Văn C</strong>
+                                    <span class="rank-change down">
+                                        <i class="bi bi-arrow-down"></i> -1
+                                    </span>
+                                </td>
+                                <td class="player-club">
+                                    <span class="club-badge">CLB Victory</span>
+                                </td>
+                                <td class="text-center">
+                                    <strong class="points">1,120</strong>
+                                </td>
+                                <td class="text-center">
+                                    <span class="match-stats">
+                                        <span class="wins">13</span>/<span class="losses">5</span>
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="win-rate medium">72.2%</span>
+                                </td>
+                            </tr>
+
+                            <!-- More players (4-10) -->
+                            <tr class="rank-item" data-rank="4">
+                                <td class="rank-number"><span class="rank-badge">4</span></td>
+                                <td class="player-avatar"><img src="/icons/avatar.png" alt="Player" class="avatar-img"></td>
+                                <td class="player-name">
+                                    <strong>Phạm Văn D</strong>
+                                    <span class="rank-change up"><i class="bi bi-arrow-up"></i> +1</span>
+                                </td>
+                                <td class="player-club"><span class="club-badge">CLB Thiên Long</span></td>
+                                <td class="text-center"><strong class="points">1,050</strong></td>
+                                <td class="text-center"><span class="match-stats"><span class="wins">12</span>/<span class="losses">6</span></span></td>
+                                <td class="text-center"><span class="win-rate medium">66.7%</span></td>
+                            </tr>
+
+                            <tr class="rank-item" data-rank="5">
+                                <td class="rank-number"><span class="rank-badge">5</span></td>
+                                <td class="player-avatar"><img src="/icons/avatar.png" alt="Player" class="avatar-img"></td>
+                                <td class="player-name">
+                                    <strong>Hoàng Văn E</strong>
+                                    <span class="rank-change same"><i class="bi bi-dash"></i> 0</span>
+                                </td>
+                                <td class="player-club"><span class="club-badge">CLB Phượng Hoàng</span></td>
+                                <td class="text-center"><strong class="points">980</strong></td>
+                                <td class="text-center"><span class="match-stats"><span class="wins">11</span>/<span class="losses">7</span></span></td>
+                                <td class="text-center"><span class="win-rate medium">61.1%</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <nav aria-label="Ranking pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1"><i class="bi bi-chevron-left"></i></a>
+                        </li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="#"><i class="bi bi-chevron-right"></i></a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- Export Button -->
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary">
+                        <i class="bi bi-download me-2"></i>Xuất Excel
+                    </button>
+                    <button class="btn btn-outline-secondary ms-2">
+                        <i class="bi bi-file-pdf me-2"></i>Xuất PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Other categories (Women's Singles, Doubles, etc.) - Similar structure -->
+            <div class="tab-pane fade" id="womens-singles" role="tabpanel">
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-info-circle fs-1 mb-3"></i>
+                    <p>Dữ liệu bảng xếp hạng Nữ Đơn đang được cập nhật...</p>
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="mens-doubles" role="tabpanel">
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-info-circle fs-1 mb-3"></i>
+                    <p>Dữ liệu bảng xếp hạng Nam Đôi đang được cập nhật...</p>
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="womens-doubles" role="tabpanel">
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-info-circle fs-1 mb-3"></i>
+                    <p>Dữ liệu bảng xếp hạng Nữ Đôi đang được cập nhật...</p>
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="mixed-doubles" role="tabpanel">
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-info-circle fs-1 mb-3"></i>
+                    <p>Dữ liệu bảng xếp hạng Đôi Nam Nữ đang được cập nhật...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

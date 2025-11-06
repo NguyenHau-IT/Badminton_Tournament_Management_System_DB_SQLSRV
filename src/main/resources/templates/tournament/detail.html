@@ -1,36 +1,52 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
-
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Tổng quan hệ thống cầu lông</title>
-	<link th:href="@{/css/badmintonTournament/badmintonTournament.css}"
-		href="../../static/css/badmintonTournament/badmintonTournament.css" rel="stylesheet" />
+	<title th:text="${tournament != null ? tournament.tenGiai : 'Chi tiết giải đấu'} + ' - BTMS'">Chi tiết giải đấu - BTMS</title>
+	
+	<!-- Bootstrap Icons -->
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-	<script th:src="@{/js/badmintonTournament/badmintonTournament.js}"
-		src="../../static/js/badmintonTournament/badmintonTournament.js"></script>
+	
+	<!-- Custom CSS -->
+	<link th:href="@{/css/tournament/detail.css}" rel="stylesheet" />
 </head>
 
 <body>
-	<div th:replace="fragments/header :: header" replace="fragments/header :: header"></div>
-	<main class="badminton-overview">
-		
-
-		<div th:fragment="introContent">
-			<p>Đây là nội dung giới thiệu thể thức thi đấu (introContent fragment).</p>
-		</div>
+	<!-- Header -->
+	<div th:replace="fragments/header :: header"></div>
+	
+	<!-- Main Content -->
+	<main class="tournament-detail">
+		<!-- Hero Section with Tournament Info -->
 		<div th:replace="badmintonTournamentSections/hero/hero.html"></div>
+		
+		<!-- News Section -->
 		<div th:replace="badmintonTournamentSections/news/news.html"></div>
+		
+		<!-- Introduction Section -->
 		<div th:replace="badmintonTournamentSections/intro/intro.html"></div>
+		
+		<!-- Ranking Section -->
 		<div th:replace="badmintonTournamentSections/ranking/ranking.html"></div>
+		
+		<!-- Statistics Section -->
 		<div th:replace="badmintonTournamentSections/stats/stats.html"></div>
+		
+		<!-- Schedule Section -->
 		<div th:replace="badmintonTournamentSections/schedule/schedule.html"></div>
+		
+		<!-- Teams Section -->
 		<div th:replace="badmintonTournamentSections/teams/teams.html"></div>
+		
+		<!-- Extensions Section -->
 		<div th:replace="badmintonTournamentSections/extensions/extensions.html"></div>
 	</main>
 
+	<!-- Footer -->
 	<div th:replace="fragments/footer :: footer"></div>
+	
+	<!-- Custom JS -->
+	<script th:src="@{/js/tournament/detail.js}"></script>
 </body>
-
 </html>

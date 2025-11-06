@@ -1,0 +1,347 @@
+<!-- Tournament Stats Section -->
+<section th:fragment="stats" class="tournament-stats py-5 bg-light">
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <h2 class="section-title">Thống kê giải đấu</h2>
+            <p class="section-description">Phân tích dữ liệu và xu hướng thi đấu</p>
+        </div>
+
+        <!-- Key Statistics Cards -->
+        <div class="row g-4 mb-5">
+            <!-- Total Players -->
+            <div class="col-md-6 col-lg-3">
+                <div class="stats-card">
+                    <div class="stats-icon bg-primary">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3 class="stats-number" data-target="256">0</h3>
+                        <p class="stats-label">Vận động viên</p>
+                        <span class="stats-change positive">
+                            <i class="bi bi-arrow-up"></i> +12% so với kỳ trước
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Matches -->
+            <div class="col-md-6 col-lg-3">
+                <div class="stats-card">
+                    <div class="stats-icon bg-success">
+                        <i class="bi bi-trophy"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3 class="stats-number" data-target="185">0</h3>
+                        <p class="stats-label">Trận đấu</p>
+                        <span class="stats-change positive">
+                            <i class="bi bi-arrow-up"></i> +8% so với kỳ trước
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clubs -->
+            <div class="col-md-6 col-lg-3">
+                <div class="stats-card">
+                    <div class="stats-icon bg-warning">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3 class="stats-number" data-target="32">0</h3>
+                        <p class="stats-label">Câu lạc bộ</p>
+                        <span class="stats-change positive">
+                            <i class="bi bi-arrow-up"></i> +5 CLB mới
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prize Pool -->
+            <div class="col-md-6 col-lg-3">
+                <div class="stats-card">
+                    <div class="stats-icon bg-danger">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div class="stats-content">
+                        <h3 class="stats-number" data-target="500">0</h3>
+                        <p class="stats-label">Giải thưởng (triệu VNĐ)</p>
+                        <span class="stats-change positive">
+                            <i class="bi bi-arrow-up"></i> +25% so với kỳ trước
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row g-4 mb-4">
+            <!-- Pie Chart - Distribution by Category -->
+            <div class="col-lg-4">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h4><i class="bi bi-pie-chart me-2"></i>Phân bố theo nội dung</h4>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #0d47a1;"></span>
+                            <span>Nam Đơn (85 VĐV)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #e53935;"></span>
+                            <span>Nữ Đơn (62 VĐV)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #ffd600;"></span>
+                            <span>Nam Đôi (45 cặp)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #00c853;"></span>
+                            <span>Nữ Đôi (32 cặp)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #7b1fa2;"></span>
+                            <span>Đôi Nam Nữ (32 cặp)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bar Chart - Top Clubs -->
+            <div class="col-lg-8">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h4><i class="bi bi-bar-chart me-2"></i>Top 10 câu lạc bộ</h4>
+                        <select class="form-select form-select-sm w-auto">
+                            <option>Theo số VĐV</option>
+                            <option>Theo số trận thắng</option>
+                            <option>Theo tỷ lệ thắng</option>
+                        </select>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="clubsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Chart - Tournament Growth -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h4><i class="bi bi-graph-up me-2"></i>Lịch sử phát triển giải đấu</h4>
+                        <div class="chart-filters">
+                            <button class="btn btn-sm btn-outline-primary active">Số VĐV</button>
+                            <button class="btn btn-sm btn-outline-primary">Số trận đấu</button>
+                            <button class="btn btn-sm btn-outline-primary">Câu lạc bộ</button>
+                        </div>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="growthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Stats -->
+        <div class="row g-4">
+            <!-- Match Statistics -->
+            <div class="col-lg-6">
+                <div class="stats-detail-card">
+                    <h4 class="mb-4"><i class="bi bi-graph-up-arrow me-2"></i>Thống kê trận đấu</h4>
+                    
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-trophy-fill text-warning"></i>
+                            Tổng số trận đã đấu
+                        </div>
+                        <div class="stat-value">185 / 240</div>
+                    </div>
+
+                    <div class="stat-progress">
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: 77%"></div>
+                        </div>
+                        <span class="progress-label">77% hoàn thành</span>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-clock-fill text-info"></i>
+                            Thời gian trung bình/trận
+                        </div>
+                        <div class="stat-value">48 phút</div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-lightning-fill text-danger"></i>
+                            Trận ngắn nhất
+                        </div>
+                        <div class="stat-value">28 phút</div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-hourglass-split text-primary"></i>
+                            Trận dài nhất
+                        </div>
+                        <div class="stat-value">95 phút</div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-star-fill text-success"></i>
+                            Điểm cao nhất trong 1 ván
+                        </div>
+                        <div class="stat-value">30 - 28</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player Statistics -->
+            <div class="col-lg-6">
+                <div class="stats-detail-card">
+                    <h4 class="mb-4"><i class="bi bi-people-fill me-2"></i>Thống kê vận động viên</h4>
+                    
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-gender-male text-primary"></i>
+                            Nam
+                        </div>
+                        <div class="stat-value">156 VĐV (61%)</div>
+                    </div>
+
+                    <div class="stat-progress">
+                        <div class="progress">
+                            <div class="progress-bar bg-primary" style="width: 61%"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-gender-female text-danger"></i>
+                            Nữ
+                        </div>
+                        <div class="stat-value">100 VĐV (39%)</div>
+                    </div>
+
+                    <div class="stat-progress mb-4">
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" style="width: 39%"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-graph-up text-success"></i>
+                            Độ tuổi trung bình
+                        </div>
+                        <div class="stat-value">24.5 tuổi</div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-award-fill text-warning"></i>
+                            VĐV có kinh nghiệm (>5 năm)
+                        </div>
+                        <div class="stat-value">78 VĐV (30%)</div>
+                    </div>
+
+                    <div class="stat-row">
+                        <div class="stat-label">
+                            <i class="bi bi-person-plus-fill text-info"></i>
+                            VĐV mới tham gia
+                        </div>
+                        <div class="stat-value">65 VĐV (25%)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hot Facts -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="hot-facts-card">
+                    <h4 class="mb-4">
+                        <i class="bi bi-fire text-danger me-2"></i>
+                        Những con số ấn tượng
+                    </h4>
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <div class="fact-item">
+                                <i class="bi bi-lightning-charge-fill"></i>
+                                <strong>125</strong>
+                                <span>Trận thắng 2-0</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="fact-item">
+                                <i class="bi bi-hourglass-bottom"></i>
+                                <strong>60</strong>
+                                <span>Trận đấu 3 ván</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="fact-item">
+                                <i class="bi bi-graph-up-arrow"></i>
+                                <strong>15</strong>
+                                <span>Trận comeback từ 0-1</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="fact-item">
+                                <i class="bi bi-alarm"></i>
+                                <strong>3</strong>
+                                <span>Trận đấu >90 phút</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Stats Animation Script -->
+<script>
+// Animated counter for statistics
+document.addEventListener('DOMContentLoaded', function() {
+    const counters = document.querySelectorAll('.stats-number');
+    
+    counters.forEach(counter => {
+        const target = parseInt(counter.getAttribute('data-target'));
+        const duration = 2000; // 2 seconds
+        const increment = target / (duration / 16); // 60fps
+        let current = 0;
+        
+        const updateCounter = () => {
+            current += increment;
+            if (current < target) {
+                counter.textContent = Math.floor(current);
+                requestAnimationFrame(updateCounter);
+            } else {
+                counter.textContent = target;
+            }
+        };
+        
+        // Start animation when element is in viewport
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    updateCounter();
+                    observer.unobserve(entry.target);
+                }
+            });
+        });
+        
+        observer.observe(counter);
+    });
+});
+</script>
