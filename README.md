@@ -36,7 +36,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 ## 🚀 Tính năng chính
 
 ### 🏟️ Quản lý đa sân
-- Điều khiển tối đa 5 sân thi đấu đồng thời
+- Điều khiển 5 sân thi đấu đồng thời
 - Mỗi sân có mã PIN 4 chữ số duy nhất
 - Hỗ trợ cả đơn và đôi (Singles/Doubles)
 - Bảng điểm hiển thị dọc/ngang tùy chỉnh

@@ -4,11 +4,14 @@ package com.example.btms.service.db;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import org.springframework.stereotype.Service;
+
 import com.example.btms.config.ConnectionConfig;
 import com.example.btms.model.db.SQLSRVConnectionManager;
 import com.example.btms.model.system.ServerInfo;
 import com.example.btms.model.system.SettingsDetector;
 
+@Service
 public class DatabaseService {
     private final SQLSRVConnectionManager manager;
 

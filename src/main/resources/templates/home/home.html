@@ -14,7 +14,7 @@
 </head>
 
 <body>
-  <div th:replace="fragments/header :: header"></div>
+  <div th:replace="~{fragments/header :: header}"></div>
   <main>
     <div layout:fragment="content">
       <section id="slide-1" class="slide hero">
@@ -75,7 +75,7 @@
       </section>
     </div>
   </main>
-  <div th:replace="fragments/footer :: footer"></div>
+  <div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 
 </html>

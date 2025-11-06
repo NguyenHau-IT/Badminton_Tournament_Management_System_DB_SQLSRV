@@ -7,7 +7,7 @@
     <link th:href="@{/css/tournamentDetail/tournamentDetail.css}" href="../../static/css/tournamentDetail/tournamentDetail.css" rel="stylesheet" />
 </head>
 <body>
-    <div th:replace="fragments/header :: header"></div>
+    <div th:replace="~{fragments/header :: header}"></div>
     <main class="tournament-detail-container">
         <section class="tournament-detail-card">
             <div class="tournament-detail-image"></div>
@@ -23,6 +23,6 @@
             </div>
         </section>
     </main>
-    <div th:replace="fragments/footer :: footer"></div>
+    <div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 </html>
