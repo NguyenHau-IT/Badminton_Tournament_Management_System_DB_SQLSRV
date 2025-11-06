@@ -6,6 +6,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+
 import com.example.btms.model.tournament.GiaiDau;
 import com.example.btms.repository.tuornament.GiaiDauRepository;
 import com.example.btms.service.db.DatabaseService;
@@ -13,6 +15,7 @@ import com.example.btms.service.db.DatabaseService;
 /**
  * Service class để xử lý business logic cho GiaiDau
  */
+@Service
 public class GiaiDauService {
     private final DatabaseService databaseService;
     private GiaiDauRepository repository;

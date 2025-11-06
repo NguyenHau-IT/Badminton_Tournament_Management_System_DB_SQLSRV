@@ -13,24 +13,24 @@
 </head>
 
 <body>
-	<div th:replace="fragments/header :: header" replace="fragments/header :: header"></div>
+	<div th:replace="~{fragments/header :: header}" replace="fragments/header :: header"></div>
 	<main class="badminton-overview">
 		
 
 		<div th:fragment="introContent">
 			<p>Đây là nội dung giới thiệu thể thức thi đấu (introContent fragment).</p>
 		</div>
-		<div th:replace="badmintonTournamentSections/hero/hero.html"></div>
-		<div th:replace="badmintonTournamentSections/news/news.html"></div>
-		<div th:replace="badmintonTournamentSections/intro/intro.html"></div>
-		<div th:replace="badmintonTournamentSections/ranking/ranking.html"></div>
-		<div th:replace="badmintonTournamentSections/stats/stats.html"></div>
-		<div th:replace="badmintonTournamentSections/schedule/schedule.html"></div>
-		<div th:replace="badmintonTournamentSections/teams/teams.html"></div>
-		<div th:replace="badmintonTournamentSections/extensions/extensions.html"></div>
+		<div th:replace="~{badmintonTournamentSections/hero/hero.html}"></div>
+		<div th:replace="~{badmintonTournamentSections/news/news.html}"></div>
+		<div th:replace="~{badmintonTournamentSections/intro/intro.html}"></div>
+		<div th:replace="~{badmintonTournamentSections/ranking/ranking.html}"></div>
+		<div th:replace="~{badmintonTournamentSections/stats/stats.html}"></div>
+		<div th:replace="~{badmintonTournamentSections/schedule/schedule.html}"></div>
+		<div th:replace="~{badmintonTournamentSections/teams/teams.html}"></div>
+		<div th:replace="~{badmintonTournamentSections/extensions/extensions.html}"></div>
 	</main>
 
-	<div th:replace="fragments/footer :: footer"></div>
+	<div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 
 </html>
