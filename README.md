@@ -1,4 +1,8 @@
-# 🏸 Hệ thống Quản lý Giải đấu Cầu lông (BTMS) · v2.0.0
+# 🏸 Hệ thống Quản lý Giải đấu Cầu lông (BTMS) · v1.0.0
+
+> **📋 Language Versions / Phiên bản ngôn ngữ**: 
+> - [🇻🇳 Tiếng Việt](README_VI.md) - Phiên bản tiếng Việt
+> - [🇺🇸 English](README_EN.md) - English version
 
 Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng điều khiển đa sân và giao diện web real-time.
 
@@ -20,7 +24,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 - **Database Integration**: Tích hợp SQL Server với JPA/Hibernate
 
 ### 📊 Thông tin kỹ thuật
-- **Phiên bản**: 2.0.0
+- **Phiên bản**: 1.0.0
 - **Tác giả**: Nguyen Viet Hau
 - **Ngôn ngữ**: Java 21
 - **Framework**: Spring Boot 3.4.0
@@ -55,7 +59,7 @@ Hệ thống quản lý giải đấu cầu lông toàn diện với khả năng
 - Phân quyền người dùng (ADMIN/CLIENT)
 - Screenshot capture và lưu vào folder local (không gửi qua mạng)
 
-### 🌐 Tính năng mạng nâng cao (v2.0.0)
+### 🌐 Tính năng mạng nâng cao
 - **H2 TCP Server**: Remote database access trên port 9092
 - **IPv4 Only Filtering**: Chỉ chấp nhận IPv4, loại bỏ IPv6
 - **Network Interface Selector**: Dialog chọn interface khi khởi động
@@ -181,7 +185,7 @@ mvn clean package -DskipTests
     -Xmx4g ^
     -XX:+UseG1GC ^
     -XX:+UseStringDeduplication ^
-    -jar target\btms-2.0.0.jar
+    -jar target\btms-1.0.0.jar
 ```
 
 #### Từ MSI installer:
@@ -196,7 +200,7 @@ mvn clean package jpackage:jpackage
 ### 🎛️ Tối ưu JVM (tùy chọn)
 ```bat
 :: Chạy với memory optimization
-java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
+java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-1.0.0.jar
 
 :: Hoặc sử dụng file cấu hình jvm-optimization.conf
 ```
@@ -246,7 +250,7 @@ java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
 - **URL**: `http://[IP]:2345/scoreboard/[PIN]`
 - **Ví dụ**: `http://192.168.1.100:2345/scoreboard/1234`
 
-### �️ H2 TCP Server (NEW in v2.0.0)
+### 🗄️ H2 TCP Server
 
 #### Remote Database Access
 H2 TCP Server cho phép máy khác kết nối và truy cập database:
@@ -430,7 +434,7 @@ Lưu ý: Khi lỗi/timeout, kết nối SSE sẽ đóng và client nên tự đ�
 - **ScoreboardViewController**: Thymeleaf views và static content
 - **SSE Integration**: Server-Sent Events for real-time updates
 
-#### H2 TCP Server (v2.0.0)
+#### H2 TCP Server (v1.0.0)
 - **H2TcpServerConfig**: Auto-start H2 TCP server trên port 9092
 - **Remote Database Access**: Cho phép máy khác kết nối database
 - **IPv4 Network Filtering**: Chỉ chấp nhận IPv4 interfaces
@@ -476,7 +480,7 @@ java -Xmx4g \
      -XX:MaxGCPauseMillis=200 \
      -XX:G1HeapRegionSize=16m \
      --add-opens java.base/java.lang=ALL-UNNAMED \
-     -jar btms-2.0.0.jar
+     -jar btms-1.0.0.jar
 ```
 
 #### 📊 Performance Monitoring (Enhanced)
@@ -520,7 +524,7 @@ mvn clean package -Pfallback-c
 # Build MSI package (cần jpackage)
 mvn clean package jpackage:jpackage
 
-# Output: target/dist/Badminton Tournament Management System (BTMS)-2.0.0.msi
+# Output: target/dist/Badminton Tournament Management System (BTMS)-1.0.0.msi
 ```
 
 #### MSI Configuration
@@ -536,12 +540,12 @@ mvn clean package jpackage:jpackage
 #### Option 1: JAR Distribution
 ```bat
 :: Copy file JAR và required files
-copy /Y target\btms-2.0.0.jar production\
+copy /Y target\btms-1.0.0.jar production\
 copy /Y application.properties.copy production\application.properties
 copy /Y jvm-optimization.conf production\
 
 :: Run trên target machine (từ thư mục production)
-java -jar btms-2.0.0.jar
+java -jar btms-1.0.0.jar
 ```
 
 #### Option 2: MSI Installation
@@ -552,7 +556,7 @@ java -jar btms-2.0.0.jar
 #### Option 3: Docker (Development)
 ```dockerfile
 FROM openjdk:21-jdk-slim
-COPY target/btms-2.0.0.jar app.jar
+COPY target/btms-1.0.0.jar app.jar
 EXPOSE 2345
 CMD ["java", "-jar", "app.jar"]
 ```
@@ -595,7 +599,7 @@ java --version
 netstat -an | findstr 2345
 
 :: Run với debug log
-java -jar btms-2.0.0.jar --debug
+java -jar btms-1.0.0.jar --debug
 ```
 
 #### 2. Database connection failed
@@ -614,7 +618,7 @@ java -jar btms-2.0.0.jar --debug
 - Check network connection stability
 - Fallback sẽ tự động chuyển sang polling mode
 
-#### 5. H2 TCP Server issues (v2.0.0)
+#### 5. H2 TCP Server issues
 ```bat
 :: Kiểm tra H2 server có chạy không
 netstat -an | findstr :9092
@@ -646,13 +650,13 @@ netstat -an | findstr :50505
 #### 5. Performance issues
 ```bash
 # Tăng heap size
-java -Xmx4g -jar btms-2.0.0.jar
+java -Xmx4g -jar btms-1.0.0.jar
 
 # Enable G1 garbage collector
-java -XX:+UseG1GC -jar btms-2.0.0.jar
+java -XX:+UseG1GC -jar btms-1.0.0.jar
 
 # Full optimization
-java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-2.0.0.jar
+java -Xmx4g -XX:+UseG1GC -XX:+UseStringDeduplication -jar btms-1.0.0.jar
 ```
 
 ### 🔍 Debug Information
