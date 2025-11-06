@@ -42,7 +42,7 @@ public class TournamentController {
             List<GiaiDau> tournaments = giaiDauService.getAllGiaiDau();
             model.addAttribute("tournaments", tournaments);
             model.addAttribute("totalTournaments", tournaments.size());
-            
+
             // Thống kê nhanh
             long activeTournaments = tournaments.stream()
                     .filter(GiaiDau::isActive)
@@ -53,14 +53,14 @@ public class TournamentController {
             long finishedTournaments = tournaments.stream()
                     .filter(GiaiDau::isFinished)
                     .count();
-            
+
             model.addAttribute("activeTournaments", activeTournaments);
             model.addAttribute("upcomingTournaments", upcomingTournaments);
             model.addAttribute("finishedTournaments", finishedTournaments);
-            
+
             return "tournament/list";
         } catch (SQLException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", 
+            redirectAttributes.addFlashAttribute("errorMessage",
                     "Không thể tải danh sách giải đấu: " + e.getMessage());
             return "redirect:/home";
         }
@@ -71,27 +71,27 @@ public class TournamentController {
      * GET /tournament/{id}
      */
     @GetMapping("/{id}")
-    public String tournamentDetail(@PathVariable("id") Integer id, 
-                                   Model model, 
-                                   RedirectAttributes redirectAttributes) {
+    public String tournamentDetail(@PathVariable("id") Integer id,
+            Model model,
+            RedirectAttributes redirectAttributes) {
         try {
             var tournamentOpt = giaiDauService.getGiaiDauById(id);
-            
+
             if (tournamentOpt.isEmpty()) {
-                redirectAttributes.addFlashAttribute("errorMessage", 
+                redirectAttributes.addFlashAttribute("errorMessage",
                         "Không tìm thấy giải đấu với ID: " + id);
                 return "redirect:/tournament/list";
             }
-            
+
             GiaiDau tournament = tournamentOpt.get();
             model.addAttribute("tournament", tournament);
             model.addAttribute("isActive", tournament.isActive());
             model.addAttribute("isUpcoming", tournament.isUpcoming());
             model.addAttribute("isFinished", tournament.isFinished());
-            
+
             return "badmintonTournament/badmintonTournament";
         } catch (SQLException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", 
+            redirectAttributes.addFlashAttribute("errorMessage",
                     "Lỗi khi tải thông tin giải đấu: " + e.getMessage());
             return "redirect:/tournament/list";
         }
@@ -102,18 +102,18 @@ public class TournamentController {
      * GET /tournament/search?q=...
      */
     @GetMapping("/search")
-    public String searchTournaments(@RequestParam("q") String query, 
-                                   Model model, 
-                                   RedirectAttributes redirectAttributes) {
+    public String searchTournaments(@RequestParam("q") String query,
+            Model model,
+            RedirectAttributes redirectAttributes) {
         try {
             List<GiaiDau> tournaments = giaiDauService.searchGiaiDauByName(query);
             model.addAttribute("tournaments", tournaments);
             model.addAttribute("searchQuery", query);
             model.addAttribute("totalTournaments", tournaments.size());
-            
+
             return "tournament/list";
         } catch (SQLException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", 
+            redirectAttributes.addFlashAttribute("errorMessage",
                     "Lỗi khi tìm kiếm giải đấu: " + e.getMessage());
             return "redirect:/tournament/list";
         }

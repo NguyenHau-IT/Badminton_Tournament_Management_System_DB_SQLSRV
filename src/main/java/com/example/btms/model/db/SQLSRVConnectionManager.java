@@ -1,12 +1,15 @@
 package com.example.btms.model.db;
 
 import com.example.btms.config.ConnectionConfig;
+import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
 /** Quản lý kết nối SQL Server một cách mỏng, dựa vào ConnectionConfig. */
+
+@Component
 public class SQLSRVConnectionManager implements AutoCloseable {
     private ConnectionConfig cfg;
     private Connection conn;
