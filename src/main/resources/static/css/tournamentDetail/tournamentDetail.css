@@ -1,0 +1,76 @@
+/* tournamentDetail.css */
+:root {
+  --primary-blue: #0d47a1;
+  --primary-green: #43a047;
+  --primary-red: #e53935;
+  --bg-light: #f8fafc;
+  --text-dark: #222;
+  --accent: #38bdf8;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+body {
+  font-family: 'Montserrat', Arial, sans-serif;
+  background: linear-gradient(120deg, #f5f7fa 60%, #e3f2fd 100%);
+  color: var(--text-dark);
+  margin: 0;
+  padding: 0;
+}
+.tournament-detail-container {
+  max-width: 800px;
+  margin: 36px auto 0 auto;
+  padding: 28px 18px 40px 18px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 32px #0001;
+}
+.tournament-detail-card {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  align-items: flex-start;
+}
+.tournament-detail-image {
+  width: 120px;
+  height: 120px;
+  background-image: url('/icons/btms.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px #0002;
+  flex-shrink: 0;
+}
+.tournament-detail-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tournament-detail-info h1 {
+  font-size: 1.5em;
+  color: var(--primary-red);
+  font-weight: 700;
+  margin-bottom: 0.3em;
+}
+.tournament-detail-info p {
+  font-size: 1em;
+  color: #333;
+  margin: 0 0 0.2em 0;
+}
+@media (max-width: 700px) {
+  .tournament-detail-card {
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+  .tournament-detail-image {
+    width: 90px;
+    height: 90px;
+  }
+  .tournament-detail-container {
+    padding: 12px 4vw 24px 4vw;
+  }
+  .tournament-detail-info h1 {
+    font-size: 1.1em;
+  }
+}

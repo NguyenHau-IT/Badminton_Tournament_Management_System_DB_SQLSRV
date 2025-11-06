@@ -96,6 +96,56 @@ public class DangKyCaNhanImportPanel extends JFrame {
         initializeFrame();
     }
 
+    private JPanel createInstructionPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Hướng dẫn cấu trúc file CSV"));
+
+        // Tạo bảng hướng dẫn cấu trúc file
+        String[][] structureData = {
+                { "Cột A", "Cột B", "Cột C", "Cột D", "Cột E", "Cột F", "Cột G", "Cột H", "Cột I", "Cột J" },
+                { "CLB", "Tên ngắn CLB", "Họ tên VĐV", "Ngày sinh", "Giới tính VĐV", "Nội dung", "Giới tính ND",
+                        "Đội/Đôi", "Tuổi Nhỏ nhất", "Tuổi Lớn nhất" }
+        };
+
+        String[] structureColumns = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" };
+
+        DefaultTableModel structureModel = new DefaultTableModel(structureData, structureColumns) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        JTable structureTable = new JTable(structureModel);
+        structureTable.setRowHeight(18); // Giảm từ 25 xuống 18
+        structureTable.getTableHeader().setReorderingAllowed(false);
+
+        // Thiết lập font nhỏ hơn cho bảng
+        java.awt.Font smallFont = structureTable.getFont().deriveFont(14f);
+        structureTable.setFont(smallFont);
+        structureTable.getTableHeader().setFont(smallFont);
+
+        // Tự động điều chỉnh độ rộng cột
+        structureTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+
+        // Tạo panel cho hướng dẫn Excel -> CSV với font nhỏ hơn
+        JPanel excelInstructions = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JLabel excelLabel = new JLabel(
+                "<html><font size='3'><b>Cách chuyển Excel thành CSV:</b> Mở file Excel → File → Save As → Chọn 'CSV UTF-8 (Comma delimited)' → Save</font></html>");
+        excelInstructions.add(excelLabel);
+
+        // Tạo panel chính với kích thước nhỏ hơn
+        JPanel mainPanel = new JPanel(new BorderLayout(3, 3));
+        JScrollPane tableScrollPane = new JScrollPane(structureTable);
+        tableScrollPane.setPreferredSize(new java.awt.Dimension(900, 65)); // Giới hạn chiều cao
+        mainPanel.add(tableScrollPane, BorderLayout.CENTER);
+        mainPanel.add(excelInstructions, BorderLayout.SOUTH);
+
+        panel.add(mainPanel, BorderLayout.CENTER);
+        panel.setPreferredSize(new java.awt.Dimension(950, 120)); // Giới hạn kích thước tổng thể
+        return panel;
+    }
+
     private void initializeFrame() {
         // Cấu hình JFrame
         setTitle("Nhập danh sách đăng ký cá nhân từ CSV");
@@ -115,6 +165,11 @@ public class DangKyCaNhanImportPanel extends JFrame {
         contentPanel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         setContentPane(contentPanel);
 
+        // Thêm bảng hướng dẫn ở đầu
+        JPanel instructionPanel = createInstructionPanel();
+
+        JPanel mainContent = new JPanel(new BorderLayout(8, 8));
+
         JPanel top = new JPanel(new BorderLayout(8, 8));
         JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
         txtFile.setEditable(false);
@@ -129,7 +184,7 @@ public class DangKyCaNhanImportPanel extends JFrame {
 
         top.add(row1, BorderLayout.NORTH);
         top.add(row2, BorderLayout.CENTER);
-        contentPanel.add(top, BorderLayout.NORTH);
+        mainContent.add(top, BorderLayout.NORTH);
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Danh sách đọc được", new JScrollPane(previewTable));
@@ -145,7 +200,14 @@ public class DangKyCaNhanImportPanel extends JFrame {
         center.add(tabs, BorderLayout.CENTER);
         taLog.setEditable(false);
         center.add(new JScrollPane(taLog), BorderLayout.SOUTH);
-        contentPanel.add(center, BorderLayout.CENTER);
+        mainContent.add(center, BorderLayout.CENTER);
+
+        // Tổ chức layout tổng thể
+        JPanel topSection = new JPanel(new BorderLayout());
+        topSection.add(instructionPanel, BorderLayout.NORTH);
+        topSection.add(mainContent, BorderLayout.CENTER);
+
+        contentPanel.add(topSection, BorderLayout.CENTER);
 
         btnBrowse.addActionListener(e -> onBrowse());
         btnPreview.addActionListener(e -> onPreview());
