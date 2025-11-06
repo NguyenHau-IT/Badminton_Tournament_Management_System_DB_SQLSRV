@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.NetworkInterface;
 import java.sql.Connection;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -1460,7 +1461,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
-                        currentMatchId = msvc.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                        currentMatchId = msvc.createV7(LocalDateTime.now(), theThuc, san);
                         logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
                         // Bản ghi đã vừa được tạo: không cần align thêm
                     }
@@ -3623,7 +3624,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
                 dsvc.update(idGiai, idNoiDung, parentOrder,
                         winnerClb, winnerTeamName,
-                        existing.getToaDoX(), existing.getToaDoY(), parentCol,
+                        existing.getToaDoX(), existing.getToaDoY(), existing.getSoDo(),
                         java.time.LocalDateTime.now(), null, null);
 
                 logger.logTs(
@@ -3639,8 +3640,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
                 logger.logTs("Upsert Bước 3.2: Tạo slot đôi mới trong cơ sở dữ liệu");
                 dsvc.create(idGiai, idNoiDung, winnerClb, winnerTeamName,
-                        xy[0], xy[1], parentOrder, parentCol,
-                        java.time.LocalDateTime.now(), null, null);
+                        xy[0], xy[1], parentOrder, existing.getSoDo(),
+                        LocalDateTime.now(), null, null);
 
                 logger.logTs(
                         "Upsert Bước 3.2 THÀNH CÔNG: Đã tạo slot đôi mới - parentOrder=%d, đội='%s', CLB=%s, tọa độ=(%d,%d)",
