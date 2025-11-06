@@ -1363,17 +1363,44 @@ public class MainFrame extends JFrame {
         navTree = new JTree(navModel);
         navTree.setRootVisible(true);
         navTree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+
+        // Tùy chỉnh renderer để bỏ background selection
+        navTree.setCellRenderer(new javax.swing.tree.DefaultTreeCellRenderer() {
+            @Override
+            public java.awt.Component getTreeCellRendererComponent(JTree tree, Object value,
+                    boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
+                // Luôn pass selected = false để không có background selection
+                super.getTreeCellRendererComponent(tree, value, false, expanded, leaf, row, false);
+
+                // Đảm bảo background và text color luôn như bình thường
+                setBackgroundSelectionColor(getBackgroundNonSelectionColor());
+                setTextSelectionColor(getTextNonSelectionColor());
+                setBorderSelectionColor(null);
+
+                return this;
+            }
+        });
+
+        // Tắt selection painting hoàn toàn
+        navTree.setUI(new javax.swing.plaf.basic.BasicTreeUI() {
+            @Override
+            protected void paintRow(java.awt.Graphics g, java.awt.Rectangle clipBounds,
+                    java.awt.Insets insets, java.awt.Rectangle bounds, javax.swing.tree.TreePath path,
+                    int row, boolean isExpanded, boolean hasBeenExpanded, boolean isLeaf) {
+                // Gọi super nhưng không vẽ selection
+                super.paintRow(g, clipBounds, insets, bounds, path, row, isExpanded, hasBeenExpanded, isLeaf);
+            }
+        });
+
+        // Tắt hover target và chỉ ghi nhớ selection cho context menu
         navTree.addTreeSelectionListener((TreeSelectionEvent e) -> {
             Object comp = navTree.getLastSelectedPathComponent();
             if (!(comp instanceof DefaultMutableTreeNode node)) {
                 return;
             }
-            // Chỉ kích hoạt khi selection thay đổi từ null hoặc khác node
-            if (e.getOldLeadSelectionPath() == null ||
-                    !e.getOldLeadSelectionPath().equals(e.getNewLeadSelectionPath())) {
-                activateNavNode(node);
-            }
-            // Ghi nhớ nội dung đang chọn nếu nó nằm dưới "Danh sách đăng kí"
+
+            // Chỉ ghi nhớ nội dung đang chọn nếu nó nằm dưới "Danh sách đăng kí"
+            // Không tự động kích hoạt nữa
             try {
                 Object uo = node.getUserObject();
                 if (uo instanceof ContentNode cn) {
@@ -1387,7 +1414,7 @@ public class MainFrame extends JFrame {
             }
         });
 
-        // Context menu động theo node được click
+        // Context menu và double-click handling
         navTree.addMouseListener(new java.awt.event.MouseAdapter() {
             private void selectNodeAt(java.awt.event.MouseEvent e) {
                 int row = navTree.getRowForLocation(e.getX(), e.getY());
@@ -1404,6 +1431,13 @@ public class MainFrame extends JFrame {
                 if (e.isPopupTrigger() || javax.swing.SwingUtilities.isRightMouseButton(e)) {
                     selectNodeAt(e);
                     showTreeContextMenu(e);
+                } else if (e.getClickCount() == 2 && javax.swing.SwingUtilities.isLeftMouseButton(e)) {
+                    // Chỉ double-click chuột trái mới kích hoạt
+                    selectNodeAt(e);
+                    Object comp = navTree.getLastSelectedPathComponent();
+                    if (comp instanceof DefaultMutableTreeNode node) {
+                        activateNavNode(node);
+                    }
                 }
             }
 

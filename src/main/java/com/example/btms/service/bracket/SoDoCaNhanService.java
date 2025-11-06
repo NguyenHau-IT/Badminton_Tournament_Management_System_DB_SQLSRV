@@ -84,7 +84,8 @@ public class SoDoCaNhanService {
 
         // CHỈ gán vào slot trống để bảo tồn lịch sử
         for (SoDoCaNhan slot : vdvSlots) {
-            if (slot.getIdTranDau() == null) {
+            String idTranDau = slot.getIdTranDau();
+            if (idTranDau == null || idTranDau.isBlank() || "null".equalsIgnoreCase(idTranDau.trim())) {
                 return repo.updateTranDau(idGiai, idNoiDung, slot.getViTri(), matchId);
             }
         }

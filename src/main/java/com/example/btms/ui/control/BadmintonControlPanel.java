@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.NetworkInterface;
 import java.sql.Connection;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -1460,7 +1461,7 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
                         ensureAndAlignMatchRecord(currentMatchId, theThuc, san);
                     } else {
                         ChiTietTranDauService msvc = new ChiTietTranDauService(new ChiTietTranDauRepository(conn));
-                        currentMatchId = msvc.createV7(java.time.LocalDateTime.now(), theThuc, san);
+                        currentMatchId = msvc.createV7(LocalDateTime.now(), theThuc, san);
                         logger.logTs("Tạo CHI_TIET_TRAN_DAU (UUIDv7) = %s", currentMatchId);
                         // Bản ghi đã vừa được tạo: không cần align thêm
                     }
@@ -2183,12 +2184,8 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     private void updateBracketScoresOnFinish(String matchId) {
         if (conn == null || matchId == null || matchId.isBlank())
             return;
-        // Tự động đưa VĐV/Đội thắng vào vòng kế tiếp
-        try {
-            autoAdvanceWinnerToNextRound(currentMatchId);
-        } catch (Exception advEx) {
-            logger.logTs("Lỗi auto-advance winner: %s", advEx.getMessage());
-        }
+        // NOTE: Auto-advance đã được gọi trong onFinish(), không gọi lại ở đây để tránh
+        // trùng lặp
 
         // Lấy context hiện tại
         String header = currentHeader();
@@ -3123,126 +3120,342 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
     /* =================== Auto-advance winner to next round =================== */
 
     private void autoAdvanceWinnerToNextRound(String matchId) {
-        if (conn == null)
+        logger.logTs("=== BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG VÀO VÒNG TIẾP THEO ===");
+        logger.logTs("Bước 1: Kiểm tra điều kiện tiên quyết cho tự động đưa người thắng (matchId=%s)", matchId);
+
+        if (conn == null) {
+            logger.logTs("Bước 1 THẤT BẠI: Kết nối cơ sở dữ liệu là null - hủy bỏ tự động đưa người thắng");
             return;
+        }
+        logger.logTs("Bước 1 THÀNH CÔNG: Kết nối cơ sở dữ liệu khả dụng");
+
         // Note: matchId is used for traceability in logs
         if (matchId != null && !matchId.isBlank()) {
-            logger.logTs("Auto-advance triggered for matchId=%s", matchId);
+            logger.logTs("Bước 2: Tự động đưa người thắng được kích hoạt cho matchId=%s", matchId);
+        } else {
+            logger.logTs("Bước 2: Tự động đưa người thắng được kích hoạt mà không có matchId");
         }
+
+        // Validation: Đảm bảo trận đấu đã thực sự kết thúc
+        logger.logTs("Bước 3: Xác thực trạng thái trận đấu");
+        if (match == null) {
+            logger.logTs("Bước 3 THẤT BẠI: Đối tượng trận đấu là null - hủy bỏ tự động đưa người thắng");
+            return;
+        }
+        if (!match.isMatchFinished()) {
+            logger.logTs(
+                    "Bước 3 THẤT BẠI: Trận đấu chưa kết thúc (isMatchFinished=false) - hủy bỏ tự động đưa người thắng");
+            return;
+        }
+        logger.logTs("Bước 3 THÀNH CÔNG: Trận đấu đã kết thúc và sẵn sàng cho tự động đưa người thắng");
+
+        logger.logTs("Bước 4: Thu thập thông tin ngữ cảnh");
         String header = currentHeader();
         int idGiai = new Prefs().getInt("selectedGiaiDauId", -1);
-        if (header == null || header.isBlank() || idGiai <= 0)
+        logger.logTs("Bước 4: Ngữ cảnh - header='%s', idGiai=%d", header, idGiai);
+
+        if (header == null || header.isBlank() || idGiai <= 0) {
+            logger.logTs(
+                    "Bước 4 THẤT BẠI: Ngữ cảnh không hợp lệ - header='%s', idGiai=%d - hủy bỏ tự động đưa người thắng",
+                    header,
+                    idGiai);
             return;
+        }
+        logger.logTs("Bước 4 THÀNH CÔNG: Thông tin ngữ cảnh hợp lệ đã được lấy");
+
+        logger.logTs("Bước 5: Xác định loại thi đấu và hạng mục");
         boolean isDoubles = doubles.isSelected();
         Integer idNoiDung = isDoubles ? headerKnrDoubles.get(header) : headerKnrSingles.get(header);
-        if (idNoiDung == null || idNoiDung <= 0)
-            return;
+        logger.logTs("Bước 5: Loại thi đấu - isDoubles=%s, idNoiDung=%s", isDoubles, idNoiDung);
 
-        int[] games = match != null ? match.getGames() : new int[] { 0, 0 };
-        if (games[0] == games[1])
+        if (idNoiDung == null || idNoiDung <= 0) {
+            logger.logTs(
+                    "Bước 5 THẤT BẠI: idNoiDung không hợp lệ cho header='%s', isDoubles=%s - hủy bỏ tự động đưa người thắng",
+                    header, isDoubles);
             return;
+        }
+        logger.logTs("Bước 5 THÀNH CÔNG: Hạng mục thi đấu hợp lệ (idNoiDung=%d)", idNoiDung);
+
+        logger.logTs("Bước 6: Phân tích kết quả trận đấu");
+        int[] games = match.getGames();
+        logger.logTs("Bước 6: Kết quả trận đấu - Đội A: %d ván, Đội B: %d ván", games[0], games[1]);
+
+        if (games[0] == games[1]) {
+            logger.logTs("Bước 6 THẤT BẠI: Trận đấu kết thúc hòa (%d-%d) - tự động đưa người thắng không áp dụng",
+                    games[0],
+                    games[1]);
+            return;
+        }
+
         int winnerSide = (games[0] > games[1]) ? 0 : 1;
-        if (!isDoubles)
+        String winnerName = winnerSide == 0 ? "Đội A" : "Đội B";
+        logger.logTs("Bước 6 THÀNH CÔNG: Người thắng đã được xác định - %s (side=%d) với %d ván thắng",
+                winnerName, winnerSide, games[winnerSide]);
+
+        logger.logTs("Bước 7: Chuyển hướng đến logic tự động đưa người thắng cụ thể");
+        if (!isDoubles) {
+            logger.logTs("Bước 7: Chuyển hướng đến tự động đưa người thắng ĐƠN");
             autoAdvanceSingles(idGiai, idNoiDung, winnerSide);
-        else
+        } else {
+            logger.logTs("Bước 7: Chuyển hướng đến tự động đưa người thắng ĐÔI");
             autoAdvanceDoubles(idGiai, idNoiDung, winnerSide);
+        }
+
+        logger.logTs("=== KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG VÀO VÒNG TIẾP THEO ===");
     }
 
     private void autoAdvanceSingles(int idGiai, int idNoiDung, int winnerSide) {
+        logger.logTs("--- BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN ---");
+        logger.logTs("Đơn Bước 1: Khởi tạo cho idGiai=%d, idNoiDung=%d, winnerSide=%d",
+                idGiai, idNoiDung, winnerSide);
+
         try {
+            logger.logTs("Đơn Bước 2: Tải dữ liệu sơ đồ thi đấu từ cơ sở dữ liệu");
             SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
             java.util.List<com.example.btms.model.bracket.SoDoCaNhan> rows = ssvc.list(idGiai, idNoiDung);
-            if (rows == null || rows.isEmpty())
-                return;
 
+            if (rows == null || rows.isEmpty()) {
+                logger.logTs("Đơn Bước 2 THẤT BẠI: Không tìm thấy dữ liệu sơ đồ thi đấu - idGiai=%d, idNoiDung=%d",
+                        idGiai, idNoiDung);
+                return;
+            }
+            logger.logTs("Đơn Bước 2 THÀNH CÔNG: Đã tải %d mục từ cơ sở dữ liệu", rows.size());
+
+            logger.logTs("Đơn Bước 3: Xác định các vận động viên thi đấu từ giao diện");
             String nameA = sel(cboNameA);
             String nameB = sel(cboNameB);
+            logger.logTs("Đơn Bước 3: Tên vận động viên - A='%s', B='%s'", nameA, nameB);
+
+            logger.logTs("Đơn Bước 4: Xác định ID vận động viên");
             Integer idVdvA = (nameA == null || nameA.isBlank()) ? null : singlesNameToId.get(nameA);
             Integer idVdvB = (nameB == null || nameB.isBlank()) ? null : singlesNameToId.get(nameB);
-            if (idVdvA == null || idVdvA <= 0 || idVdvB == null || idVdvB <= 0)
-                return;
+            logger.logTs("Đơn Bước 4: ID vận động viên - A=%s, B=%s (kích thước map: %d)",
+                    idVdvA, idVdvB, singlesNameToId.size());
 
+            if (idVdvA == null || idVdvA <= 0 || idVdvB == null || idVdvB <= 0) {
+                logger.logTs("Đơn Bước 4 THẤT BẠI: ID vận động viên không hợp lệ - idVdvA=%s, idVdvB=%s", idVdvA,
+                        idVdvB);
+                logger.logTs("Đơn Bước 4 DEBUG: Các vận động viên có sẵn trong map: %s", singlesNameToId.keySet());
+                return;
+            }
+            logger.logTs("Đơn Bước 4 THÀNH CÔNG: Đã lấy được ID vận động viên hợp lệ");
+
+            logger.logTs("Đơn Bước 5: Phân tích cấu trúc sơ đồ thi đấu");
             int columns = detectColumnsByMaxOrder(rows);
             int[] offsets = columnOffsets(columns);
+            logger.logTs("Đơn Bước 5: Cấu trúc sơ đồ - columns=%d, offsets=%s",
+                    columns, java.util.Arrays.toString(offsets));
 
-            for (int col = 1; col < columns; col++) {
-                com.example.btms.model.bracket.SoDoCaNhan rA = findRowByVdvAndCol(rows, idVdvA, col);
-                com.example.btms.model.bracket.SoDoCaNhan rB = findRowByVdvAndCol(rows, idVdvB, col);
-                if (rA == null || rB == null)
-                    continue;
-                int tA = toThuTu(rA.getViTri(), col, offsets);
-                int tB = toThuTu(rB.getViTri(), col, offsets);
-                if (tA < 0 || tB < 0)
-                    continue;
-                if ((tA / 2) == (tB / 2)) {
-                    int parentCol = col + 1;
-                    if (parentCol > columns)
-                        return;
-                    int parentThuTu = Math.min(tA, tB) / 2;
-                    int parentOrder = offsets[parentCol - 1] + parentThuTu + 1;
-                    int winnerVdv = (winnerSide == 0) ? idVdvA : idVdvB;
-                    upsertSinglesParentSlot(idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerVdv);
-                    return;
+            int winnerVdv = (winnerSide == 0) ? idVdvA : idVdvB;
+            String winnerName = (winnerSide == 0) ? nameA : nameB;
+            logger.logTs("Đơn Bước 6: Người thắng đã được xác định - VĐV ID=%d, Tên='%s'", winnerVdv, winnerName);
+
+            logger.logTs("Đơn Bước 7: Xác định cột hiện tại của trận đấu");
+            // số dòng rows hiện tại
+            int rowsCount = rows.size();
+            logger.logTs("Đơn Bước 7: Số dòng sơ đồ cá nhân hiện tại = %d", rowsCount);
+            // load lại data sơ đồ cá nhân
+            rows = ssvc.list(idGiai, idNoiDung);
+            rowsCount = rows.size();
+            logger.logTs("Đơn Bước 7: Số dòng sơ đồ cá nhân mới = %d", rowsCount);
+            int currentCol = -1;
+            for (int col = 1; col <= columns; col++) {
+                SoDoCaNhan rA = findRowByVdvAndCol(rows, idVdvA, col);
+                SoDoCaNhan rB = findRowByVdvAndCol(rows, idVdvB, col);
+
+                logger.logTs("Đơn Bước 7.%d: Kiểm tra cột %d - A=%s, B=%s", col, col,
+                        (rA != null ? "pos=" + rA.getViTri() : "null"),
+                        (rB != null ? "pos=" + rB.getViTri() : "null"));
+
+                if (rA != null && rB != null) {
+                    int tA = toThuTu(rA.getViTri(), col, offsets);
+                    int tB = toThuTu(rB.getViTri(), col, offsets);
+
+                    if (tA >= 0 && tB >= 0) {
+                        int pairGroupA = tA / 2;
+                        int pairGroupB = tB / 2;
+
+                        logger.logTs("Đơn Bước 7.%d: Vị trí tương đối - A=%d (nhóm=%d), B=%d (nhóm=%d)",
+                                col, tA, pairGroupA, tB, pairGroupB);
+
+                        if (pairGroupA == pairGroupB) {
+                            currentCol = col;
+                            logger.logTs("Đơn Bước 7.%d: Tìm thấy cột trận đấu hiện tại = %d", col, currentCol);
+                            break;
+                        }
+                    }
                 }
             }
+
+            if (currentCol == -1) {
+                logger.logTs("Đơn Bước 7 THẤT BẠI: Không tìm thấy cột của trận đấu hiện tại");
+                logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN (KHÔNG TÌM THẤY CỘT) ---");
+                return;
+            }
+
+            logger.logTs("Đơn Bước 8: Tính toán vị trí cha cho người thắng");
+            int parentCol = currentCol + 1;
+            if (parentCol > columns) {
+                logger.logTs("Đơn Bước 8: Cột cha %d vượt quá số cột tối đa %d - giải đấu hoàn thành",
+                        parentCol, columns);
+                return;
+            }
+
+            // Lấy lại thông tin của hai VĐV ở cột hiện tại
+            com.example.btms.model.bracket.SoDoCaNhan rA = findRowByVdvAndCol(rows, idVdvA, currentCol);
+            com.example.btms.model.bracket.SoDoCaNhan rB = findRowByVdvAndCol(rows, idVdvB, currentCol);
+
+            int tA = toThuTu(rA.getViTri(), currentCol, offsets);
+            int tB = toThuTu(rB.getViTri(), currentCol, offsets);
+            int parentThuTu = Math.min(tA, tB) / 2;
+            int parentOrder = offsets[parentCol - 1] + parentThuTu + 1;
+
+            logger.logTs("Đơn Bước 8: Chi tiết cha - cột hiện tại=%d, cột cha=%d, thuTu=%d, order=%d",
+                    currentCol, parentCol, parentThuTu, parentOrder);
+
+            logger.logTs("Đơn Bước 9: Đưa người thắng vào vòng tiếp theo");
+            upsertSinglesParentSlot(idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerVdv);
+
+            logger.logTs("Đơn Bước 9 THÀNH CÔNG: Người thắng đã được đưa vào vòng tiếp theo");
+            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN (THÀNH CÔNG) ---");
+
         } catch (Exception ex) {
-            logger.logTs("Auto-advance (đơn) lỗi: %s", ex.getMessage());
+            logger.logTs("Đơn NGOẠI LỆ: Tự động đưa người thắng thất bại - %s", ex.getMessage());
+            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐƠN (NGOẠI LỆ) ---");
         }
     }
 
     private void autoAdvanceDoubles(int idGiai, int idNoiDung, int winnerSide) {
+        logger.logTs("--- BẮT ĐẦU TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI ---");
+        logger.logTs("Đôi Bước 1: Khởi tạo cho idGiai=%d, idNoiDung=%d, winnerSide=%d",
+                idGiai, idNoiDung, winnerSide);
+
         try {
+            logger.logTs("Đôi Bước 2: Tải dữ liệu sơ đồ thi đấu đôi từ cơ sở dữ liệu");
             SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
             java.util.List<com.example.btms.model.bracket.SoDoDoi> rows = dsvc.list(idGiai, idNoiDung);
-            if (rows == null || rows.isEmpty())
-                return;
 
+            if (rows == null || rows.isEmpty()) {
+                logger.logTs("Đôi Bước 2 THẤT BẠI: Không tìm thấy dữ liệu sơ đồ thi đấu đôi - idGiai=%d, idNoiDung=%d",
+                        idGiai, idNoiDung);
+                return;
+            }
+            logger.logTs("Đôi Bước 2 THÀNH CÔNG: Đã tải %d mục sơ đồ thi đấu đôi từ cơ sở dữ liệu", rows.size());
+
+            logger.logTs("Đôi Bước 3: Xác định các đội thi đấu từ giao diện");
             DangKiDoi teamA = (DangKiDoi) cboTeamA.getSelectedItem();
             DangKiDoi teamB = (DangKiDoi) cboTeamB.getSelectedItem();
             String tenA = teamA != null ? teamA.getTenTeam() : null;
             String tenB = teamB != null ? teamB.getTenTeam() : null;
-            if (tenA == null || tenA.isBlank() || tenB == null || tenB.isBlank())
-                return;
+            logger.logTs("Đôi Bước 3: Tên đội - A='%s' (obj=%s), B='%s' (obj=%s)",
+                    tenA, teamA != null ? "hợp lệ" : "null",
+                    tenB, teamB != null ? "hợp lệ" : "null");
 
+            if (tenA == null || tenA.isBlank() || tenB == null || tenB.isBlank()) {
+                logger.logTs("Đôi Bước 3 THẤT BẠI: Tên đội không hợp lệ - tenA='%s', tenB='%s'", tenA, tenB);
+                return;
+            }
+            logger.logTs("Đôi Bước 3 THÀNH CÔNG: Đã lấy được tên đội hợp lệ");
+
+            logger.logTs("Đôi Bước 4: Phân tích cấu trúc sơ đồ thi đấu đôi");
             int columns = detectColumnsByMaxOrder(rows);
             int[] offsets = columnOffsets(columns);
+            logger.logTs("Đôi Bước 4: Cấu trúc sơ đồ - columns=%d, offsets=%s",
+                    columns, java.util.Arrays.toString(offsets));
 
+            String winnerTeamName = (winnerSide == 0) ? tenA : tenB;
+            DangKiDoi winnerTeam = (winnerSide == 0) ? teamA : teamB;
+            logger.logTs("Đôi Bước 5: Đội thắng đã được xác định - Đội='%s', Side=%d", winnerTeamName, winnerSide);
+
+            logger.logTs("Đôi Bước 6: Tìm kiếm cặp đội trong các cột sơ đồ");
             for (int col = 1; col < columns; col++) {
+                logger.logTs("Đôi Bước 6.%d: Kiểm tra cột %d", col, col);
+
                 com.example.btms.model.bracket.SoDoDoi rA = findRowByTeamAndCol(rows, tenA, col);
                 com.example.btms.model.bracket.SoDoDoi rB = findRowByTeamAndCol(rows, tenB, col);
-                if (rA == null || rB == null)
+
+                logger.logTs("Đôi Bước 6.%d: Tìm thấy mục - A=%s, B=%s", col,
+                        (rA != null ? "pos=" + rA.getViTri() : "null"),
+                        (rB != null ? "pos=" + rB.getViTri() : "null"));
+
+                if (rA == null || rB == null) {
+                    logger.logTs("Đôi Bước 6.%d: Thiếu mục trong cột %d - bỏ qua", col, col);
                     continue;
+                }
+
                 int tA = toThuTu(rA.getViTri(), col, offsets);
                 int tB = toThuTu(rB.getViTri(), col, offsets);
-                if (tA < 0 || tB < 0)
+                logger.logTs("Đôi Bước 6.%d: Vị trí tương đối - A=%d, B=%d", col, tA, tB);
+
+                if (tA < 0 || tB < 0) {
+                    logger.logTs("Đôi Bước 6.%d: Vị trí không hợp lệ - bỏ qua cột %d", col, col);
                     continue;
-                if ((tA / 2) == (tB / 2)) {
+                }
+
+                int pairGroupA = tA / 2;
+                int pairGroupB = tB / 2;
+                logger.logTs("Đôi Bước 6.%d: Nhóm cặp đấu - A=%d, B=%d", col, pairGroupA, pairGroupB);
+
+                if (pairGroupA == pairGroupB) {
+                    logger.logTs("Đôi Bước 6.%d THÀNH CÔNG: Tìm thấy cặp đấu khớp trong cột %d", col, col);
+
                     int parentCol = col + 1;
-                    if (parentCol > columns)
+                    if (parentCol > columns) {
+                        logger.logTs("Đôi Bước 6.%d: Cột cha %d vượt quá số cột tối đa %d - giải đấu hoàn thành",
+                                col, parentCol, columns);
                         return;
+                    }
+
                     int parentThuTu = Math.min(tA, tB) / 2;
                     int parentOrder = offsets[parentCol - 1] + parentThuTu + 1;
-                    String winnerTeamName = (winnerSide == 0) ? tenA : tenB;
+
+                    logger.logTs("Đôi Bước 7: Tính toán vị trí cha");
+                    logger.logTs("Đôi Bước 7: Chi tiết cha - col=%d, thuTu=%d, order=%d",
+                            parentCol, parentThuTu, parentOrder);
+
+                    logger.logTs("Đôi Bước 8: Xác định thông tin câu lạc bộ của đội thắng");
                     Integer winnerClb = null;
                     try {
-                        DangKiDoi teamWinner = (winnerSide == 0 ? teamA : teamB);
-                        winnerClb = (teamWinner != null) ? teamWinner.getIdClb() : null;
+                        winnerClb = (winnerTeam != null) ? winnerTeam.getIdClb() : null;
+                        logger.logTs("Đôi Bước 8: ID câu lạc bộ ban đầu từ đối tượng đội - %s", winnerClb);
+
                         if ((winnerClb == null || winnerClb <= 0) && winnerTeamName != null
                                 && !winnerTeamName.isBlank()) {
+                            logger.logTs("Đôi Bước 8: Cố gắng xác định ID câu lạc bộ qua DoiService");
                             DoiService ds = new DoiService(conn);
                             int found = ds.getIdClbByTeamName(winnerTeamName, idNoiDung, idGiai);
-                            if (found > 0)
+                            if (found > 0) {
                                 winnerClb = found;
+                                logger.logTs("Đôi Bước 8: Đã xác định ID câu lạc bộ qua dịch vụ - %d", winnerClb);
+                            } else {
+                                logger.logTs("Đôi Bước 8: Không thể xác định ID câu lạc bộ qua dịch vụ");
+                            }
                         }
-                    } catch (Exception ignore) {
+                    } catch (Exception clbEx) {
+                        logger.logTs("Đôi Bước 8 CẢNH BÁO: Xác định câu lạc bộ thất bại - %s", clbEx.getMessage());
                     }
+
+                    logger.logTs("Đôi Bước 9: Đưa đội thắng vào vòng tiếp theo");
+                    logger.logTs("Đôi Bước 9: Dữ liệu đội thắng cuối cùng - đội='%s', câu lạc bộ=%s", winnerTeamName,
+                            winnerClb);
+
                     upsertDoublesParentSlot(idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerTeamName,
                             winnerClb);
+
+                    logger.logTs("Đôi Bước 9 THÀNH CÔNG: Đội thắng đã được đưa vào vòng tiếp theo");
+                    logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI (THÀNH CÔNG) ---");
                     return;
                 }
+
+                logger.logTs("Đôi Bước 6.%d: Không phải cặp đấu khớp - tiếp tục tìm kiếm", col);
             }
+
+            logger.logTs("Đôi Bước 6 HOÀN THÀNH: Không tìm thấy cặp đội khớp trong bất kỳ cột nào");
+            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI (KHÔNG TÌM THẤY KHỚP) ---");
         } catch (Exception ex) {
-            logger.logTs("Auto-advance (đôi) lỗi: %s", ex.getMessage());
+            logger.logTs("Đôi NGOẠI LỆ: Tự động đưa người thắng thất bại - %s", ex.getMessage());
+            ex.printStackTrace();
+            logger.logTs("--- KẾT THÚC TỰ ĐỘNG ĐƯNG NGƯỜI THẮNG ĐÔI (NGOẠI LỆ) ---");
         }
     }
 
@@ -3285,30 +3498,28 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
         return viTri - base - 1;
     }
 
-    private com.example.btms.model.bracket.SoDoCaNhan findRowByVdvAndCol(
-            java.util.List<com.example.btms.model.bracket.SoDoCaNhan> rows, int idVdv, int col) {
-        com.example.btms.model.bracket.SoDoCaNhan best = null;
+    private SoDoCaNhan findRowByVdvAndCol(
+            List<SoDoCaNhan> rows, int idVdv, int col) {
+        SoDoCaNhan best = null;
         for (var r : rows) {
             Integer rid = r.getIdVdv();
-            Integer soDo = r.getSoDo();
-            if (rid != null && rid.equals(idVdv) && soDo != null && soDo.equals(col)) {
-                if (best == null || r.getViTri() < best.getViTri())
+            if (rid != null && rid.equals(idVdv)) {
+                if (best == null || r.getViTri() > best.getViTri()) {
                     best = r;
+                }
             }
         }
         return best;
     }
 
-    private com.example.btms.model.bracket.SoDoDoi findRowByTeamAndCol(
-            java.util.List<com.example.btms.model.bracket.SoDoDoi> rows, String teamName, int col) {
-        com.example.btms.model.bracket.SoDoDoi best = null;
+    private SoDoDoi findRowByTeamAndCol(
+            List<SoDoDoi> rows, String teamName, int col) {
+        SoDoDoi best = null;
         if (teamName == null)
             return null;
         for (var r : rows) {
-            Integer soDo = r.getSoDo();
-            if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(teamName)
-                    && soDo != null && soDo.equals(col)) {
-                if (best == null || r.getViTri() < best.getViTri())
+            if (r.getTenTeam() != null && r.getTenTeam().equalsIgnoreCase(teamName)) {
+                if (best == null || r.getViTri() > best.getViTri())
                     best = r;
             }
         }
@@ -3317,55 +3528,135 @@ public class BadmintonControlPanel extends JPanel implements PropertyChangeListe
 
     private void upsertSinglesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
             int winnerVdv) {
+        logger.logTs(">>> BẮT ĐẦU UPSERT SLOT CHA ĐƠN <<<");
+        logger.logTs(
+                "Dữ liệu Upsert: idGiai=%d, idNoiDung=%d, parentCol=%d, parentThuTu=%d, parentOrder=%d, winnerVdv=%d",
+                idGiai, idNoiDung, parentCol, parentThuTu, parentOrder, winnerVdv);
+
         try {
+            logger.logTs("Upsert Bước 1: Khởi tạo SoDoCaNhanService");
             SoDoCaNhanService ssvc = new SoDoCaNhanService(new SoDoCaNhanRepository(conn));
+
+            logger.logTs("Upsert Bước 2: Kiểm tra slot hiện có tại parentOrder=%d", parentOrder);
             com.example.btms.model.bracket.SoDoCaNhan existing = null;
             try {
                 existing = ssvc.getOne(idGiai, idNoiDung, parentOrder);
-            } catch (Exception ignore) {
+                if (existing != null) {
+                    logger.logTs("Upsert Bước 2 TÌM THẤY: Slot hiện có - VĐV=%d, vị trí=%d, tọa độ=(%d,%d)",
+                            existing.getIdVdv(), existing.getViTri(), existing.getToaDoX(), existing.getToaDoY());
+                } else {
+                    logger.logTs("Upsert Bước 2: Không tìm thấy slot hiện có - sẽ tạo mới");
+                }
+            } catch (Exception checkEx) {
+                logger.logTs("Upsert Bước 2: Ngoại lệ khi kiểm tra slot hiện có - %s", checkEx.getMessage());
             }
+
             if (existing != null) {
+                logger.logTs("Upsert Bước 3: CẬP NHẬT slot hiện có");
+                logger.logTs("Upsert Bước 3: Cập nhật từ VĐV=%d sang VĐV=%d", existing.getIdVdv(), winnerVdv);
+
                 ssvc.update(idGiai, idNoiDung, parentOrder,
                         winnerVdv,
                         existing.getToaDoX(), existing.getToaDoY(), parentCol,
                         java.time.LocalDateTime.now(), null, null);
+
+                logger.logTs("Upsert Bước 3 THÀNH CÔNG: Đã cập nhật slot hiện có - parentOrder=%d, VĐV mới=%d",
+                        parentOrder, winnerVdv);
             } else {
+                logger.logTs("Upsert Bước 3: TẠO slot mới");
+
+                logger.logTs("Upsert Bước 3.1: Tính toán tọa độ cho parentCol=%d, parentThuTu=%d",
+                        parentCol, parentThuTu);
                 int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
+                logger.logTs("Upsert Bước 3.1: Tọa độ đã tính - x=%d, y=%d", xy[0], xy[1]);
+
+                logger.logTs("Upsert Bước 3.2: Tạo slot mới trong cơ sở dữ liệu");
                 ssvc.create(idGiai, idNoiDung, winnerVdv,
                         xy[0], xy[1], parentOrder, parentCol,
                         java.time.LocalDateTime.now(), null, null);
+
+                logger.logTs("Upsert Bước 3.2 THÀNH CÔNG: Đã tạo slot mới - parentOrder=%d, VĐV=%d, tọa độ=(%d,%d)",
+                        parentOrder, winnerVdv, xy[0], xy[1]);
             }
-            logger.logTs("Auto-advance (đơn): đưa VĐV #%d vào VI_TRI=%d (cột %d, t=%d)", winnerVdv, parentOrder,
-                    parentCol, parentThuTu);
+
+            logger.logTs("Upsert Bước 4: KẾT QUẢ CUỐI CÙNG - VĐV #%d đã được đưa vào VI_TRI=%d (cột %d, thuTu=%d)",
+                    winnerVdv, parentOrder, parentCol, parentThuTu);
+            logger.logTs(">>> UPSERT SLOT CHA ĐƠN THÀNH CÔNG <<<");
+
         } catch (Exception ex) {
-            logger.logTs("Lỗi upsert slot cha (đơn): %s", ex.getMessage());
+            logger.logTs("Upsert NGOẠI LỆ: Upsert slot đơn thất bại - %s", ex.getMessage());
+            ex.printStackTrace();
+            logger.logTs(">>> UPSERT SLOT CHA ĐƠN THẤT BẠI <<<");
         }
     }
 
     private void upsertDoublesParentSlot(int idGiai, int idNoiDung, int parentCol, int parentThuTu, int parentOrder,
             String winnerTeamName, Integer winnerClb) {
+        logger.logTs(">>> BẮT ĐẦU UPSERT SLOT CHA ĐÔI <<<");
+        logger.logTs("Dữ liệu Upsert: idGiai=%d, idNoiDung=%d, parentCol=%d, parentThuTu=%d, parentOrder=%d",
+                idGiai, idNoiDung, parentCol, parentThuTu, parentOrder);
+        logger.logTs("Đội Upsert: tên='%s', idCâuLạcBộ=%s", winnerTeamName, winnerClb);
+
         try {
+            logger.logTs("Upsert Bước 1: Khởi tạo SoDoDoiService");
             SoDoDoiService dsvc = new SoDoDoiService(new SoDoDoiRepository(conn));
+
+            logger.logTs("Upsert Bước 2: Kiểm tra slot đôi hiện có tại parentOrder=%d", parentOrder);
             com.example.btms.model.bracket.SoDoDoi existing = null;
             try {
                 existing = dsvc.getOne(idGiai, idNoiDung, parentOrder);
-            } catch (Exception ignore) {
+                if (existing != null) {
+                    logger.logTs(
+                            "Upsert Bước 2 TÌM THẤY: Slot hiện có - đội='%s', CLB=%s, vị trí=%d, tọa độ=(%d,%d)",
+                            existing.getTenTeam(), existing.getIdClb(),
+                            existing.getViTri(), existing.getToaDoX(), existing.getToaDoY());
+                } else {
+                    logger.logTs("Upsert Bước 2: Không tìm thấy slot đôi hiện có - sẽ tạo mới");
+                }
+            } catch (Exception checkEx) {
+                logger.logTs("Upsert Bước 2: Ngoại lệ khi kiểm tra slot đôi hiện có - %s", checkEx.getMessage());
             }
+
             if (existing != null) {
+                logger.logTs("Upsert Bước 3: CẬP NHẬT slot đôi hiện có");
+                logger.logTs("Upsert Bước 3: Cập nhật từ đội='%s' sang đội='%s', CLB từ %s sang %s",
+                        existing.getTenTeam(), winnerTeamName, existing.getIdClb(), winnerClb);
+
                 dsvc.update(idGiai, idNoiDung, parentOrder,
                         winnerClb, winnerTeamName,
-                        existing.getToaDoX(), existing.getToaDoY(), parentCol,
+                        existing.getToaDoX(), existing.getToaDoY(), existing.getSoDo(),
                         java.time.LocalDateTime.now(), null, null);
+
+                logger.logTs(
+                        "Upsert Bước 3 THÀNH CÔNG: Đã cập nhật slot đôi hiện có - parentOrder=%d, đội mới='%s', CLB=%s",
+                        parentOrder, winnerTeamName, winnerClb);
             } else {
+                logger.logTs("Upsert Bước 3: TẠO slot đôi mới");
+
+                logger.logTs("Upsert Bước 3.1: Tính toán tọa độ cho parentCol=%d, parentThuTu=%d",
+                        parentCol, parentThuTu);
                 int[] xy = computeSlotCoordinates(parentCol, parentThuTu);
+                logger.logTs("Upsert Bước 3.1: Tọa độ đã tính - x=%d, y=%d", xy[0], xy[1]);
+
+                logger.logTs("Upsert Bước 3.2: Tạo slot đôi mới trong cơ sở dữ liệu");
                 dsvc.create(idGiai, idNoiDung, winnerClb, winnerTeamName,
-                        xy[0], xy[1], parentOrder, parentCol,
-                        java.time.LocalDateTime.now(), null, null);
+                        xy[0], xy[1], parentOrder, existing.getSoDo(),
+                        LocalDateTime.now(), null, null);
+
+                logger.logTs(
+                        "Upsert Bước 3.2 THÀNH CÔNG: Đã tạo slot đôi mới - parentOrder=%d, đội='%s', CLB=%s, tọa độ=(%d,%d)",
+                        parentOrder, winnerTeamName, winnerClb, xy[0], xy[1]);
             }
-            logger.logTs("Auto-advance (đôi): đưa ĐỘI '%s' vào VI_TRI=%d (cột %d, t=%d)", winnerTeamName,
-                    parentOrder, parentCol, parentThuTu);
+
+            logger.logTs(
+                    "Upsert Bước 4: KẾT QUẢ CUỐI CÙNG - Đội '%s' (CLB=%s) đã được đưa vào VI_TRI=%d (cột %d, thuTu=%d)",
+                    winnerTeamName, winnerClb, parentOrder, parentCol, parentThuTu);
+            logger.logTs(">>> UPSERT SLOT CHA ĐÔI THÀNH CÔNG <<<");
+
         } catch (Exception ex) {
-            logger.logTs("Lỗi upsert slot cha (đôi): %s", ex.getMessage());
+            logger.logTs("Upsert NGOẠI LỆ: Upsert slot đôi thất bại - %s", ex.getMessage());
+            ex.printStackTrace();
+            logger.logTs(">>> UPSERT SLOT CHA ĐÔI THẤT BẠI <<<");
         }
     }
 
