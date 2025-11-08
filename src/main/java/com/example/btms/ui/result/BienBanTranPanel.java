@@ -321,6 +321,8 @@ public class BienBanTranPanel extends JPanel {
                     if (c instanceof javax.swing.JLabel) {
                         javax.swing.JLabel label = (javax.swing.JLabel) c;
                         label.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 22));
+                        // Mặc định căn phải để số điểm "sát phải"
+                        label.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
 
                         // Kiểm tra nếu là cột tổng điểm (có prefix "TOTAL:")
                         Object value = getValueAt(row, column);
@@ -513,6 +515,8 @@ public class BienBanTranPanel extends JPanel {
                         if (c instanceof javax.swing.JLabel) {
                             javax.swing.JLabel label = (javax.swing.JLabel) c;
                             label.setFont(new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 22));
+                            // Mặc định căn phải để số điểm "sát phải"
+                            label.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
 
                             // Kiểm tra nếu là cột tổng điểm (có prefix "TOTAL:")
                             Object value = getValueAt(row, column);
@@ -806,6 +810,11 @@ public class BienBanTranPanel extends JPanel {
                     c.setBackground(getBackground());
                 }
 
+                // Căn phải nội dung số để điểm "sát phải"
+                if (c instanceof javax.swing.JLabel) {
+                    ((javax.swing.JLabel) c).setHorizontalAlignment(javax.swing.JLabel.RIGHT);
+                }
+
                 // Thêm viền dưới đậm cho các hàng cụ thể
                 if (c instanceof javax.swing.JComponent) {
                     javax.swing.JComponent jc = (javax.swing.JComponent) c;
@@ -988,7 +997,8 @@ public class BienBanTranPanel extends JPanel {
                     setBorder(null);
                 }
 
-                setHorizontalAlignment(JLabel.CENTER);
+                // Căn phải mặc định cho tất cả ô
+                setHorizontalAlignment(JLabel.RIGHT);
                 return this;
             }
         };
