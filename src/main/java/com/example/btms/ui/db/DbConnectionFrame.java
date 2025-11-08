@@ -615,7 +615,8 @@ public class DbConnectionFrame extends JFrame {
         txtServer.setText(p.get("db.server", "localhost"));
         txtPort.setText(p.get("db.port", cbDbType.getSelectedItem() == DbType.H2 ? "9092" : "1433"));
         txtUser.setText(p.get("db.user", ""));
-        chkRemember.setSelected(p.getBool("db.remember", false));
+        // Mặc định BẬT ghi nhớ để lần sau có thể tự động dùng lại cấu hình
+        chkRemember.setSelected(p.getBool("db.remember", true));
     }
 
     private void savePrefs(DbConnectionSelection sel) {
