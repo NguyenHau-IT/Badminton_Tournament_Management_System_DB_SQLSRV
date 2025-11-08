@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Hero Section -->
+    <section th:fragment="hero" class="hero-section position-relative overflow-hidden">
+        <!-- Background Video (Optional) -->
+        <div class="hero-background">
+            <div class="hero-overlay"></div>
+            <!-- Uncomment for video background -->
+            <!-- <video autoplay muted loop class="hero-video">
+                <source src="/videos/badminton-hero.mp4" type="video/mp4">
+            </video> -->
+        </div>
+        
+        <div class="container position-relative" style="z-index: 2;">
+            <div class="row align-items-center min-vh-100 py-5">
+                <!-- Left Column - Content -->
+                <div class="col-lg-6 text-white">
+                    <div class="hero-content">
+                        <!-- Badge -->
+                        <div class="hero-badge mb-4" data-aos="fade-right">
+                            <span class="badge bg-primary-gradient px-4 py-2 rounded-pill">
+                                <i class="bi bi-stars me-2"></i>
+                                Hệ thống #1 tại Việt Nam
+                            </span>
+                        </div>
+                        
+                        <!-- Main Heading -->
+                        <h1 class="hero-title mb-4" data-aos="fade-right" data-aos-delay="100">
+                            Quản lý giải đấu 
+                            <span class="text-gradient">cầu lông</span>
+                            <br>chuyên nghiệp
+                        </h1>
+                        
+                        <!-- Subtitle -->
+                        <p class="hero-subtitle mb-5 fs-5" data-aos="fade-right" data-aos-delay="200">
+                            BTMS - Hệ thống toàn diện với điều khiển đa sân, 
+                            cập nhật real-time và giao diện web hiện đại
+                        </p>
+                        
+                        <!-- Feature Highlights -->
+                        <ul class="hero-features list-unstyled mb-5" data-aos="fade-right" data-aos-delay="300">
+                            <li class="mb-3">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                Điều khiển từ xa qua web & mobile
+                            </li>
+                            <li class="mb-3">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                Cập nhật điểm số real-time với SSE
+                            </li>
+                            <li class="mb-3">
+                                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                Quản lý 5 sân thi đấu đồng thời
+                            </li>
+                        </ul>
+                        
+                        <!-- CTA Buttons -->
+                        <div class="hero-cta d-flex flex-wrap gap-3" data-aos="fade-right" data-aos-delay="400">
+                            <a th:href="@{/app/download}" class="btn btn-primary btn-lg px-5 py-3">
+                                <i class="bi bi-download me-2"></i>
+                                Tải ứng dụng miễn phí
+                            </a>
+                            <a th:href="@{/tournament/list}" class="btn btn-outline-light btn-lg px-5 py-3">
+                                <i class="bi bi-trophy me-2"></i>
+                                Khám phá giải đấu
+                            </a>
+                        </div>
+                        
+                        <!-- Social Proof -->
+                        <div class="hero-social-proof mt-5" data-aos="fade-right" data-aos-delay="500">
+                            <div class="d-flex align-items-center flex-wrap gap-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-group me-2">
+                                        <img src="https://i.pravatar.cc/40?img=1" class="avatar" alt="User">
+                                        <img src="https://i.pravatar.cc/40?img=2" class="avatar" alt="User">
+                                        <img src="https://i.pravatar.cc/40?img=3" class="avatar" alt="User">
+                                        <span class="avatar-more">+100</span>
+                                    </div>
+                                    <small class="text-white-50">
+                                        Hơn 100+ CLB tin dùng
+                                    </small>
+                                </div>
+                                <div class="rating">
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                    <i class="bi bi-star-half text-warning"></i>
+                                    <small class="ms-2 text-white-50">4.8/5 (250 đánh giá)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column - App Preview -->
+                <div class="col-lg-6 mt-5 mt-lg-0" data-aos="fade-left" data-aos-delay="200">
+                    <div class="hero-image-container">
+                        <!-- Floating elements -->
+                        <div class="floating-badge badge-1">
+                            <i class="bi bi-trophy-fill text-warning"></i>
+                            <span>500+ Giải đấu</span>
+                        </div>
+                        <div class="floating-badge badge-2">
+                            <i class="bi bi-people-fill text-primary"></i>
+                            <span>10,000+ VĐV</span>
+                        </div>
+                        <div class="floating-badge badge-3">
+                            <i class="bi bi-graph-up-arrow text-success"></i>
+                            <span>Real-time Updates</span>
+                        </div>
+                        
+                        <!-- Main Image/Screenshot -->
+                        <div class="hero-mockup">
+                            <img th:src="@{/images/app-mockup.png}" 
+                                 alt="BTMS Application" 
+                                 class="img-fluid"
+                                 onerror="this.src='https://via.placeholder.com/600x700/0066ff/ffffff?text=BTMS+App'">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scroll Down Indicator -->
+        <div class="scroll-indicator" data-aos="fade-up" data-aos-delay="600">
+            <a href="#features" class="scroll-link">
+                <i class="bi bi-chevron-down"></i>
+                <span>Khám phá thêm</span>
+            </a>
+        </div>
+        
+        <!-- Decorative Shapes -->
+        <div class="hero-shapes">
+            <div class="shape shape-1"></div>
+            <div class="shape shape-2"></div>
+            <div class="shape shape-3"></div>
+        </div>
+    </section>
+</body>
+</html>

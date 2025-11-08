@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Tournament Preview Section -->
+    <section th:fragment="tournament-preview" class="tournament-preview-section py-5">
+        <div class="container py-5">
+            <!-- Section Header -->
+            <div class="row mb-5">
+                <div class="col-lg-8 mx-auto text-center">
+                    <span class="section-badge" data-aos="fade-up">
+                        <i class="bi bi-trophy me-2"></i>Giải đấu nổi bật
+                    </span>
+                    <h2 class="section-title mt-3 mb-4" data-aos="fade-up" data-aos-delay="100">
+                        Tham gia <span class="text-primary">giải đấu</span> ngay hôm nay
+                    </h2>
+                    <p class="section-description text-muted" data-aos="fade-up" data-aos-delay="200">
+                        Khám phá các giải đấu cầu lông đang diễn ra và sắp tới
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Tournament Cards -->
+            <div class="row g-4 mb-4">
+                <!-- Tournament Card 1 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+                    <div class="tournament-card h-100">
+                        <!-- Tournament Image -->
+                        <div class="tournament-image">
+                            <img src="https://via.placeholder.com/400x250/0066ff/ffffff?text=Tournament+1" 
+                                 alt="Tournament" 
+                                 class="img-fluid">
+                            <div class="tournament-badge badge-live">
+                                <i class="bi bi-broadcast"></i> LIVE
+                            </div>
+                        </div>
+                        
+                        <!-- Tournament Content -->
+                        <div class="tournament-content">
+                            <div class="tournament-meta mb-2">
+                                <span class="meta-item">
+                                    <i class="bi bi-calendar3"></i>
+                                    15-17/11/2025
+                                </span>
+                                <span class="meta-item">
+                                    <i class="bi bi-geo-alt"></i>
+                                    Hà Nội
+                                </span>
+                            </div>
+                            
+                            <h4 class="tournament-title">
+                                Giải Cầu lông Mở rộng Hà Nội 2025
+                            </h4>
+                            
+                            <p class="tournament-description text-muted">
+                                Giải đấu cấp quốc gia với 8 nội dung thi đấu, 
+                                tổng giá trị giải thưởng 500 triệu VNĐ.
+                            </p>
+                            
+                            <div class="tournament-stats mb-3">
+                                <div class="stat-item">
+                                    <i class="bi bi-people"></i>
+                                    <span>256 VĐV</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-trophy"></i>
+                                    <span>8 nội dung</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-cash"></i>
+                                    <span>500tr VNĐ</span>
+                                </div>
+                            </div>
+                            
+                            <a th:href="@{/tournament/detail/1}" class="btn btn-primary w-100">
+                                Xem chi tiết
+                                <i class="bi bi-arrow-right ms-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tournament Card 2 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
+                    <div class="tournament-card h-100">
+                        <div class="tournament-image">
+                            <img src="https://via.placeholder.com/400x250/ff6b35/ffffff?text=Tournament+2" 
+                                 alt="Tournament" 
+                                 class="img-fluid">
+                            <div class="tournament-badge badge-upcoming">
+                                <i class="bi bi-clock"></i> Sắp diễn ra
+                            </div>
+                        </div>
+                        
+                        <div class="tournament-content">
+                            <div class="tournament-meta mb-2">
+                                <span class="meta-item">
+                                    <i class="bi bi-calendar3"></i>
+                                    20-22/11/2025
+                                </span>
+                                <span class="meta-item">
+                                    <i class="bi bi-geo-alt"></i>
+                                    TP.HCM
+                                </span>
+                            </div>
+                            
+                            <h4 class="tournament-title">
+                                Giải Cầu lông Các CLB TP.HCM
+                            </h4>
+                            <p class="tournament-description text-muted">
+                                Giải đấu dành cho các câu lạc bộ, 
+                                khuyến khích phong trào thi đấu thân thiện.
+                            </p>
+                            
+                            <div class="tournament-stats mb-3">
+                                <div class="stat-item">
+                                    <i class="bi bi-people"></i>
+                                    <span>128 VĐV</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-trophy"></i>
+                                    <span>4 nội dung</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-cash"></i>
+                                    <span>200tr VNĐ</span>
+                                </div>
+                            </div>
+                            
+                            <a th:href="@{/tournament/detail/2}" class="btn btn-outline-primary w-100">
+                                Đăng ký ngay
+                                <i class="bi bi-arrow-right ms-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tournament Card 3 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="300">
+                    <div class="tournament-card h-100">
+                        <div class="tournament-image">
+                            <img src="https://via.placeholder.com/400x250/28a745/ffffff?text=Tournament+3" 
+                                 alt="Tournament" 
+                                 class="img-fluid">
+                            <div class="tournament-badge badge-registration">
+                                <i class="bi bi-pencil-square"></i> Đang nhận đăng ký
+                            </div>
+                        </div>
+                        
+                        <div class="tournament-content">
+                            <div class="tournament-meta mb-2">
+                                <span class="meta-item">
+                                    <i class="bi bi-calendar3"></i>
+                                    01-03/12/2025
+                                </span>
+                                <span class="meta-item">
+                                    <i class="bi bi-geo-alt"></i>
+                                    Đà Nẵng
+                                </span>
+                            </div>
+                            <h4 class="tournament-title">
+                                Giải Vô địch Miền Trung 2025
+                            </h4>
+                            
+                            <p class="tournament-description text-muted">
+                                Giải đấu khu vực với sự tham gia của 
+                                các tuyển thủ hàng đầu miền Trung.
+                            </p>
+                            
+                            <div class="tournament-stats mb-3">
+                                <div class="stat-item">
+                                    <i class="bi bi-people"></i>
+                                    <span>180 VĐV</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-trophy"></i>
+                                    <span>6 nội dung</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-cash"></i>
+                                    <span>350tr VNĐ</span>
+                                </div>
+                            </div>
+                            
+                            <a th:href="@{/tournament/register/3}" class="btn btn-success w-100">
+                                Đăng ký tham gia
+                                <i class="bi bi-arrow-right ms-2"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- View All Button -->
+            <div class="row">
+                <div class="col-12 text-center" data-aos="fade-up">
+                    <a th:href="@{/tournament/list}" class="btn btn-outline-primary btn-lg px-5">
+                        Xem tất cả giải đấu
+                        <i class="bi bi-arrow-right ms-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

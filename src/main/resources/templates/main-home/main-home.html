@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi" 
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title>BTMS - Hệ thống Quản lý Giải đấu Cầu lông Chuyên nghiệp</title>
+    <meta name="description" content="BTMS - Hệ thống quản lý giải đấu cầu lông hiện đại với điều khiển từ xa, real-time scoring và quản lý đa sân chuyên nghiệp">
+    
+    <!-- Page-specific CSS -->
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/pages/main-home.css}">
+    </th:block>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- Hero Section -->
+        <div th:replace="~{main-home/sections/hero :: hero}"></div>
+        
+        <!-- Features Section -->
+        <div th:replace="~{main-home/sections/features :: features}"></div>
+        
+        <!-- Stats Counter Section -->
+        <div th:replace="~{main-home/sections/stats :: stats}"></div>
+        
+        <!-- App Showcase Section -->
+        <div th:replace="~{main-home/sections/app-showcase :: app-showcase}"></div>
+        
+        <!-- Tournament Preview Section -->
+        <div th:replace="~{main-home/sections/tournament-preview :: tournament-preview}"></div>
+        
+        <!-- Testimonials Section -->
+        <div th:replace="~{main-home/sections/testimonials :: testimonials}"></div>
+        
+        <!-- CTA Section -->
+        <div th:replace="~{main-home/sections/cta :: cta}"></div>
+    </div>
+    
+    <!-- Page-specific JS -->
+    <th:block layout:fragment="scripts">
+        <script th:src="@{/js/pages/main-home.js}"></script>
+    </th:block>
+</body>
+</html>

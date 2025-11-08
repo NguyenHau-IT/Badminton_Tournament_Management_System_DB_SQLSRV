@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- CTA Section -->
+    <section th:fragment="cta" class="cta-section py-5 position-relative overflow-hidden">
+        <!-- Background Gradient -->
+        <div class="cta-background"></div>
+        
+        <div class="container py-5 position-relative" style="z-index: 2;">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 text-center text-white">
+                    <!-- Icon -->
+                    <div class="cta-icon mb-4" data-aos="zoom-in">
+                        <i class="bi bi-rocket-takeoff"></i>
+                    </div>
+                    
+                    <!-- Heading -->
+                    <h2 class="cta-title mb-4" data-aos="fade-up" data-aos-delay="100">
+                        Sẵn sàng nâng cấp giải đấu của bạn?
+                    </h2>
+                    
+                    <!-- Description -->
+                    <p class="cta-description fs-5 mb-5" data-aos="fade-up" data-aos-delay="200">
+                        Tải BTMS miễn phí ngay hôm nay và trải nghiệm quản lý giải đấu chuyên nghiệp. 
+                        Không cần đăng ký, không giới hạn tính năng!
+                    </p>
+                    
+                    <!-- CTA Buttons -->
+                    <div class="cta-buttons d-flex flex-wrap justify-content-center gap-3 mb-4" 
+                         data-aos="fade-up" data-aos-delay="300">
+                        <a th:href="@{/app/download}" class="btn btn-light btn-lg px-5 py-3">
+                            <i class="bi bi-download me-2"></i>
+                            Tải về miễn phí
+                        </a>
+                        <a th:href="@{/tournament/list}" class="btn btn-outline-light btn-lg px-5 py-3">
+                            <i class="bi bi-trophy me-2"></i>
+                            Xem giải đấu
+                        </a>
+                    </div>
+                    
+                    <!-- Features List -->
+                    <div class="cta-features" data-aos="fade-up" data-aos-delay="400">
+                        <div class="row g-3 justify-content-center">
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    100% Miễn phí
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    Không giới hạn
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    Cập nhật miễn phí
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    Hỗ trợ 24/7
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Info -->
+                    <p class="cta-info mt-5 mb-0 text-white-50" data-aos="fade-up" data-aos-delay="500">
+                        <i class="bi bi-shield-check me-2"></i>
+                        An toàn, bảo mật và đáng tin cậy
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Decorative Shapes -->
+        <div class="cta-shapes">
+            <div class="cta-shape cta-shape-1"></div>
+            <div class="cta-shape cta-shape-2"></div>
+            <div class="cta-shape cta-shape-3"></div>
+        </div>
+    </section>
+</body>
+</html>

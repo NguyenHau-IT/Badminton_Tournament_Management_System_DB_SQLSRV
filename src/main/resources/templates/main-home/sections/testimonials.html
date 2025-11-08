@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Testimonials Section -->
+    <section th:fragment="testimonials" class="testimonials-section py-5 bg-gray-50">
+        <div class="container py-5">
+            <!-- Section Header -->
+            <div class="row mb-5">
+                <div class="col-lg-8 mx-auto text-center">
+                    <span class="section-badge" data-aos="fade-up">
+                        <i class="bi bi-chat-quote me-2"></i>Phản hồi từ người dùng
+                    </span>
+                    <h2 class="section-title mt-3 mb-4" data-aos="fade-up" data-aos-delay="100">
+                        Họ nói gì về <span class="text-primary">BTMS</span>
+                    </h2>
+                    <p class="section-description text-muted" data-aos="fade-up" data-aos-delay="200">
+                        Hơn 100+ câu lạc bộ và Ban tổ chức giải đấu tin tưởng sử dụng BTMS
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Testimonials Grid -->
+            <div class="row g-4">
+                <!-- Testimonial 1 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+                    <div class="testimonial-card h-100">
+                        <!-- Rating -->
+                        <div class="testimonial-rating mb-3">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                        </div>
+                        
+                        <!-- Quote -->
+                        <blockquote class="testimonial-quote">
+                            "BTMS giúp chúng tôi tổ chức giải đấu chuyên nghiệp hơn rất nhiều. 
+                            Tính năng điều khiển từ xa và cập nhật real-time thực sự tuyệt vời!"
+                        </blockquote>
+                        
+                        <!-- Author -->
+                        <div class="testimonial-author">
+                            <img src="https://i.pravatar.cc/60?img=10" 
+                                 alt="Nguyễn Văn A" 
+                                 class="author-avatar">
+                            <div class="author-info">
+                                <h6 class="author-name mb-0">Nguyễn Văn A</h6>
+                                <p class="author-role text-muted small mb-0">
+                                    Chủ tịch CLB Cầu lông Hà Nội
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 2 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
+                    <div class="testimonial-card h-100 featured">
+                        <div class="featured-ribbon">Nổi bật</div>
+                        <div class="testimonial-rating mb-3">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                        </div>
+                        
+                        <blockquote class="testimonial-quote">
+                            "Giao diện đẹp, dễ sử dụng và quan trọng nhất là miễn phí! 
+                            BTMS đã thay đổi hoàn toàn cách chúng tôi quản lý giải đấu."
+                        </blockquote>
+                        
+                        <div class="testimonial-author">
+                            <img src="https://i.pravatar.cc/60?img=20" 
+                                 alt="Trần Thị B" 
+                                 class="author-avatar">
+                            <div class="author-info">
+                                <h6 class="author-name mb-0">Trần Thị B</h6>
+                                <p class="author-role text-muted small mb-0">
+                                    Ban tổ chức Giải Mở rộng TP.HCM
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 3 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="300">
+                    <div class="testimonial-card h-100">
+                        <div class="testimonial-rating mb-3">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-half text-warning"></i>
+                        </div>
+                        
+                        <blockquote class="testimonial-quote">
+                            "Hỗ trợ đa sân là điểm cộng lớn. Chúng tôi có thể quản lý 
+                            5 sân cùng lúc mà không bị rối. Rất hài lòng!"
+                        </blockquote>
+                        
+                        <div class="testimonial-author">
+                            <img src="https://i.pravatar.cc/60?img=30" 
+                                 alt="Lê Văn C" 
+                                 class="author-avatar">
+                            <div class="author-info">
+                                <h6 class="author-name mb-0">Lê Văn C</h6>
+                                <p class="author-role text-muted small mb-0">
+                                    Giám đốc Sân Cầu lông Đà Nẵng
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 4 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+                    <div class="testimonial-card h-100">
+                        <div class="testimonial-rating mb-3">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                        </div>
+                        
+                        <blockquote class="testimonial-quote">
+                            "Tính năng QR Code để truy cập nhanh rất tiện lợi. 
+                            Trọng tài chỉ cần quét là có thể điều khiển điểm ngay!"
+                        </blockquote>
+                        
+                        <div class="testimonial-author">
+                            <img src="https://i.pravatar.cc/60?img=40" 
+                                 alt="Phạm Thị D" 
+                                 class="author-avatar">
+                            <div class="author-info">
+                                <h6 class="author-name mb-0">Phạm Thị D</h6>
+                                <p class="author-role text-muted small mb-0">
+                                    Trọng tài quốc gia
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 5 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
+                    <div class="testimonial-card h-100">
+                        <div class="testimonial-rating mb-3">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                        </div>
+                        
+                        <blockquote class="testimonial-quote">
+                            "Database tích hợp giúp lưu trữ toàn bộ lịch sử thi đấu. 
+                            Rất hữu ích cho việc thống kê và xếp hạng VĐV."
+                        </blockquote>
+                        
+                        <div class="testimonial-author">
+                            <img src="https://i.pravatar.cc/60?img=50" 
+                                 alt="Hoàng Văn E" 
+                                 class="author-avatar">
+                            <div class="author-info">
+                                <h6 class="author-name mb-0">Hoàng Văn E</h6>
+                                <p class="author-role text-muted small mb-0">
+                                    Quản lý CLB Thăng Long
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 6 -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="300">
+                    <div class="testimonial-card h-100">
+                        <div class="testimonial-rating mb-3">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <i class="bi bi-star-fill text-warning"></i>
+                        </div>
+                        
+                        <blockquote class="testimonial-quote">
+                            "Support team nhiệt tình, phản hồi nhanh. 
+                            Mọi vấn đề đều được giải quyết trong vòng 24h!"
+                        </blockquote>
+                        
+                        <div class="testimonial-author">
+                            <img src="https://i.pravatar.cc/60?img=60" 
+                                 alt="Vũ Thị F" 
+                                 class="author-avatar">
+                            <div class="author-info">
+                                <h6 class="author-name mb-0">Vũ Thị F</h6>
+                                <p class="author-role text-muted small mb-0">
+                                    Phó chủ tịch CLB Hoàng Mai
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Overall Rating -->
+            <div class="row mt-5">
+                <div class="col-12 text-center" data-aos="fade-up">
+                    <div class="overall-rating">
+                        <div class="rating-stars mb-2">
+                            <i class="bi bi-star-fill text-warning fs-4"></i>
+                            <i class="bi bi-star-fill text-warning fs-4"></i>
+                            <i class="bi bi-star-fill text-warning fs-4"></i>
+                            <i class="bi bi-star-fill text-warning fs-4"></i>
+                            <i class="bi bi-star-half text-warning fs-4"></i>
+                        </div>
+                        <p class="mb-0 text-muted">
+                            <strong class="text-dark">4.8/5</strong> 
+                            từ <strong class="text-dark">250+</strong> đánh giá
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>
