@@ -54,7 +54,6 @@ public class BienBanTranPanel extends JPanel {
     private final NoiDungService noiDungService;
     private final ChiTietTranDauService tranDauService;
     private final GiaiDauRepository giaiRepo;
-    // vẽ bảng
     private final ChiTietVanService vanService;
     private final SoDoCaNhanRepository soDoCaNhanRepo;
     private final SoDoDoiRepository soDoDoiRepo;
@@ -69,7 +68,6 @@ public class BienBanTranPanel extends JPanel {
 
     // Container hiển thị các bảng set (mỗi set một bảng 4x31)
     private final JPanel setsContainer = new JPanel();
-    // DateTimeFormatter hiện không dùng trong chế độ bảng
 
     private String currentMatchId;
     private boolean editMode = false; // false: Xem, true: Sửa
@@ -280,16 +278,15 @@ public class BienBanTranPanel extends JPanel {
             JTable emptyTable = buildEmptyTable(headers, rows);
             // Điều chỉnh kích thước bảng để vừa màn hình
             adjustTableToFitScreen(emptyTable, wrapper);
-            JPanel panelNoScroll = wrapWithRowHeader(emptyTable, rowHeaders, isSingles, 28); // Sử dụng colWidth mới
+            JPanel panelNoScroll = wrapWithRowHeader(emptyTable, rowHeaders, isSingles, 40); // Sử dụng colWidth mới
             wrapper.add(panelNoScroll);
             return wrapper;
         }
 
         int p1 = 0, p2 = 0; // đếm điểm cho từng bên
         int idx = 0;
-        int colWidth = 28; // Giảm từ 36 xuống 28 để vừa màn hình
+        int colWidth = 40; // Tăng từ 28 lên 40 để cột rộng hơn
         boolean swapped = false;
-        final boolean allowSwap = v.getSetNo() == 2;
         // lưu lại bảng cuối để chèn tổng điểm
         DefaultTableModel lastModel = null;
         int lastCol = 0;
@@ -444,7 +441,7 @@ public class BienBanTranPanel extends JPanel {
                 if (t.isEmpty())
                     continue;
                 if (t.startsWith("SWAP@")) {
-                    if (allowSwap)
+                    if (v.getSetNo() == 2)
                         swapped = !swapped;
                     continue; // không chiếm cột
                 }
@@ -642,20 +639,9 @@ public class BienBanTranPanel extends JPanel {
             // Ghi tổng theo hiển thị trái/phải để không bị đổi vị trí ở set 2
             lastModel.setValueAt("TOTAL:" + leftScore, 0, targetCol);
             lastModel.setValueAt("TOTAL:" + rightScore, rows - 1, targetCol);
-
-            // Thêm custom renderer để vẽ oval bao quanh cả cột tổng điểm
-            applyTotalColumnRenderer(lastModel, targetCol, rows);
         }
 
         return wrapper;
-    }
-
-    /**
-     * Áp dụng custom renderer để vẽ oval bao quanh cả cột tổng điểm
-     */
-    private static void applyTotalColumnRenderer(DefaultTableModel model, int targetCol, int rows) {
-        // Tạo một JPanel custom để vẽ oval bao quanh toàn bộ cột
-        // Thực hiện thông qua override paint method của table
     }
 
     /**
@@ -869,7 +855,7 @@ public class BienBanTranPanel extends JPanel {
         table.setShowGrid(true);
         table.setGridColor(Color.GRAY);
         table.setIntercellSpacing(new Dimension(1, 1));
-        int colWidth = 28; // Giảm từ 36 xuống 28 để vừa màn hình
+        int colWidth = 40; // Tăng từ 28 lên 40 để cột rộng hơn
         for (int i = 0; i < table.getColumnCount(); i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(colWidth);
             table.getColumnModel().getColumn(i).setMinWidth(colWidth);
@@ -888,8 +874,8 @@ public class BienBanTranPanel extends JPanel {
         int columnCount = table.getColumnCount();
         int optimalColumnWidth = (availableWidth - 50) / columnCount; // trừ 50px cho padding
 
-        // Đảm bảo cột không quá nhỏ (tối thiểu 20px) và không quá lớn (tối đa 40px)
-        optimalColumnWidth = Math.max(20, Math.min(40, optimalColumnWidth));
+        // Đảm bảo cột không quá nhỏ (tối thiểu 30px) và không quá lớn (tối đa 60px)
+        optimalColumnWidth = Math.max(30, Math.min(60, optimalColumnWidth));
 
         // Áp dụng kích thước cột
         for (int i = 0; i < columnCount; i++) {
@@ -902,7 +888,7 @@ public class BienBanTranPanel extends JPanel {
     private static JPanel wrapWithRowHeader(JTable table, String[] rowHeaders, boolean isSingles, int colWidth) {
         int rowHeight = table.getRowHeight();
         int rows = table.getRowCount();
-        int headerWidth = computeHeaderWidth(rowHeaders, table, isSingles);
+        int headerWidth = 280;
         int tableWidth = table.getColumnCount() * colWidth;
         int tableHeight = rows * rowHeight;
 
@@ -952,17 +938,11 @@ public class BienBanTranPanel extends JPanel {
         container.add(rowHeader, BorderLayout.WEST);
         container.add(table, BorderLayout.CENTER);
 
-        // Thêm filler panel bên phải để container rộng bằng chiều rộng trang
-        JPanel fillerPanel = new JPanel();
-        fillerPanel.setBackground(container.getBackground());
-        container.add(fillerPanel, BorderLayout.EAST);
-
-        // Container có chiều rộng full page, chiều cao bằng table
-        // Sử dụng kích thước lớn để fill toàn bộ available width
-        Dimension containerSize = new Dimension(Integer.MAX_VALUE, tableHeight);
-        container.setPreferredSize(new Dimension(headerWidth + tableWidth + 500, tableHeight)); // +500px padding
-        container.setMinimumSize(new Dimension(headerWidth + tableWidth, tableHeight));
-        container.setMaximumSize(containerSize);
+        // Container có kích thước vừa đủ với table và row header
+        int totalWidth = headerWidth + tableWidth;
+        container.setPreferredSize(new Dimension(totalWidth, tableHeight));
+        container.setMinimumSize(new Dimension(totalWidth, tableHeight));
+        container.setMaximumSize(new Dimension(totalWidth, tableHeight));
 
         // Add thick black border around entire table
         container.setBorder(BorderFactory.createMatteBorder(3, 3, 3, 3, Color.BLACK));
@@ -1018,38 +998,6 @@ public class BienBanTranPanel extends JPanel {
                 table.setRowSelectionAllowed(false);
             }
         }
-    }
-
-    /**
-     * Tính chiều rộng cột tiêu đề hàng (tên VĐV/đội) theo độ dài chuỗi và font hiện
-     * tại,
-     * có giới hạn min/max để giao diện ổn định.
-     */
-    private static int computeHeaderWidth(String[] rowHeaders, JTable table, boolean isSingles) {
-        // Phân biệt đơn/đôi để đặt giới hạn phù hợp
-        int min = isSingles ? 160 : 140; // đôi thì min nhỏ hơn
-        int max = isSingles ? 360 : 280; // đôi thì max nhỏ hơn để tránh viền quá rộng
-        int pad = isSingles ? 40 : 30; // đôi thì padding nhỏ hơn
-
-        int w = min;
-        try {
-            // Sử dụng font của row headers (bold 14pt) để tính toán chiều rộng chính xác
-            java.awt.Font headerFont = new java.awt.Font("SansSerif", java.awt.Font.BOLD, 20);
-            java.awt.FontMetrics fm = table.getFontMetrics(headerFont);
-            if (rowHeaders != null && fm != null) {
-                for (String s : rowHeaders) {
-                    if (s == null)
-                        s = "";
-                    w = Math.max(w, fm.stringWidth(s) + pad);
-                }
-            }
-        } catch (Exception ignore) {
-        }
-        if (w < min)
-            w = min;
-        if (w > max)
-            w = max;
-        return w;
     }
 
     private MatchSummary findSummaryByMatchId(String id) {
