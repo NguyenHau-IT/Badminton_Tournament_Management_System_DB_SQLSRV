@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
@@ -13,7 +13,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.4.0</version>
-        <relativePath/>
+        <relativePath />
     </parent>
 
     <properties>
@@ -32,12 +32,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
-
-        <dependency>
-            <groupId>nz.net.ultraq.thymeleaf</groupId>
-            <artifactId>thymeleaf-layout-dialect</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
@@ -141,14 +135,7 @@
                 </executions>
             </plugin>
 
-            <!-- Copy thêm tài nguyên ngoài jar để jpackage mang theo -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.0</version>
-            </plugin>
-
-            <!-- jpackage tạo MSI, kèm resourceDir -->
+            <!-- jpackage tạo MSI -->
             <plugin>
                 <groupId>org.panteleyev</groupId>
                 <artifactId>jpackage-maven-plugin</artifactId>
@@ -161,14 +148,8 @@
                             <goal>jpackage</goal>
                         </goals>
                         <configuration>
-                            <!-- MSI output -->
                             <destination>${dist.dir}</destination>
-
-                            <!-- Thư mục có fat-jar -->
                             <input>${project.build.directory}</input>
-
-                            <!-- Quan trọng: những thư mục copy thêm sẽ được mang vào app image -->
-                            <resourceDir>${project.build.directory}/app-resources</resourceDir>
 
                             <name>${app.name}</name>
                             <appVersion>${project.version}</appVersion>
@@ -178,10 +159,7 @@
                             <type>MSI</type>
                             <mainJar>${project.build.finalName}.jar</mainJar>
 
-                            <!-- Icon cho installer/shortcut (file riêng) -->
                             <icon>src/main/resources/icons/app.ico</icon>
-
-                            <!-- Windows options -->
                             <winMenu>true</winMenu>
                             <winMenuGroup>${app.name}</winMenuGroup>
                             <winShortcut>true</winShortcut>
@@ -190,11 +168,8 @@
                             <installDir>${install.dir}</installDir>
                             <winUpgradeUuid>6b1d7f39-9c8a-4a11-9c36-6e0be3e2c2a1</winUpgradeUuid>
                             <licenseFile>src/main/resources/license.txt</licenseFile>
-
                             <javaOptions>
                                 <option>-Xmx1024m</option>
-                                <!-- Đường dẫn gốc nơi cài app để code truy cập: $APPDIR -->
-                                <option>-Dapp.home=$APPDIR</option>
                             </javaOptions>
                         </configuration>
                     </execution>
