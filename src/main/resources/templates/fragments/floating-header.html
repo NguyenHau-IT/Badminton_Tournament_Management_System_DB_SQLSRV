@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <link rel="stylesheet" th:href="@{/css/layout/floating-header.css}">
+</head>
+<body>
+    <!-- Floating Pill Navigation Header -->
+    <header class="floating-header" th:fragment="floating-header">
+        <nav class="pill-nav">
+            
+            <!-- Logo -->
+            <a th:href="@{/}" class="nav-logo">
+                <div class="nav-logo-icon">
+                    <i class="bi bi-trophy-fill"></i>
+                </div>
+                <span class="nav-logo-text">BTMS</span>
+            </a>
+            
+            <!-- Navigation Items -->
+            <div class="nav-items">
+                
+                <!-- Home -->
+                <div class="nav-item" th:classappend="${activePage == 'home' ? 'current' : ''}">
+                    <button class="nav-btn" onclick="window.location.href='/'">
+                        <i class="bi bi-house-fill"></i>
+                    </button>
+                    <span class="nav-tooltip">Trang chủ</span>
+                </div>
+                
+                <!-- Tournaments -->
+                <div class="nav-item" th:classappend="${activePage == 'tournaments' ? 'current' : ''}">
+                    <button class="nav-btn">
+                        <i class="bi bi-trophy"></i>
+                    </button>
+                    <span class="nav-tooltip">Giải đấu</span>
+                    <div class="nav-dropdown">
+                        <a th:href="@{/tournaments}" class="dropdown-item">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Tổng quan</span>
+                        </a>
+                        <a th:href="@{/tournaments/list}" class="dropdown-item">
+                            <i class="bi bi-list-ul"></i>
+                            <span>Danh sách giải</span>
+                        </a>
+                        <a th:href="@{/tournaments/calendar}" class="dropdown-item">
+                            <i class="bi bi-calendar4-week"></i>
+                            <span>Lịch thi đấu</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a th:href="@{/tournaments/list(status='ongoing')}" class="dropdown-item">
+                            <i class="bi bi-broadcast"></i>
+                            <span>Đang diễn ra</span>
+                        </a>
+                        <a th:href="@{/tournaments/list(status='registration')}" class="dropdown-item">
+                            <i class="bi bi-pencil-square"></i>
+                            <span>Đăng ký tham gia</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- News -->
+                <div class="nav-item" th:classappend="${activePage == 'news' ? 'current' : ''}">
+                    <button class="nav-btn" onclick="window.location.href='/news'">
+                        <i class="bi bi-newspaper"></i>
+                    </button>
+                    <span class="nav-tooltip">Tin tức</span>
+                    <div class="nav-dropdown">
+                        <a th:href="@{/news}" class="dropdown-item">
+                            <i class="bi bi-newspaper"></i>
+                            <span>Tất cả tin tức</span>
+                        </a>
+                        <a th:href="@{/news/category/events}" class="dropdown-item">
+                            <i class="bi bi-calendar-event"></i>
+                            <span>Sự kiện</span>
+                        </a>
+                        <a th:href="@{/news/category/results}" class="dropdown-item">
+                            <i class="bi bi-bar-chart"></i>
+                            <span>Kết quả</span>
+                        </a>
+                        <a th:href="@{/news/category/interviews}" class="dropdown-item">
+                            <i class="bi bi-mic"></i>
+                            <span>Phỏng vấn</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Rankings -->
+                <div class="nav-item" th:classappend="${activePage == 'rankings' ? 'current' : ''}">
+                    <button class="nav-btn" onclick="window.location.href='/rankings'">
+                        <i class="bi bi-bar-chart-line"></i>
+                    </button>
+                    <span class="nav-tooltip">Bảng xếp hạng</span>
+                    <div class="nav-dropdown">
+                        <a href="/rankings/world" class="dropdown-item">
+                            <i class="bi bi-globe-asia-australia"></i>
+                            <span>Thế giới</span>
+                        </a>
+                        <a href="/rankings/national" class="dropdown-item">
+                            <i class="bi bi-flag"></i>
+                            <span>Quốc gia</span>
+                        </a>
+                        <a href="/rankings/club" class="dropdown-item">
+                            <i class="bi bi-people"></i>
+                            <span>Câu lạc bộ</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Players -->
+                <div class="nav-item" th:classappend="${activePage == 'players' ? 'current' : ''}">
+                    <button class="nav-btn" onclick="window.location.href='/players'">
+                        <i class="bi bi-people-fill"></i>
+                    </button>
+                    <span class="nav-tooltip">Vận động viên</span>
+                    <div class="nav-dropdown">
+                        <a href="/players" class="dropdown-item">
+                            <i class="bi bi-people"></i>
+                            <span>Danh sách VĐV</span>
+                        </a>
+                        <a href="/players/top" class="dropdown-item">
+                            <i class="bi bi-star"></i>
+                            <span>VĐV hàng đầu</span>
+                        </a>
+                        <a href="/players/register" class="dropdown-item">
+                            <i class="bi bi-person-plus"></i>
+                            <span>Đăng ký VĐV</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Search -->
+                <div class="nav-item nav-search">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" class="search-input" placeholder="Tìm kiếm..." id="headerSearch">
+                </div>
+                
+                <!-- Notifications -->
+                <div class="nav-item">
+                    <button class="nav-btn" id="notificationBtn">
+                        <i class="bi bi-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                    <span class="nav-tooltip">Thông báo</span>
+                    <div class="nav-dropdown">
+                        <a href="/notifications/1" class="dropdown-item">
+                            <i class="bi bi-info-circle"></i>
+                            <span>Giải đấu mới đã mở</span>
+                        </a>
+                        <a href="/notifications/2" class="dropdown-item">
+                            <i class="bi bi-trophy"></i>
+                            <span>Kết quả trận đấu</span>
+                        </a>
+                        <a href="/notifications/3" class="dropdown-item">
+                            <i class="bi bi-calendar-check"></i>
+                            <span>Nhắc nhở lịch thi</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/notifications" class="dropdown-item">
+                            <i class="bi bi-list-check"></i>
+                            <span>Xem tất cả</span>
+                        </a>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- User Profile -->
+            <div class="nav-user">
+                <div class="user-avatar" id="userMenuBtn">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                <div class="nav-dropdown">
+                    <a href="/profile" class="dropdown-item">
+                        <i class="bi bi-person-circle"></i>
+                        <span>Hồ sơ</span>
+                    </a>
+                    <a href="/profile/settings" class="dropdown-item">
+                        <i class="bi bi-gear"></i>
+                        <span>Cài đặt</span>
+                    </a>
+                    <a href="/profile/tournaments" class="dropdown-item">
+                        <i class="bi bi-trophy"></i>
+                        <span>Giải của tôi</span>
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a href="/logout" class="dropdown-item">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Đăng xuất</span>
+                    </a>
+                </div>
+            </div>
+            
+        </nav>
+    </header>
+</body>
+</html>

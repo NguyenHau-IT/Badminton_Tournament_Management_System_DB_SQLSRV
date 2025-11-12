@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- CTA Section -->
+    <section th:fragment="cta" class="cta-section py-5 position-relative overflow-hidden">
+        <!-- Background Gradient -->
+        <div class="cta-background"></div>
+        
+        <div class="container py-5 position-relative" style="z-index: 2;">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 text-center text-white">
+                    <!-- Icon -->
+                    <div class="cta-icon mb-4" data-aos="zoom-in">
+                        <i class="bi bi-rocket-takeoff"></i>
+                    </div>
+                    
+                    <!-- Heading -->
+                    <h2 class="cta-title mb-4" data-aos="fade-up" data-aos-delay="100">
+                        Sẵn sàng nâng cấp giải đấu của bạn?
+                    </h2>
+                    
+                    <!-- Description -->
+                    <p class="cta-description fs-5 mb-5" data-aos="fade-up" data-aos-delay="200">
+                        Tải BTMS miễn phí ngay hôm nay và trải nghiệm quản lý giải đấu chuyên nghiệp. 
+                        Không cần đăng ký, không giới hạn tính năng!
+                    </p>
+                    
+                    <!-- CTA Buttons -->
+                    <div class="cta-buttons d-flex flex-wrap justify-content-center gap-3 mb-4" 
+                         data-aos="fade-up" data-aos-delay="300">
+                        <a th:href="@{/app/download}" class="btn btn-light btn-lg px-5 py-3">
+                            <i class="bi bi-download me-2"></i>
+                            Tải về miễn phí
+                        </a>
+                        <a th:href="@{/tournament/list}" class="btn btn-outline-light btn-lg px-5 py-3">
+                            <i class="bi bi-trophy me-2"></i>
+                            Xem giải đấu
+                        </a>
+                    </div>
+                    
+                    <!-- Features List -->
+                    <div class="cta-features" data-aos="fade-up" data-aos-delay="400">
+                        <div class="row g-3 justify-content-center">
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    100% Miễn phí
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    Không giới hạn
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    Cập nhật miễn phí
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <span class="cta-feature-item">
+                                    <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                    Hỗ trợ 24/7
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Info -->
+                    <p class="cta-info mt-5 mb-0 text-white-50" data-aos="fade-up" data-aos-delay="500">
+                        <i class="bi bi-shield-check me-2"></i>
+                        An toàn, bảo mật và đáng tin cậy
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Inline Footer -->
+        <div class="cta-inline-footer">
+            <div class="footer-content">
+                <!-- Về BTMS -->
+                <div class="footer-section">
+                    <h4>Về BTMS</h4>
+                    <ul>
+                        <li><a th:href="@{/about}">Giới thiệu</a></li>
+                        <li><a th:href="@{/features}">Tính năng</a></li>
+                        <li><a th:href="@{/pricing}">Bảng giá</a></li>
+                        <li><a th:href="@{/contact}">Liên hệ</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Liên kết nhanh -->
+                <div class="footer-section">
+                    <h4>Liên kết nhanh</h4>
+                    <ul>
+                        <li><a th:href="@{/tournament/list}">Giải đấu</a></li>
+                        <li><a th:href="@{/news}">Tin tức</a></li>
+                        <li><a th:href="@{/app/download}">Tải về</a></li>
+                        <li><a th:href="@{/docs}">Hướng dẫn</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Hỗ trợ -->
+                <div class="footer-section">
+                    <h4>Hỗ trợ</h4>
+                    <ul>
+                        <li><a th:href="@{/support}">Trung tâm hỗ trợ</a></li>
+                        <li><a th:href="@{/faq}">FAQ</a></li>
+                        <li><a th:href="@{/privacy}">Chính sách bảo mật</a></li>
+                        <li><a th:href="@{/terms}">Điều khoản sử dụng</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Kết nối -->
+                <div class="footer-section">
+                    <h4>Kết nối</h4>
+                    <div class="footer-social">
+                        <a href="https://facebook.com" target="_blank" rel="noopener" aria-label="Facebook">
+                            <i class="bi bi-facebook"></i>
+                        </a>
+                        <a href="https://twitter.com" target="_blank" rel="noopener" aria-label="Twitter">
+                            <i class="bi bi-twitter"></i>
+                        </a>
+                        <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram">
+                            <i class="bi bi-instagram"></i>
+                        </a>
+                        <a href="https://youtube.com" target="_blank" rel="noopener" aria-label="YouTube">
+                            <i class="bi bi-youtube"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer Bottom -->
+            <div class="footer-bottom">
+                <p>&copy; 2025 BTMS - Badminton Tournament Management System. All rights reserved.</p>
+            </div>
+        </div>
+        
+        <!-- Decorative Shapes -->
+        <div class="cta-shapes">
+            <div class="cta-shape cta-shape-1"></div>
+            <div class="cta-shape cta-shape-2"></div>
+            <div class="cta-shape cta-shape-3"></div>
+        </div>
+    </section>
+</body>
+</html>

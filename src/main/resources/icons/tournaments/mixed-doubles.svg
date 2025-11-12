@@ -1,0 +1,36 @@
+<!-- Mixed Doubles Tournament Image -->
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250">
+  <defs>
+    <linearGradient id="grad-mixed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4ecdc4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="400" height="250" fill="url(#grad-mixed)"/>
+  
+  <!-- Court pattern -->
+  <g opacity="0.15" stroke="white" stroke-width="2" fill="none">
+    <rect x="80" y="60" width="240" height="130"/>
+    <line x1="80" y1="125" x2="320" y2="125"/>
+    <line x1="200" y1="60" x2="200" y2="190" stroke-dasharray="5,5" stroke-width="1"/>
+  </g>
+  
+  <!-- Male/Female icons -->
+  <g transform="translate(150, 95)" opacity="0.35" fill="white">
+    <circle cx="0" cy="0" r="6"/>
+    <path d="M0 6 L0 25 M0 15 L-8 20 M0 15 L8 20 M0 25 L-8 38 M0 25 L8 38" stroke="white" stroke-width="2" fill="none"/>
+  </g>
+  <g transform="translate(250, 95)" opacity="0.35" fill="white">
+    <circle cx="0" cy="0" r="6"/>
+    <path d="M0 6 L0 20 L-6 30 M0 20 L6 30 M0 12 L-8 18 M0 12 L8 18" stroke="white" stroke-width="2" fill="none"/>
+  </g>
+  
+  <!-- Title -->
+  <text x="200" y="160" font-family="Arial, sans-serif" font-size="24" font-weight="bold" 
+        fill="white" text-anchor="middle" stroke="#c0392b" stroke-width="1">Giải Đôi Nam Nữ</text>
+  <text x="200" y="188" font-family="Arial, sans-serif" font-size="18" 
+        fill="white" text-anchor="middle" opacity="0.95">Mixed Doubles</text>
+  <text x="200" y="213" font-family="Arial, sans-serif" font-size="16" 
+        fill="#fff" text-anchor="middle" font-weight="bold">Championship 2024</text>
+</svg>

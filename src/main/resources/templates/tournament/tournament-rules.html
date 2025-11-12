@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="'Thể lệ - ' + ${tournament.name}">Thể lệ Giải đấu - BTMS</title>
+    
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-rules.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="rules-page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container">
+                <h1 data-aos="fade-up">
+                    <i class="bi bi-file-text"></i> Thể lệ Giải đấu
+                </h1>
+                <p class="lead mb-0" data-aos="fade-up" data-aos-delay="100" th:text="${tournament.name}">
+                    Giải Vô địch Quốc gia 2024
+                </p>
+            </div>
+        </div>
+
+        <div class="container rules-container">
+            <div class="row">
+                <!-- Sidebar - Table of Contents -->
+                <div class="col-lg-3">
+                    <div class="sidebar">
+                        <div class="table-of-contents" data-aos="fade-right">
+                            <div class="toc-title">
+                                <i class="bi bi-list-ol"></i> Mục lục
+                            </div>
+                            <ul class="toc-list">
+                                <li class="toc-item">
+                                    <a href="#section1" class="toc-link">1. Điều kiện tham dự</a>
+                                </li>
+                                <li class="toc-item">
+                                    <a href="#section2" class="toc-link">2. Thể thức thi đấu</a>
+                                </li>
+                                <li class="toc-item">
+                                    <a href="#section3" class="toc-link">3. Luật thi đấu</a>
+                                </li>
+                                <li class="toc-item">
+                                    <a href="#section4" class="toc-link">4. Trang phục</a>
+                                </li>
+                                <li class="toc-item">
+                                    <a href="#section5" class="toc-link">5. Kỷ luật</a>
+                                </li>
+                                <li class="toc-item">
+                                    <a href="#section6" class="toc-link">6. Giải thưởng</a>
+                                </li>
+                                <li class="toc-item">
+                                    <a href="#section7" class="toc-link">7. Quy định khác</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="col-lg-9">
+                    <div class="rules-content" data-aos="fade-left">
+                        <!-- Section 1 -->
+                        <section id="section1" class="rule-section">
+                            <h2 class="section-title">
+                                <span class="section-number">1</span>
+                                Điều kiện tham dự
+                            </h2>
+                            <div class="rule-content">
+                                <p>
+                                    Để đảm bảo tính công bằng và chất lượng của giải đấu, 
+                                    vận động viên cần đáp ứng các điều kiện sau:
+                                </p>
+                                <ul>
+                                    <li>
+                                        <strong>Độ tuổi:</strong> Từ 18 tuổi trở lên (tính đến ngày khai mạc giải)
+                                    </li>
+                                    <li>
+                                        <strong>Quốc tịch:</strong> Công dân Việt Nam hoặc người nước ngoài đang sinh sống tại Việt Nam
+                                    </li>
+                                    <li>
+                                        <strong>Sức khỏe:</strong> Có đầy đủ sức khỏe để tham gia thi đấu, có giấy xác nhận sức khỏe từ cơ sở y tế
+                                    </li>
+                                    <li>
+                                        <strong>Giấy tờ:</strong> CCCD/CMND hợp lệ, giấy xác nhận từ câu lạc bộ (nếu có)
+                                    </li>
+                                </ul>
+
+                                <div class="highlight-box">
+                                    <div class="title">
+                                        <i class="bi bi-exclamation-triangle"></i> Lưu ý quan trọng
+                                    </div>
+                                    <p class="mb-0">
+                                        VĐV vi phạm điều kiện tham dự sẽ bị loại khỏi giải và không được hoàn lại lệ phí đăng ký.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Section 2 -->
+                        <section id="section2" class="rule-section">
+                            <h2 class="section-title">
+                                <span class="section-number">2</span>
+                                Thể thức thi đấu
+                            </h2>
+                            <div class="rule-content">
+                                <p>
+                                    Giải đấu được tổ chức theo thể thức loại trực tiếp kết hợp vòng tròn:
+                                </p>
+                                <ol>
+                                    <li>
+                                        <strong>Vòng bảng:</strong>
+                                        <ul>
+                                            <li>Chia thành các bảng đấu 4-6 VĐV/cặp đôi</li>
+                                            <li>Thi đấu vòng tròn một lượt trong bảng</li>
+                                            <li>2 VĐV/cặp đôi dẫn đầu mỗi bảng vào vòng trong</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <strong>Vòng loại trực tiếp:</strong>
+                                        <ul>
+                                            <li>Áp dụng từ vòng 1/8 trở đi</li>
+                                            <li>Thi đấu loại trực tiếp, người thua bị loại</li>
+                                            <li>Trận chung kết thi đấu 3 set, các trận khác 2 set</li>
+                                        </ul>
+                                    </li>
+                                </ol>
+
+                                <div class="info-box">
+                                    <div class="title">
+                                        <i class="bi bi-info-circle"></i> Thông tin thêm
+                                    </div>
+                                    <p class="mb-0">
+                                        Lịch thi đấu chi tiết sẽ được công bố sau khi bốc thăm chia bảng, 
+                                        dự kiến 3 ngày trước khi giải bắt đầu.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Section 3 -->
+                        <section id="section3" class="rule-section">
+                            <h2 class="section-title">
+                                <span class="section-number">3</span>
+                                Luật thi đấu
+                            </h2>
+                            <div class="rule-content">
+                                <p>
+                                    Giải đấu áp dụng <strong>Luật thi đấu cầu lông quốc tế của BWF</strong> 
+                                    phiên bản mới nhất với một số điểm chính:
+                                </p>
+                                <ul>
+                                    <li>Mỗi set thi đấu đến 21 điểm (phải thắng cách biệt 2 điểm)</li>
+                                    <li>Nếu tỷ số 20-20, tiếp tục đến khi có đội thắng cách biệt 2 điểm hoặc đạt 30 điểm</li>
+                                    <li>Được nghỉ 60 giây khi một bên đạt 11 điểm</li>
+                                    <li>Được nghỉ 120 giây giữa các set</li>
+                                    <li>Áp dụng công nghệ Hawk-Eye (nếu có tranh chấp)</li>
+                                </ul>
+
+                                <div class="danger-box">
+                                    <div class="title">
+                                        <i class="bi bi-shield-exclamation"></i> Vi phạm nghiêm trọng
+                                    </div>
+                                    <p class="mb-0">
+                                        Gian lận, đánh lén, cố ý chơi xấu hoặc xúc phạm trọng tài/đối thủ 
+                                        sẽ bị truất quyền thi đấu và cấm tham gia các giải sau.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Section 4 -->
+                        <section id="section4" class="rule-section">
+                            <h2 class="section-title">
+                                <span class="section-number">4</span>
+                                Quy định về trang phục
+                            </h2>
+                            <div class="rule-content">
+                                <p>VĐV phải tuân thủ quy định về trang phục thi đấu:</p>
+                                <ul>
+                                    <li>Áo thun thể thao, quần short/váy thể thao phù hợp</li>
+                                    <li>Giày cầu lông chuyên dụng (đế không đánh dấu sàn)</li>
+                                    <li>Trang phục sạch sẽ, không có hình ảnh/văn bản vi phạm thuần phong mỹ tục</li>
+                                    <li>Không mặc trang phục quảng cáo không được BTC cho phép</li>
+                                </ul>
+                            </div>
+                        </section>
+
+                        <!-- Section 5 -->
+                        <section id="section5" class="rule-section">
+                            <h2 class="section-title">
+                                <span class="section-number">5</span>
+                                Kỷ luật và xử phạt
+                            </h2>
+                            <div class="rule-content">
+                                <p>Các hành vi vi phạm sẽ bị xử lý như sau:</p>
+                                <ul>
+                                    <li><strong>Cảnh cáo:</strong> Vi phạm nhẹ lần đầu</li>
+                                    <li><strong>Phạt điểm:</strong> Vi phạm lần 2 hoặc vi phạm trung bình</li>
+                                    <li><strong>Phạt set:</strong> Vi phạm lần 3 hoặc vi phạm nghiêm trọng</li>
+                                    <li><strong>Truất quyền thi đấu:</strong> Vi phạm rất nghiêm trọng</li>
+                                </ul>
+                            </div>
+                        </section>
+
+                        <!-- Section 6 -->
+                        <section id="section6" class="rule-section">
+                            <h2 class="section-title">
+                                <span class="section-number">6</span>
+                                Cơ cấu giải thưởng
+                            </h2>
+                            <div class="rule-content">
+                                <p>
+                                    Tổng giải thưởng: <strong th:text="${tournament.prize}">500 triệu VNĐ</strong>
+                                </p>
+                                <ul>
+                                    <li>Vô địch: Cúp + Huy chương vàng + 100 triệu VNĐ</li>
+                                    <li>Á quân: Huy chương bạc + 50 triệu VNĐ</li>
+                                    <li>Hạng 3-4: Huy chương đồng + 25 triệu VNĐ</li>
+                                    <li>Hạng 5-8: Giấy khen + 10 triệu VNĐ</li>
+                                </ul>
+                            </div>
+                        </section>
+
+                        <!-- Section 7 -->
+                        <section id="section7" class="rule-section">
+                            <h2 class="section-title">
+                                <span class="section-number">7</span>
+                                Quy định khác
+                            </h2>
+                            <div class="rule-content">
+                                <ul>
+                                    <li>VĐV phải có mặt tại sân ít nhất 15 phút trước giờ thi đấu</li>
+                                    <li>Không được sử dụng điện thoại trong khu vực thi đấu</li>
+                                    <li>BTC có quyền thay đổi lịch thi đấu khi cần thiết</li>
+                                    <li>Quyết định của trọng tài là quyết định cuối cùng</li>
+                                    <li>Mọi khiếu nại phải được gửi bằng văn bản trong vòng 30 phút sau trận đấu</li>
+                                </ul>
+                            </div>
+                        </section>
+
+                        <!-- Download Section -->
+                        <div class="download-section">
+                            <h4>
+                                <i class="bi bi-download"></i> Tải thể lệ đầy đủ
+                            </h4>
+                            <p>Tải file PDF thể lệ chi tiết để xem offline</p>
+                            <a href="#" class="btn btn-light btn-lg">
+                                <i class="bi bi-file-earmark-pdf"></i> Tải PDF
+                            </a>
+                            <a href="#" class="btn btn-outline-light btn-lg">
+                                <i class="bi bi-file-earmark-word"></i> Tải Word
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-rules.js}">
+        </script>
+    </th:block>
+</body>
+</html>

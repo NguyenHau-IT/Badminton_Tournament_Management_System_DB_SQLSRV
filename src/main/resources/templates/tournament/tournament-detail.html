@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="${tournament.name + ' - BTMS'}">Chi tiết Giải đấu - BTMS</title>
+    
+    <!-- Page-specific CSS -->
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-detail.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="tournament-detail-page">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <div class="hero-background" 
+                 th:style="'background-image: url(' + ${tournament.image} + ');'">
+            </div>
+            <div class="hero-content">
+                <div class="container">
+                    <!-- Status Badge -->
+                    <div th:if="${tournament.status == 'ongoing'}" 
+                         class="tournament-badge badge-ongoing">
+                        <i class="bi bi-broadcast"></i> ĐANG DIỄN RA
+                    </div>
+                    <div th:if="${tournament.status == 'registration'}" 
+                         class="tournament-badge badge-registration">
+                        <i class="bi bi-pencil-square"></i> ĐANG ĐĂNG KÝ
+                    </div>
+                    <div th:if="${tournament.status == 'upcoming'}" 
+                         class="tournament-badge badge-upcoming">
+                        <i class="bi bi-clock"></i> SẮP DIỄN RA
+                    </div>
+                    <div th:if="${tournament.status == 'completed'}" 
+                         class="tournament-badge badge-completed">
+                        <i class="bi bi-check-circle"></i> ĐÃ KẾT THÚC
+                    </div>
+
+                    <h1 class="hero-title" th:text="${tournament.name}">
+                        Tên Giải đấu
+                    </h1>
+                    <p class="hero-subtitle" th:text="${tournament.nameEn}">
+                        Tournament Name in English
+                    </p>
+
+                    <div class="action-buttons">
+                        <a th:if="${tournament.status == 'registration'}"
+                           th:href="@{/tournaments/{id}/register(id=${tournament.id})}"
+                           class="btn btn-success btn-lg">
+                            <i class="bi bi-pencil-square"></i> Đăng ký tham gia
+                        </a>
+                        <a th:if="${tournament.status == 'ongoing'}"
+                           th:href="@{/tournaments/{id}/live(id=${tournament.id})}"
+                           class="btn btn-danger btn-lg">
+                            <i class="bi bi-broadcast"></i> Xem LIVE
+                        </a>
+                        <a th:href="@{/tournaments/{id}/schedule(id=${tournament.id})}"
+                           class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-calendar3"></i> Lịch thi đấu
+                        </a>
+                        <a th:href="@{/tournaments/{id}/standings(id=${tournament.id})}"
+                           class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-trophy"></i> BXH
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Info Cards -->
+            <div class="info-cards">
+                <div class="row g-4">
+                    <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="0">
+                        <div class="info-card">
+                            <i class="bi bi-calendar-event info-icon"></i>
+                            <div class="info-label">Thời gian</div>
+                            <div class="info-value" th:text="${tournament.startDate}">
+                                01-15/03/2024
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="100">
+                        <div class="info-card">
+                            <i class="bi bi-geo-alt info-icon"></i>
+                            <div class="info-label">Địa điểm</div>
+                            <div class="info-value" th:text="${tournament.location}">
+                                Hà Nội
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="200">
+                        <div class="info-card">
+                            <i class="bi bi-people info-icon"></i>
+                            <div class="info-label">Số VĐV</div>
+                            <div class="info-value" th:text="${tournament.maxParticipants}">
+                                128
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6" data-aos="fade-up" data-aos-delay="300">
+                        <div class="info-card">
+                            <i class="bi bi-cash-stack info-icon"></i>
+                            <div class="info-label">Giải thưởng</div>
+                            <div class="info-value" th:text="${tournament.prize}">
+                                500 triệu VNĐ
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registration Alert -->
+            <div th:if="${tournament.status == 'registration'}" 
+                 class="alert alert-registration mt-4" 
+                 data-aos="fade-up">
+                <h5 class="alert-heading">
+                    <i class="bi bi-megaphone"></i> Đăng ký tham gia ngay!
+                </h5>
+                <p class="mb-0">
+                    Giải đấu đang mở đăng ký đến ngày <strong th:text="${tournament.registrationDeadline}">20/02/2024</strong>. 
+                    Số chỗ có hạn, đăng ký sớm để đảm bảo suất tham gia!
+                </p>
+            </div>
+
+            <!-- Main Content -->
+            <div class="content-section" data-aos="fade-up">
+                <!-- Tabs Navigation -->
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#overview">
+                            <i class="bi bi-info-circle"></i> Tổng quan
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#details">
+                            <i class="bi bi-list-ul"></i> Chi tiết
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#rules">
+                            <i class="bi bi-file-text"></i> Thể lệ
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#contact">
+                            <i class="bi bi-telephone"></i> Liên hệ
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Tabs Content -->
+                <div class="tab-content">
+                    <!-- Overview Tab -->
+                    <div class="tab-pane fade show active" id="overview">
+                        <h3>Giới thiệu</h3>
+                        <div class="tournament-description" th:utext="${tournament.description}">
+                            <p>Mô tả chi tiết về giải đấu sẽ được hiển thị ở đây.</p>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <h5>Điểm nổi bật</h5>
+                                <ul class="list-unstyled">
+                                    <li><i class="bi bi-check-circle text-success"></i> Quy mô lớn, chuyên nghiệp</li>
+                                    <li><i class="bi bi-check-circle text-success"></i> Giải thưởng hấp dẫn</li>
+                                    <li><i class="bi bi-check-circle text-success"></i> Cơ sở vật chất hiện đại</li>
+                                    <li><i class="bi bi-check-circle text-success"></i> Ban tổ chức chuyên nghiệp</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Các nội dung thi đấu</h5>
+                                <ul class="list-unstyled">
+                                    <li><i class="bi bi-trophy text-warning"></i> Đơn Nam</li>
+                                    <li><i class="bi bi-trophy text-warning"></i> Đơn Nữ</li>
+                                    <li><i class="bi bi-trophy text-warning"></i> Đôi Nam</li>
+                                    <li><i class="bi bi-trophy text-warning"></i> Đôi Nữ</li>
+                                    <li><i class="bi bi-trophy text-warning"></i> Đôi Nam Nữ</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Tab -->
+                    <div class="tab-pane fade" id="details">
+                        <h3>Thông tin chi tiết</h3>
+                        <ul class="detail-list">
+                            <li>
+                                <span class="detail-label">Loại giải:</span>
+                                <span class="detail-value" th:text="${tournament.category}">Professional</span>
+                            </li>
+                            <li>
+                                <span class="detail-label">Thời gian:</span>
+                                <span class="detail-value" th:text="${tournament.startDate + ' - ' + tournament.endDate}">01/03 - 15/03/2024</span>
+                            </li>
+                            <li>
+                                <span class="detail-label">Địa điểm:</span>
+                                <span class="detail-value" th:text="${tournament.location}">Hà Nội</span>
+                            </li>
+                            <li>
+                                <span class="detail-label">Địa chỉ chi tiết:</span>
+                                <span class="detail-value" th:text="${tournament.venue}">Cung thể thao Quần Ngựa</span>
+                            </li>
+                            <li>
+                                <span class="detail-label">Số VĐV tối đa:</span>
+                                <span class="detail-value" th:text="${tournament.maxParticipants}">128</span>
+                            </li>
+                            <li>
+                                <span class="detail-label">Giải thưởng:</span>
+                                <span class="detail-value" th:text="${tournament.prize}">500 triệu VNĐ</span>
+                            </li>
+                            <li>
+                                <span class="detail-label">Hạn đăng ký:</span>
+                                <span class="detail-value" th:text="${tournament.registrationDeadline}">20/02/2024</span>
+                            </li>
+                            <li>
+                                <span class="detail-label">Lệ phí:</span>
+                                <span class="detail-value" th:text="${tournament.registrationFee}">500.000 VNĐ</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Rules Tab -->
+                    <div class="tab-pane fade" id="rules">
+                        <h3>Thể lệ giải đấu</h3>
+                        <div class="tournament-description">
+                            <h5>1. Điều kiện tham dự</h5>
+                            <p>VĐV phải đáp ứng các yêu cầu về tuổi, trình độ và giấy tờ theo quy định.</p>
+
+                            <h5>2. Thể thức thi đấu</h5>
+                            <p>Áp dụng luật thi đấu cầu lông quốc tế BWF mới nhất.</p>
+
+                            <h5>3. Quy định về trang phục</h5>
+                            <p>VĐV phải mặc trang phục thể thao phù hợp, không có hình ảnh, văn bản vi phạm.</p>
+
+                            <h5>4. Kỷ luật</h5>
+                            <p>Vi phạm kỷ luật sẽ bị xử lý theo quy định, có thể bị loại khỏi giải.</p>
+
+                            <a th:href="@{/tournaments/{id}/rules(id=${tournament.id})}" 
+                               class="btn btn-primary mt-3">
+                                <i class="bi bi-file-earmark-text"></i> Xem đầy đủ thể lệ
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Contact Tab -->
+                    <div class="tab-pane fade" id="contact">
+                        <h3>Thông tin liên hệ</h3>
+                        <ul class="detail-list">
+                            <li>
+                                <span class="detail-label">
+                                    <i class="bi bi-building"></i> Ban tổ chức:
+                                </span>
+                                <span class="detail-value" th:text="${tournament.organizer}">
+                                    Liên đoàn Cầu lông Việt Nam
+                                </span>
+                            </li>
+                            <li>
+                                <span class="detail-label">
+                                    <i class="bi bi-telephone"></i> Hotline:
+                                </span>
+                                <span class="detail-value" th:text="${tournament.contactPhone}">
+                                    024-1234-5678
+                                </span>
+                            </li>
+                            <li>
+                                <span class="detail-label">
+                                    <i class="bi bi-envelope"></i> Email:
+                                </span>
+                                <span class="detail-value" th:text="${tournament.contactEmail}">
+                                    contact@tournament.vn
+                                </span>
+                            </li>
+                            <li>
+                                <span class="detail-label">
+                                    <i class="bi bi-globe"></i> Website:
+                                </span>
+                                <span class="detail-value">
+                                    <a th:href="${tournament.website}" 
+                                       th:text="${tournament.website}"
+                                       target="_blank">
+                                        https://tournament.vn
+                                    </a>
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Tournaments -->
+            <div class="related-tournaments" th:if="${relatedTournaments != null and !relatedTournaments.empty}">
+                <h3 class="mb-4" data-aos="fade-up">
+                    <i class="bi bi-collection"></i> Giải đấu liên quan
+                </h3>
+                <div class="row g-4">
+                    <div class="col-lg-4 col-md-6" 
+                         th:each="related : ${relatedTournaments}"
+                         data-aos="fade-up"
+                         th:attr="data-aos-delay=${relatedStat.index * 100}">
+                        <a th:href="@{/tournaments/{id}(id=${related.id})}" 
+                           class="text-decoration-none">
+                            <div class="related-tournament-card">
+                                <div class="related-tournament-image">
+                                    <img th:src="${related.image}" 
+                                         th:alt="${related.name}">
+                                </div>
+                                <div class="related-tournament-body">
+                                    <h5 class="related-tournament-title" th:text="${related.name}">
+                                        Tên giải đấu
+                                    </h5>
+                                    <div class="related-tournament-meta">
+                                        <i class="bi bi-calendar3"></i>
+                                        <span th:text="${related.startDate}">01/03/2024</span>
+                                        <span class="ms-2">
+                                            <i class="bi bi-geo-alt"></i>
+                                            <span th:text="${related.location}">Hà Nội</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page-specific JavaScript -->
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-detail.js}"></script>
+    </th:block>
+</body>
+</html>
