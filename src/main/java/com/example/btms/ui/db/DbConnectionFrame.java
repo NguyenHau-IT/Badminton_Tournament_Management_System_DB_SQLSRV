@@ -42,6 +42,7 @@ import com.example.btms.config.Prefs;
 import com.example.btms.ui.db.DbConnectionSelection.DbType;
 import com.example.btms.ui.db.DbConnectionSelection.Mode;
 import com.example.btms.util.h2db.H2ScriptUtil;
+import com.example.btms.util.ui.IconUtil;
 
 public class DbConnectionFrame extends JFrame {
 
@@ -73,6 +74,9 @@ public class DbConnectionFrame extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(0, 8));
         ((JPanel) getContentPane()).setBorder(new EmptyBorder(10, 12, 12, 12));
+
+        // Áp dụng icon cho frame
+        IconUtil.applyTo(this);
 
         // ===== Header =====
         JPanel header = new JPanel(new BorderLayout());
@@ -615,7 +619,8 @@ public class DbConnectionFrame extends JFrame {
         txtServer.setText(p.get("db.server", "localhost"));
         txtPort.setText(p.get("db.port", cbDbType.getSelectedItem() == DbType.H2 ? "9092" : "1433"));
         txtUser.setText(p.get("db.user", ""));
-        chkRemember.setSelected(p.getBool("db.remember", false));
+        // Mặc định BẬT ghi nhớ để lần sau có thể tự động dùng lại cấu hình
+        chkRemember.setSelected(p.getBool("db.remember", true));
     }
 
     private void savePrefs(DbConnectionSelection sel) {

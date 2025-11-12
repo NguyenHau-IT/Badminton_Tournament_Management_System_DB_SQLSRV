@@ -4,6 +4,8 @@ import java.awt.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
+import com.example.btms.util.ui.IconUtil;
+
 @SuppressWarnings("serial")
 public class LoginFrame extends JFrame {
 
@@ -19,6 +21,10 @@ public class LoginFrame extends JFrame {
     public LoginFrame() {
         super("Đăng nhập");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        // Áp dụng icon cho frame
+        IconUtil.applyTo(this);
+
         buildUI();
 
         // mặc định
