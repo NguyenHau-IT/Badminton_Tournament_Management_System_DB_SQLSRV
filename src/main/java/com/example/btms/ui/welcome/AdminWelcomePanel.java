@@ -3,8 +3,6 @@ package com.example.btms.ui.welcome;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
-import com.example.btms.ui.help.QuickGuidePanel;
-
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.geom.Ellipse2D;
@@ -36,8 +34,6 @@ public class AdminWelcomePanel extends JPanel {
     private final JButton btnOpen = new JButton("Vào quản lý giải");
     private final JButton btnCreate = new JButton("Tạo giải mới");
     private final JButton btnGuide = new JButton("Hướng dẫn nhanh");
-
-    private final QuickGuidePanel quickGuide = new QuickGuidePanel();
 
     private boolean darkMode = false; // mặc định sáng
 
