@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layouts/base}">
+
+<head>
+    <title th:text="${pageTitle}">Lịch Giải đấu - BTMS</title>
+
+    <!-- FullCalendar CSS -->
+    <th:block layout:fragment="page-css">
+        <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-calendar.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="calendar-page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container">
+                <h1 data-aos="fade-up">
+                    <i class="bi bi-calendar3"></i> Lịch Giải đấu
+                </h1>
+                <p class="lead mb-0" data-aos="fade-up" data-aos-delay="100">
+                    Xem lịch các giải đấu sắp tới và đang diễn ra
+                </p>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Legend -->
+            <div class="legend-section" data-aos="fade-up">
+                <h5 class="mb-3">
+                    <i class="bi bi-palette"></i> Chú thích
+                </h5>
+                <div class="d-flex flex-wrap">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc3545;"></div>
+                        <span class="legend-label">
+                            <i class="bi bi-broadcast"></i> Đang diễn ra
+                        </span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #28a745;"></div>
+                        <span class="legend-label">
+                            <i class="bi bi-pencil-square"></i> Đang đăng ký
+                        </span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #007bff;"></div>
+                        <span class="legend-label">
+                            <i class="bi bi-clock"></i> Sắp diễn ra
+                        </span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6c757d;"></div>
+                        <span class="legend-label">
+                            <i class="bi bi-check-circle"></i> Đã kết thúc
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar -->
+            <div class="calendar-container" data-aos="fade-up">
+                <div id="tournament-calendar"></div>
+            </div>
+
+            <!-- Upcoming Tournaments List -->
+            <div class="upcoming-list" data-aos="fade-up"
+                th:if="${upcomingTournaments != null and !upcomingTournaments.empty}">
+                <h5 class="mb-3">
+                    <i class="bi bi-clock-history"></i> Giải đấu sắp tới
+                </h5>
+                <div th:each="tournament : ${upcomingTournaments}">
+                    <a th:href="@{/tournaments/{id}(id=${tournament.id})}" class="text-decoration-none">
+                        <div class="upcoming-item">
+                            <div class="upcoming-date">
+                                <div class="upcoming-day" th:text="${#temporals.format(tournament.startDate, 'dd')}">
+                                    15
+                                </div>
+                                <div class="upcoming-month" th:text="${#temporals.format(tournament.startDate, 'MMM')}">
+                                    Mar
+                                </div>
+                            </div>
+                            <div class="upcoming-info">
+                                <div class="upcoming-title" th:text="${tournament.name}">
+                                    Tên giải đấu
+                                </div>
+                                <div class="upcoming-location">
+                                    <i class="bi bi-geo-alt"></i>
+                                    <span th:text="${tournament.location}">Địa điểm</span>
+                                </div>
+                            </div>
+                            <span th:if="${tournament.status == 'ongoing'}" class="upcoming-status badge-ongoing">
+                                LIVE
+                            </span>
+                            <span th:if="${tournament.status == 'registration'}"
+                                class="upcoming-status badge-registration">
+                                Đăng ký
+                            </span>
+                            <span th:if="${tournament.status == 'upcoming'}" class="upcoming-status badge-upcoming">
+                                Sắp tới
+                            </span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tournament Detail Modal -->
+        <div class="modal fade tournament-modal" id="tournamentModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <img id="modal-image" src="" alt="" class="modal-tournament-image">
+                    <div class="modal-body">
+                        <h4 class="modal-tournament-title" id="modal-title">Tên giải đấu</h4>
+                        <div class="modal-info-item">
+                            <i class="bi bi-calendar3"></i>
+                            <span id="modal-date">Ngày</span>
+                        </div>
+                        <div class="modal-info-item">
+                            <i class="bi bi-geo-alt"></i>
+                            <span id="modal-location">Địa điểm</span>
+                        </div>
+                        <div class="modal-info-item">
+                            <i class="bi bi-people"></i>
+                            <span id="modal-participants">Số VĐV</span>
+                        </div>
+                        <div class="modal-info-item">
+                            <i class="bi bi-cash-stack"></i>
+                            <span id="modal-prize">Giải thưởng</span>
+                        </div>
+                        <div class="mt-3">
+                            <a id="modal-link" href="#" class="btn btn-primary w-100">
+                                <i class="bi bi-arrow-right-circle"></i> Xem chi tiết
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page-specific JavaScript -->
+    <th:block layout:fragment="page-scripts">
+        <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+        <script th:src="@{/js/tournament/tournament-calendar.js}"></script>
+    </th:block>
+</body>
+
+</html>

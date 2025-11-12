@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <footer th:fragment="footer" class="footer bg-dark text-white mt-5">
+        <div class="container py-5">
+            <div class="row g-4">
+                <!-- About Column -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="footer-brand mb-3">
+                        <img th:src="@{/icons/logo-white.png}" alt="BTMS Logo" class="mb-3" height="50">
+                        <h5 class="fw-bold">BTMS</h5>
+                    </div>
+                    <p class="text-white-50">
+                        Hệ thống quản lý giải đấu cầu lông chuyên nghiệp với khả năng điều khiển đa sân và cập nhật real-time.
+                    </p>
+                    <div class="social-links mt-3">
+                        <a href="#" class="text-white me-3" title="Facebook">
+                            <i class="bi bi-facebook fs-4"></i>
+                        </a>
+                        <a href="#" class="text-white me-3" title="YouTube">
+                            <i class="bi bi-youtube fs-4"></i>
+                        </a>
+                        <a href="#" class="text-white me-3" title="Instagram">
+                            <i class="bi bi-instagram fs-4"></i>
+                        </a>
+                        <a href="#" class="text-white" title="Twitter">
+                            <i class="bi bi-twitter fs-4"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Tournament Links -->
+                <div class="col-lg-2 col-md-6">
+                    <h6 class="fw-bold mb-3">Giải đấu</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a th:href="@{/tournament/list}" class="text-white-50">Tất cả giải đấu</a></li>
+                        <li><a th:href="@{/tournament/calendar}" class="text-white-50">Lịch thi đấu</a></li>
+                        <li><a th:href="@{/tournament/live}" class="text-white-50">Trực tiếp</a></li>
+                        <li><a th:href="@{/tournament/results}" class="text-white-50">Kết quả</a></li>
+                        <li><a th:href="@{/tournament/register}" class="text-white-50">Đăng ký tham gia</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Community Links -->
+                <div class="col-lg-2 col-md-6">
+                    <h6 class="fw-bold mb-3">Cộng đồng</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a th:href="@{/players/list}" class="text-white-50">Vận động viên</a></li>
+                        <li><a th:href="@{/clubs/list}" class="text-white-50">Câu lạc bộ</a></li>
+                        <li><a th:href="@{/statistics/rankings}" class="text-white-50">Bảng xếp hạng</a></li>
+                        <li><a th:href="@{/news/list}" class="text-white-50">Tin tức</a></li>
+                        <li><a th:href="@{/hall-of-fame}" class="text-white-50">Danh vọng</a></li>
+                    </ul>
+                </div>
+                
+                <!-- BTMS App Links -->
+                <div class="col-lg-2 col-md-6">
+                    <h6 class="fw-bold mb-3">Ứng dụng BTMS</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a th:href="@{/app/overview}" class="text-white-50">Giới thiệu</a></li>
+                        <li><a th:href="@{/app/features}" class="text-white-50">Tính năng</a></li>
+                        <li><a th:href="@{/app/download}" class="text-white-50">Tải về</a></li>
+                        <li><a th:href="@{/app/demo}" class="text-white-50">Demo</a></li>
+                        <li><a th:href="@{/resources/guides}" class="text-white-50">Hướng dẫn</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Support Links -->
+                <div class="col-lg-2 col-md-6">
+                    <h6 class="fw-bold mb-3">Hỗ trợ</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a th:href="@{/about-us}" class="text-white-50">Về chúng tôi</a></li>
+                        <li><a th:href="@{/about-us/contact}" class="text-white-50">Liên hệ</a></li>
+                        <li><a th:href="@{/resources/faq}" class="text-white-50">FAQ</a></li>
+                        <li><a th:href="@{/resources/api-docs}" class="text-white-50">API Docs</a></li>
+                        <li><a th:href="@{/privacy}" class="text-white-50">Chính sách</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Bottom Bar -->
+            <hr class="border-secondary my-4">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <p class="mb-0 text-white-50">
+                        &copy; <span th:text="${#temporals.year(#temporals.createNow())}">2025</span> BTMS. All rights reserved.
+                    </p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <small class="text-white-50">
+                        Made with <i class="bi bi-heart-fill text-danger"></i> by BTMS Team
+                    </small>
+                </div>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

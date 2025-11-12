@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title>Tournament Hub - BTMS</title>
+    
+    <!-- Page-specific CSS -->
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-home.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="tournament-home-page">
+        
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="hero-content" data-aos="fade-up">
+                    <h1 class="hero-title">
+                        <i class="bi bi-trophy-fill"></i>
+                        Trung tâm Giải đấu Cầu lông
+                    </h1>
+                    <p class="hero-subtitle">
+                        Khám phá, đăng ký và theo dõi các giải đấu cầu lông chuyên nghiệp
+                    </p>
+                    
+                    <!-- Quick Search & Filters -->
+                    <div class="search-filter-bar">
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="text" placeholder="Tìm kiếm giải đấu..." id="quickSearch">
+                        </div>
+                        <div class="quick-filters">
+                            <a th:href="@{/tournaments/list(status='ongoing')}" class="filter-chip live">
+                                <i class="bi bi-broadcast"></i> Đang diễn ra
+                            </a>
+                            <a th:href="@{/tournaments/list(status='upcoming')}" class="filter-chip upcoming">
+                                <i class="bi bi-calendar-event"></i> Sắp diễn ra
+                            </a>
+                            <a th:href="@{/tournaments/list(status='registration')}" class="filter-chip registration">
+                                <i class="bi bi-pencil-square"></i> Đang mở đăng ký
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Stats Dashboard -->
+        <section class="stats-dashboard">
+            <div class="container">
+                <div class="stats-grid" data-aos="fade-up">
+                    <div class="stat-card">
+                        <div class="stat-icon active">
+                            <i class="bi bi-play-circle-fill"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" th:text="${quickStats.active}">15</div>
+                            <div class="stat-label">Giải đang diễn ra</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon upcoming">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" th:text="${quickStats.upcoming}">23</div>
+                            <div class="stat-label">Giải sắp tới</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon registration">
+                            <i class="bi bi-pencil-square"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" th:text="${quickStats.registration}">8</div>
+                            <div class="stat-label">Đang mở đăng ký</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon participants">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" th:text="${quickStats.participants}">1,234</div>
+                            <div class="stat-label">Vận động viên</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Featured Tournaments -->
+        <section class="featured-section">
+            <div class="container">
+                <div class="section-header" data-aos="fade-up">
+                    <h2 class="section-title">
+                        <i class="bi bi-star-fill"></i>
+                        Giải đấu Nổi bật
+                    </h2>
+                    <a th:href="@{/tournaments/list}" class="view-all-link">
+                        Xem tất cả <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+                
+                <div class="featured-grid">
+                    <div class="featured-card" 
+                         th:each="tournament : ${featuredTournaments}"
+                         data-aos="fade-up"
+                         th:attr="data-aos-delay=${tournamentStat.index * 100}">
+                        <div class="featured-image">
+                            <img th:src="${tournament.image}" 
+                                 th:alt="${tournament.name}">
+                            <div class="featured-badge" 
+                                 th:classappend="${tournament.status}"
+                                 th:text="${tournament.status == 'ongoing' ? 'ĐANG DIỄN RA' : 
+                                          (tournament.status == 'upcoming' ? 'SẮP DIỄN RA' : 
+                                          (tournament.status == 'registration' ? 'MỞ ĐĂNG KÝ' : 'ĐÃ KẾT THÚC'))}">
+                            </div>
+                        </div>
+                        <div class="featured-content">
+                            <h3 class="featured-title" th:text="${tournament.name}">Giải đấu</h3>
+                            <div class="featured-meta">
+                                <span class="meta-item">
+                                    <i class="bi bi-calendar3"></i>
+                                    <span th:text="${tournament.startDate} + ' - ' + ${tournament.endDate}">15/03 - 20/03</span>
+                                </span>
+                                <span class="meta-item">
+                                    <i class="bi bi-geo-alt"></i>
+                                    <span th:text="${tournament.location}">TP.HCM</span>
+                                </span>
+                            </div>
+                            <p class="featured-description" th:text="${tournament.description}">
+                                Mô tả giải đấu
+                            </p>
+                            <div class="featured-footer">
+                                <span class="tournament-category" th:text="${tournament.category}">Chuyên nghiệp</span>
+                                <a th:href="@{/tournaments/{id}(id=${tournament.id})}" class="btn-view-detail">
+                                    Chi tiết <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Tournaments -->
+        <section class="live-section" th:if="${!liveTournaments.isEmpty()}">
+            <div class="container">
+                <div class="section-header" data-aos="fade-up">
+                    <h2 class="section-title live-title">
+                        <span class="live-indicator"></span>
+                        <i class="bi bi-broadcast"></i>
+                        Đang Diễn Ra
+                    </h2>
+                    <a th:href="@{/tournaments/list(status='ongoing')}" class="view-all-link">
+                        Xem tất cả <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+                
+                <div class="live-grid">
+                    <div class="live-card" 
+                         th:each="tournament : ${liveTournaments}"
+                         data-aos="zoom-in"
+                         th:attr="data-aos-delay=${tournamentStat.index * 100}">
+                        <div class="live-card-header">
+                            <img th:src="${tournament.image}" th:alt="${tournament.name}">
+                            <div class="live-pulse">LIVE</div>
+                        </div>
+                        <div class="live-card-body">
+                            <h4 class="live-card-title" th:text="${tournament.name}">Giải đấu</h4>
+                            <div class="live-card-meta">
+                                <span><i class="bi bi-geo-alt-fill"></i> <span th:text="${tournament.location}">Location</span></span>
+                                <span><i class="bi bi-calendar-fill"></i> <span th:text="${tournament.startDate}">Date</span></span>
+                            </div>
+                            <div class="live-card-actions">
+                                <a th:href="@{/tournaments/{id}/live(id=${tournament.id})}" class="btn btn-live">
+                                    <i class="bi bi-play-circle-fill"></i> Xem trực tiếp
+                                </a>
+                                <a th:href="@{/tournaments/{id}(id=${tournament.id})}" class="btn btn-outline">
+                                    Chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Navigation -->
+        <section class="navigation-section">
+            <div class="container">
+                <div class="section-header" data-aos="fade-up">
+                    <h2 class="section-title">
+                        <i class="bi bi-compass"></i>
+                        Khám phá Giải đấu
+                    </h2>
+                </div>
+                
+                <div class="nav-cards-grid">
+                    <a th:href="@{/tournaments/list}" class="nav-card" data-aos="flip-left" data-aos-delay="0">
+                        <div class="nav-card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <i class="bi bi-list-ul"></i>
+                        </div>
+                        <h3 class="nav-card-title">Danh sách Giải đấu</h3>
+                        <p class="nav-card-description">Xem tất cả các giải đấu với bộ lọc chi tiết</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/calendar}" class="nav-card" data-aos="flip-left" data-aos-delay="100">
+                        <div class="nav-card-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <i class="bi bi-calendar4-week"></i>
+                        </div>
+                        <h3 class="nav-card-title">Lịch Giải đấu</h3>
+                        <p class="nav-card-description">Xem lịch thi đấu theo ngày, tuần, tháng</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/list(status='ongoing')}" class="nav-card" data-aos="flip-left" data-aos-delay="200">
+                        <div class="nav-card-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                            <i class="bi bi-play-circle-fill"></i>
+                        </div>
+                        <h3 class="nav-card-title">Trận đấu Trực tiếp</h3>
+                        <p class="nav-card-description">Theo dõi các trận đấu đang diễn ra</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/list(status='registration')}" class="nav-card" data-aos="flip-left" data-aos-delay="300">
+                        <div class="nav-card-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <i class="bi bi-pencil-square"></i>
+                        </div>
+                        <h3 class="nav-card-title">Đăng ký Tham gia</h3>
+                        <p class="nav-card-description">Đăng ký các giải đấu đang mở</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tournament Categories -->
+        <section class="categories-section">
+            <div class="container">
+                <div class="section-header" data-aos="fade-up">
+                    <h2 class="section-title">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                        Danh mục Giải đấu
+                    </h2>
+                </div>
+                
+                <div class="categories-grid">
+                    <a th:href="@{/tournaments/list(category='professional')}" 
+                       class="category-card" data-aos="zoom-in">
+                        <div class="category-icon">🏆</div>
+                        <h3 class="category-title">Chuyên nghiệp</h3>
+                        <p class="category-count" th:text="${statsByStatus.getOrDefault('professional', 0)} + ' giải đấu'">12 giải đấu</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/list(category='amateur')}" 
+                       class="category-card" data-aos="zoom-in" data-aos-delay="100">
+                        <div class="category-icon">⭐</div>
+                        <h3 class="category-title">Nghiệp dư</h3>
+                        <p class="category-count">8 giải đấu</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/list(category='club')}" 
+                       class="category-card" data-aos="zoom-in" data-aos-delay="200">
+                        <div class="category-icon">🎯</div>
+                        <h3 class="category-title">Câu lạc bộ</h3>
+                        <p class="category-count">15 giải đấu</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/list(category='youth')}" 
+                       class="category-card" data-aos="zoom-in" data-aos-delay="300">
+                        <div class="category-icon">🌟</div>
+                        <h3 class="category-title">Thanh thiếu niên</h3>
+                        <p class="category-count">6 giải đấu</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/list(category='corporate')}" 
+                       class="category-card" data-aos="zoom-in" data-aos-delay="400">
+                        <div class="category-icon">🏢</div>
+                        <h3 class="category-title">Doanh nghiệp</h3>
+                        <p class="category-count">10 giải đấu</p>
+                    </a>
+                    
+                    <a th:href="@{/tournaments/list}" 
+                       class="category-card all" data-aos="zoom-in" data-aos-delay="500">
+                        <div class="category-icon">🔍</div>
+                        <h3 class="category-title">Xem tất cả</h3>
+                        <p class="category-count" th:text="${quickStats.total} + ' giải đấu'">51 giải đấu</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call to Action -->
+        <section class="cta-section">
+            <div class="container">
+                <div class="cta-content" data-aos="fade-up">
+                    <h2 class="cta-title">Sẵn sàng tham gia giải đấu tiếp theo?</h2>
+                    <p class="cta-description">
+                        Đăng ký ngay để không bỏ lỡ cơ hội thi đấu với các tuyển thủ hàng đầu
+                    </p>
+                    <div class="cta-buttons">
+                        <a th:href="@{/tournaments/list(status='registration')}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-pencil-square"></i>
+                            Đăng ký ngay
+                        </a>
+                        <a th:href="@{/tournaments/calendar}" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-calendar-check"></i>
+                            Xem lịch thi đấu
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Page-specific JavaScript -->
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-home.js}"></script>
+    </th:block>
+</body>
+</html>

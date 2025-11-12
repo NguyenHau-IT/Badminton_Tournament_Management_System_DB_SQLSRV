@@ -1,0 +1,246 @@
+/* Tournament Rules Page Styles */
+
+.rules-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 2rem 0;
+}
+
+.rules-header {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.rules-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+}
+
+.rules-sidebar {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+}
+
+.rules-sidebar h5 {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.toc-item {
+    margin-bottom: 0.5rem;
+}
+
+.toc-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: #6c757d;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.toc-link:hover {
+    background: #f8f9fa;
+    color: #667eea;
+    padding-left: 1.5rem;
+}
+
+.toc-link.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.download-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #e9ecef;
+}
+
+.download-btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.rules-content {
+    background: white;
+    border-radius: 12px;
+    padding: 3rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.rules-section {
+    margin-bottom: 3rem;
+    scroll-margin-top: 2rem;
+}
+
+.rules-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-number {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 1.25rem;
+    text-align: center;
+    line-height: 40px;
+    margin-right: 1rem;
+}
+
+.section-title {
+    display: inline;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.section-content {
+    margin-top: 1.5rem;
+    margin-left: 56px;
+    line-height: 1.8;
+    color: #495057;
+}
+
+.section-content h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.section-content ul, .section-content ol {
+    margin-left: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-content li {
+    margin-bottom: 0.75rem;
+}
+
+.rules-highlight {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+}
+
+.rules-highlight i {
+    color: #ffc107;
+    margin-right: 0.5rem;
+}
+
+.rules-note {
+    background: #e7f3ff;
+    border-left: 4px solid #007bff;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+}
+
+.rules-note i {
+    color: #007bff;
+    margin-right: 0.5rem;
+}
+
+.rules-table {
+    width: 100%;
+    margin: 1.5rem 0;
+    border-collapse: collapse;
+}
+
+.rules-table th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.rules-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.rules-table tr:last-child td {
+    border-bottom: none;
+}
+
+.violation-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.violation-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.violation-fault {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.violation-disqualification {
+    background: #dc3545;
+    color: white;
+}
+
+@media (max-width: 992px) {
+    .rules-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .rules-sidebar {
+        position: static;
+        margin-bottom: 2rem;
+    }
+    
+    .section-content {
+        margin-left: 0;
+    }
+}
+
+@media print {
+    .rules-sidebar,
+    .rules-header {
+        display: none;
+    }
+    
+    .rules-content {
+        box-shadow: none;
+        padding: 0;
+    }
+    
+    .rules-section {
+        page-break-inside: avoid;
+    }
+}

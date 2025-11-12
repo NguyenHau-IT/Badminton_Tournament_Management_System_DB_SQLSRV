@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="'Trực tiếp - ' + ${tournament.name}">Trực tiếp - BTMS</title>
+    
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-live.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="live-page">
+        <div class="container">
+            <!-- Live Header -->
+            <div class="live-header" data-aos="fade-down">
+                <div class="live-pulse"></div>
+                <div class="live-badge">
+                    <i class="bi bi-broadcast"></i> TRỰC TIẾP
+                </div>
+                <h2 class="mb-1" th:text="${tournament.name}">Giải Vô địch Quốc gia 2024</h2>
+                <p class="mb-0 opacity-75">Cập nhật theo thời gian thực</p>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Main Scoreboard -->
+                    <div class="scoreboard-main" data-aos="fade-up">
+                        <div class="match-info-top">
+                            <div class="match-category-live">Đơn Nam - Chung kết</div>
+                            <div class="match-round">Trận chung kết</div>
+                            <div class="match-court-live">
+                                <i class="bi bi-building"></i> Sân trung tâm
+                            </div>
+                        </div>
+
+                        <div class="match-timer">
+                            <i class="bi bi-stopwatch"></i> <span id="matchTimer">45:23</span>
+                        </div>
+
+                        <div class="scoreboard-players">
+                            <!-- Player 1 -->
+                            <div class="player-section winning">
+                                <div class="player-avatar-large">NA</div>
+                                <div class="player-name-large">Nguyễn Văn A</div>
+                                <div class="player-country">
+                                    <i class="bi bi-flag"></i> Việt Nam
+                                </div>
+                                <div class="player-score">21</div>
+                            </div>
+
+                            <div class="vs-divider-large">VS</div>
+
+                            <!-- Player 2 -->
+                            <div class="player-section">
+                                <div class="player-avatar-large">TB</div>
+                                <div class="player-name-large">Trần Văn B</div>
+                                <div class="player-country">
+                                    <i class="bi bi-flag"></i> Việt Nam
+                                </div>
+                                <div class="player-score">18</div>
+                            </div>
+                        </div>
+
+                        <!-- Set Scores -->
+                        <div class="set-scores">
+                            <div class="set-score">
+                                <div class="set-label">Set 1</div>
+                                <div class="set-value">21 - 19</div>
+                            </div>
+                            <div class="set-score">
+                                <div class="set-label">Set 2</div>
+                                <div class="set-value">
+                                    <span class="text-success">21 - 18</span>
+                                    <small class="d-block text-muted" style="font-size: 0.75rem;">Đang diễn ra</small>
+                                </div>
+                            </div>
+                            <div class="set-score" style="opacity: 0.5;">
+                                <div class="set-label">Set 3</div>
+                                <div class="set-value">- - -</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Stats -->
+                    <div class="live-stats" data-aos="fade-up">
+                        <h5 class="stats-title">
+                            <i class="bi bi-graph-up"></i> Thống kê trận đấu
+                        </h5>
+                        
+                        <div class="stat-row">
+                            <div class="stat-value">15</div>
+                            <div class="stat-label">Smash thành công</div>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: 65%;"></div>
+                            </div>
+                            <div class="stat-value">12</div>
+                        </div>
+
+                        <div class="stat-row">
+                            <div class="stat-value">8</div>
+                            <div class="stat-label">Điểm ace</div>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: 55%;"></div>
+                            </div>
+                            <div class="stat-value">6</div>
+                        </div>
+
+                        <div class="stat-row">
+                            <div class="stat-value">23</div>
+                            <div class="stat-label">Điểm rally</div>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: 48%;"></div>
+                            </div>
+                            <div class="stat-value">25</div>
+                        </div>
+
+                        <div class="stat-row">
+                            <div class="stat-value">4</div>
+                            <div class="stat-label">Lỗi kỹ thuật</div>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: 40%; background: linear-gradient(90deg, #dc3545 0%, #c82333 100%);"></div>
+                            </div>
+                            <div class="stat-value">6</div>
+                        </div>
+                    </div>
+
+                    <!-- Other Live Matches -->
+                    <div class="other-matches" data-aos="fade-up">
+                        <h5 class="stats-title">
+                            <i class="bi bi-list-ul"></i> Các trận khác
+                        </h5>
+
+                        <div class="other-match-card">
+                            <div class="other-match-info">
+                                <div class="other-match-time">
+                                    <i class="bi bi-clock"></i> 10:00 - Sân 2
+                                </div>
+                                <div class="other-match-players">
+                                    Phạm Thị C <strong>21-15</strong> Lê Thị D
+                                </div>
+                            </div>
+                            <span class="other-match-status status-live-small">
+                                <i class="bi bi-broadcast"></i> LIVE
+                            </span>
+                        </div>
+
+                        <div class="other-match-card">
+                            <div class="other-match-info">
+                                <div class="other-match-time">
+                                    <i class="bi bi-clock"></i> 11:00 - Sân 3
+                                </div>
+                                <div class="other-match-players">
+                                    Đôi Nam: Team A vs Team B
+                                </div>
+                            </div>
+                            <span class="other-match-status status-upcoming-small">
+                                <i class="bi bi-clock"></i> Sắp tới
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Live Chat -->
+                    <div class="chat-section" data-aos="fade-up">
+                        <h5 class="stats-title mb-3">
+                            <i class="bi bi-chat-dots"></i> Bình luận trực tiếp
+                        </h5>
+
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-message">
+                                <div class="chat-user">
+                                    <i class="bi bi-person-circle"></i> Nguyễn Văn X
+                                </div>
+                                <div class="chat-text">
+                                    Trận đấu hay quá! A đang chơi rất tốt 🔥
+                                </div>
+                            </div>
+
+                            <div class="chat-message">
+                                <div class="chat-user">
+                                    <i class="bi bi-person-circle"></i> Trần Thị Y
+                                </div>
+                                <div class="chat-text">
+                                    Smash cuối cùng của A thật xuất sắc!
+                                </div>
+                            </div>
+
+                            <div class="chat-message">
+                                <div class="chat-user">
+                                    <i class="bi bi-person-circle"></i> Lê Văn Z
+                                </div>
+                                <div class="chat-text">
+                                    B cũng không tệ đâu, đang gỡ lại điểm rồi
+                                </div>
+                            </div>
+
+                            <div class="chat-message">
+                                <div class="chat-user">
+                                    <i class="bi bi-person-circle"></i> Admin
+                                </div>
+                                <div class="chat-text">
+                                    <strong>📢 Thông báo:</strong> Set 2 bắt đầu sau 2 phút nghỉ
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chat-input-group">
+                            <input type="text" class="chat-input" placeholder="Nhập bình luận..." id="chatInput">
+                            <button class="btn btn-primary" id="sendChat">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-live.js}"></script>
+    </th:block>
+</body>
+</html>
