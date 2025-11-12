@@ -1,0 +1,328 @@
+/* Tournament Registration Page Styles */
+
+.registration-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 3rem 0;
+}
+
+.registration-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.registration-header {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.registration-header h1 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.progress-bar-container {
+    background: white;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.progress-steps::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #e9ecef;
+    z-index: 1;
+}
+
+.progress-line {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+    z-index: 2;
+}
+
+.step {
+    position: relative;
+    z-index: 3;
+    text-align: center;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.5rem;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+}
+
+.step.active .step-number {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #667eea;
+    color: white;
+    transform: scale(1.1);
+}
+
+.step.completed .step-number {
+    background: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.step-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.step.active .step-label {
+    color: #667eea;
+}
+
+.form-content {
+    padding: 2rem;
+}
+
+.form-section {
+    display: none;
+}
+
+.form-section.active {
+    display: block;
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.form-control, .form-select {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.required-field::after {
+    content: ' *';
+    color: #dc3545;
+}
+
+.form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.add-partner-btn {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px dashed #667eea;
+    background: white;
+    color: #667eea;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.add-partner-btn:hover {
+    background: #f8f9ff;
+}
+
+.partner-fields {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    position: relative;
+}
+
+.remove-partner-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    color: #dc3545;
+    cursor: pointer;
+}
+
+.info-box {
+    background: #e7f3ff;
+    border-left: 4px solid #007bff;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.info-box i {
+    color: #007bff;
+    margin-right: 0.5rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.summary-item:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.summary-value {
+    color: #6c757d;
+}
+
+.total-fee {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.total-fee-label {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.total-fee-amount {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.form-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-prev, .btn-next {
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-prev {
+    background: white;
+    border: 2px solid #6c757d;
+    color: #6c757d;
+}
+
+.btn-prev:hover {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-next {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+}
+
+.btn-next:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.success-message {
+    text-align: center;
+    padding: 3rem;
+}
+
+.success-icon {
+    font-size: 5rem;
+    color: #28a745;
+    margin-bottom: 1rem;
+}
+
+.success-title {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.success-text {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .progress-steps {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .step {
+        flex: 0 0 calc(50% - 0.5rem);
+    }
+    
+    .step-label {
+        font-size: 0.75rem;
+    }
+}

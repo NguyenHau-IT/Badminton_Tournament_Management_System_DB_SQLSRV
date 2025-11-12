@@ -31,27 +31,28 @@ public class ThreadConfig {
     private ScheduledExecutorService scheduledExecutor;
 
     /**
-     * 🌟 Enhanced Thread Executor
+     * 🌟 Enhanced Thread Executor - BOUNDED để tránh thread explosion
      * Tối ưu cho các tác vụ I/O intensive và SSE broadcasting
      */
     @Bean(name = "virtualThreadExecutor")
     public ExecutorService virtualThreadExecutor() {
-        log.info("🚀 Creating Enhanced Thread Executor (Java 21 optimized)");
-        // Sử dụng cached thread pool với custom factory cho flexibility tốt hơn
-        this.virtualThreadExecutor = Executors.newCachedThreadPool(
+        int maxThreads = Math.max(50, Runtime.getRuntime().availableProcessors() * 4);
+        log.info("🚀 Creating Enhanced Thread Executor with max {} threads (Java 21 optimized)", maxThreads);
+        // Sử dụng bounded thread pool thay vì cached để tránh thread explosion
+        this.virtualThreadExecutor = Executors.newFixedThreadPool(maxThreads,
                 new NamedThreadFactory("Enhanced"));
         return this.virtualThreadExecutor;
     }
 
     /**
-     * 🔄 I/O Intensive Thread Pool
+     * 🔄 I/O Intensive Thread Pool - Optimized size
      * Cho database operations, file I/O, network requests
      */
     @Bean(name = "ioIntensiveExecutor")
     public ExecutorService ioIntensiveExecutor() {
-        log.info("💾 Creating I/O Intensive Thread Pool");
-        this.ioIntensiveExecutor = Executors.newFixedThreadPool(
-                Math.max(30, Runtime.getRuntime().availableProcessors() * 2),
+        int ioThreads = Math.min(20, Math.max(8, Runtime.getRuntime().availableProcessors() * 2));
+        log.info("💾 Creating I/O Intensive Thread Pool with {} threads", ioThreads);
+        this.ioIntensiveExecutor = Executors.newFixedThreadPool(ioThreads,
                 new NamedThreadFactory("IO-Intensive"));
         return this.ioIntensiveExecutor;
     }

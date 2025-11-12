@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi" 
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title>BTMS - Hệ thống Quản lý Giải đấu Cầu lông Chuyên nghiệp</title>
+    <meta name="description" content="BTMS - Hệ thống quản lý giải đấu cầu lông hiện đại với điều khiển từ xa, real-time scoring và quản lý đa sân chuyên nghiệp">
+    
+    <!-- Page-specific CSS -->
+    <th:block layout:fragment="css">
+        <link rel="stylesheet" th:href="@{/css/pages/main-home-monochrome.css}">
+    </th:block>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- Scroll Indicators -->
+        <div class="scroll-indicators">
+            <div class="scroll-indicator active" data-section="0" data-tooltip="Trang chủ"></div>
+            <div class="scroll-indicator" data-section="1" data-tooltip="Tính năng"></div>
+            <div class="scroll-indicator" data-section="2" data-tooltip="Thống kê"></div>
+            <div class="scroll-indicator" data-section="3" data-tooltip="Ứng dụng"></div>
+            <div class="scroll-indicator" data-section="4" data-tooltip="Giải đấu"></div>
+            <div class="scroll-indicator" data-section="5" data-tooltip="Đăng ký"></div>
+        </div>
+        
+        <div class="fullpage-container" id="fullpageContainer">
+            <!-- Hero Section -->
+            <div th:replace="~{main-home/sections/hero :: hero}"></div>
+            
+            <!-- Features Section -->
+            <div th:replace="~{main-home/sections/features :: features}"></div>
+            
+            <!-- Stats Counter Section -->
+            <div th:replace="~{main-home/sections/stats :: stats}"></div>
+            
+            <!-- App Showcase Section -->
+            <div th:replace="~{main-home/sections/app-showcase :: app-showcase}"></div>
+            
+            <!-- Tournament Preview Section -->
+            <div th:replace="~{main-home/sections/tournament-preview :: tournament-preview}"></div>
+      
+            <!-- CTA Section -->
+            <div th:replace="~{main-home/sections/cta :: cta}"></div>
+        </div>
+    </div>
+    
+    <!-- Page-specific JS -->
+    <th:block layout:fragment="scripts">
+        <script th:src="@{/js/main-home/main-home.js}"></script>
+    </th:block>
+</body>
+</html>

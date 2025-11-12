@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- Stats Counter Section -->
+    <section th:fragment="stats" class="stats-section text-white py-5">
+        <div class="container py-5">
+            <div class="row g-4">
+                <!-- Stat 1: Tournaments -->
+                <div class="col-lg-3 col-md-6 col-sm-6" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon mb-3">
+                            <i class="bi bi-trophy-fill"></i>
+                        </div>
+                        <div class="stat-number" data-count="500">0</div>
+                        <div class="stat-label">Giải đấu</div>
+                        <p class="stat-description mt-2 text-white-50">
+                            Đã tổ chức thành công
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Stat 2: Players -->
+                <div class="col-lg-3 col-md-6 col-sm-6" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon mb-3">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div class="stat-number" data-count="10000">0</div>
+                        <div class="stat-label">Vận động viên</div>
+                        <p class="stat-description mt-2 text-white-50">
+                            Đang hoạt động
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Stat 3: Clubs -->
+                <div class="col-lg-3 col-md-6 col-sm-6" data-aos="fade-up" data-aos-delay="300">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon mb-3">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="stat-number" data-count="150">0</div>
+                        <div class="stat-label">Câu lạc bộ</div>
+                        <p class="stat-description mt-2 text-white-50">
+                            Tin dùng BTMS
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Stat 4: Matches -->
+                <div class="col-lg-3 col-md-6 col-sm-6" data-aos="fade-up" data-aos-delay="400">
+                    <div class="stat-card text-center">
+                        <div class="stat-icon mb-3">
+                            <i class="bi bi-activity"></i>
+                        </div>
+                        <div class="stat-number" data-count="25000">0</div>
+                        <div class="stat-label">Trận đấu</div>
+                        <p class="stat-description mt-2 text-white-50">
+                            Được theo dõi real-time
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Additional Info -->
+            <div class="row mt-5">
+                <div class="col-12 text-center" data-aos="fade-up" data-aos-delay="500">
+                    <p class="fs-5 mb-0 text-white-50">
+                        <i class="bi bi-graph-up-arrow me-2"></i>
+                        Tăng trưởng <strong class="text-white">+35%</strong> mỗi năm
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Background Pattern -->
+        <div class="stats-pattern"></div>
+    </section>
+</body>
+</html>

@@ -1,0 +1,174 @@
+/* Tournament Calendar Page Styles */
+
+.calendar-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 2rem 0;
+}
+
+.calendar-header {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.calendar-container {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+#calendar {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.fc {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.fc-toolbar-title {
+    font-size: 1.75rem !important;
+    font-weight: 600 !important;
+    color: #2c3e50;
+}
+
+.fc-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    font-size: 0.875rem !important;
+}
+
+.fc-button:hover {
+    opacity: 0.9 !important;
+}
+
+.fc-button-active {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+}
+
+.fc-event {
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 0.25rem 0.5rem !important;
+    font-weight: 600 !important;
+    transition: transform 0.2s ease !important;
+}
+
+.fc-event:hover {
+    transform: scale(1.05) !important;
+}
+
+.fc-daygrid-day-number {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.fc-day-today {
+    background: rgba(102, 126, 234, 0.1) !important;
+}
+
+.fc-day-today .fc-daygrid-day-number {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.legend-container {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.legend-color {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    margin-right: 1rem;
+}
+
+.legend-ongoing {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.legend-registration {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+}
+
+.legend-upcoming {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.legend-completed {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+}
+
+.upcoming-section {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.upcoming-item {
+    border-left: 4px solid #007bff;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.upcoming-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.upcoming-date {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.upcoming-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.upcoming-location {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+@media (max-width: 768px) {
+    .fc-toolbar {
+        flex-direction: column !important;
+        gap: 1rem;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.25rem !important;
+    }
+}

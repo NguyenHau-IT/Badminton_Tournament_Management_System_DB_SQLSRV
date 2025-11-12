@@ -22,8 +22,8 @@ public class BienBanTranFrame extends JFrame {
         this.panel = new BienBanTranPanel(conn, matchId);
         add(panel, BorderLayout.CENTER);
 
-        setSize(900, 650);
-        setLocationByPlatform(true);
+        // Mở ở chế độ toàn màn hình (maximized) khi hiển thị
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         try {
             IconUtil.applyTo(this);
         } catch (Exception ignore) {

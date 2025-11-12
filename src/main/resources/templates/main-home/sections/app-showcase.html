@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- App Showcase Section -->
+    <section th:fragment="app-showcase" class="app-showcase-section py-5 bg-gray-50">
+        <div class="container py-5">
+            <div class="row align-items-center">
+                <!-- Left - App Screenshots -->
+                <div class="col-lg-6 mb-5 mb-lg-0" data-aos="fade-right">
+                    <div class="app-screenshots position-relative">
+                        <!-- Main Screenshot -->
+                        <div class="screenshot-main">
+                            <img th:src="@{/images/app-screenshot-main.png}" 
+                                 alt="BTMS Desktop App" 
+                                 class="img-fluid rounded shadow-lg"
+                                 onerror="this.src='https://via.placeholder.com/600x450/0066ff/ffffff?text=Desktop+App'">
+                        </div>
+                        
+                        <!-- Floating Mobile Screenshot -->
+                        <div class="screenshot-mobile">
+                            <img th:src="@{/images/app-screenshot-mobile.png}" 
+                                 alt="BTMS Mobile Web" 
+                                 class="img-fluid rounded shadow-lg"
+                                 onerror="this.src='https://via.placeholder.com/250x450/ff6b35/ffffff?text=Mobile+Web'">
+                        </div>
+                        
+                        <!-- Decorative Elements -->
+                        <div class="screenshot-badge badge-1">
+                            <i class="bi bi-shield-check text-success"></i>
+                            <span>100% Miễn phí</span>
+                        </div>
+                        <div class="screenshot-badge badge-2">
+                            <i class="bi bi-download text-primary"></i>
+                            <span>1000+ Downloads</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right - Content -->
+                <div class="col-lg-6" data-aos="fade-left">
+                    <div class="app-content">
+                        <span class="section-badge">
+                            <i class="bi bi-app-indicator me-2"></i>Ứng dụng Desktop
+                        </span>
+                        
+                        <h2 class="section-title mt-3 mb-4">
+                            Tải <span class="text-primary">BTMS Desktop</span>
+                            <br>miễn phí ngay hôm nay
+                        </h2>
+                        
+                        <p class="section-description text-muted mb-4">
+                            Phần mềm quản lý giải đấu mạnh mẽ với giao diện hiện đại, 
+                            hỗ trợ đầy đủ tính năng cho tổ chức giải đấu chuyên nghiệp.
+                        </p>
+                        
+                        <!-- Key Features -->
+                        <div class="app-features mb-4">
+                            <div class="feature-item mb-3">
+                                <div class="feature-icon-sm">
+                                    <i class="bi bi-laptop"></i>
+                                </div>
+                                <div class="feature-content">
+                                    <h5 class="mb-1">Desktop Application</h5>
+                                    <p class="text-muted mb-0">
+                                        Chạy nhanh, ổn định trên Windows 10/11 64-bit
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-item mb-3">
+                                <div class="feature-icon-sm">
+                                    <i class="bi bi-cloud-arrow-down"></i>
+                                </div>
+                                <div class="feature-content">
+                                    <h5 class="mb-1">Cài đặt đơn giản</h5>
+                                    <p class="text-muted mb-0">
+                                        Tải về và cài đặt trong vòng 2 phút
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-item mb-3">
+                                <div class="feature-icon-sm">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </div>
+                                <div class="feature-content">
+                                    <h5 class="mb-1">Cập nhật tự động</h5>
+                                    <p class="text-muted mb-0">
+                                        Luôn sử dụng phiên bản mới nhất
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- System Requirements -->
+                        <div class="system-requirements mb-4 p-3 bg-white rounded border">
+                            <h6 class="mb-3">
+                                <i class="bi bi-gear me-2"></i>
+                                Yêu cầu hệ thống
+                            </h6>
+                            <div class="row g-2 small">
+                                <div class="col-6">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Windows 10/11 64-bit
+                                </div>
+                                <div class="col-6">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    4GB RAM trở lên
+                                </div>
+                                <div class="col-6">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Java 21 (tự động cài)
+                                </div>
+                                <div class="col-6">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    500MB dung lượng trống
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Download Buttons -->
+                        <div class="app-cta d-flex flex-wrap gap-3">
+                            <a th:href="@{/app/download}" class="btn btn-primary btn-lg px-4">
+                                <i class="bi bi-windows me-2"></i>
+                                Tải về cho Windows
+                            </a>
+                            <a th:href="@{/app/features}" class="btn btn-outline-primary btn-lg px-4">
+                                Xem tính năng
+                                <i class="bi bi-arrow-right ms-2"></i>
+                            </a>
+                        </div>
+                        
+                        <!-- Version Info -->
+                        <p class="text-muted small mt-3 mb-0">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Phiên bản mới nhất: <strong>v1.0.0</strong> (November 2025)
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>
