@@ -42,6 +42,7 @@ import com.example.btms.config.Prefs;
 import com.example.btms.ui.db.DbConnectionSelection.DbType;
 import com.example.btms.ui.db.DbConnectionSelection.Mode;
 import com.example.btms.util.h2db.H2ScriptUtil;
+import com.example.btms.util.ui.IconUtil;
 
 public class DbConnectionFrame extends JFrame {
 
@@ -73,6 +74,9 @@ public class DbConnectionFrame extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(0, 8));
         ((JPanel) getContentPane()).setBorder(new EmptyBorder(10, 12, 12, 12));
+
+        // Áp dụng icon cho frame
+        IconUtil.applyTo(this);
 
         // ===== Header =====
         JPanel header = new JPanel(new BorderLayout());
