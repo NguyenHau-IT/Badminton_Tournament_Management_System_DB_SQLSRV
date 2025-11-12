@@ -5,6 +5,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,12 +39,17 @@ public class ScoreboardPinController {
     private final CourtManagerService courtManager = CourtManagerService.getInstance();
 
     // SSE clients cho từng mã PIN - sử dụng ConcurrentHashMap để thread-safe
-    private final Map<String, List<SseEmitter>> pinClients = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, List<SseEmitter>> pinClients = new ConcurrentHashMap<>();
     // BadmintonMatch riêng biệt cho từng mã PIN - sử dụng ConcurrentHashMap để
     // thread-safe
-    private final Map<String, BadmintonMatch> pinMatches = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, BadmintonMatch> pinMatches = new ConcurrentHashMap<>();
     // Cache ObjectMapper để tái sử dụng, tránh tạo mới liên tục
     private final ObjectMapper om = new ObjectMapper();
+
+    // 🚀 Performance optimization: JSON payload cache và throttling
+    private final Map<String, String> jsonPayloadCache = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> lastBroadcastTime = new ConcurrentHashMap<>();
+    private static final long MIN_BROADCAST_INTERVAL_MS = 50; // Minimum 50ms between broadcasts
 
     // 🚀 Enhanced Background Task Manager (Java 21 optimized)
     @Autowired
@@ -51,6 +58,49 @@ public class ScoreboardPinController {
     public ScoreboardPinController() {
         controllerInstance = this;
         // Không cần add listener cho match chung nữa
+
+        // 🧹 Cleanup task để dọn dẹp dead SSE clients và cache cũ
+        startCleanupTask();
+    }
+
+    /**
+     * 🧹 Background cleanup task để tối ưu performance
+     */
+    private void startCleanupTask() {
+        // Schedule cleanup every 30 seconds
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(30000); // 30 seconds
+
+                    // Cleanup dead SSE clients
+                    pinClients.forEach((pin, clients) -> {
+                        if (clients != null) {
+                            clients.removeIf(client -> {
+                                try {
+                                    // Test if client is still alive by sending ping
+                                    client.send(SseEmitter.event().name("ping").data(""));
+                                    return false;
+                                } catch (Exception e) {
+                                    return true; // Remove dead client
+                                }
+                            });
+                        }
+                    });
+
+                    // Cleanup old JSON cache entries
+                    if (jsonPayloadCache.size() > 50) {
+                        jsonPayloadCache.clear();
+                    }
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    log.warn("Cleanup task error: {}", e.getMessage());
+                }
+            }
+        }, "SSE-Cleanup").start();
     }
 
     /* ---------- helpers ---------- */
@@ -61,14 +111,32 @@ public class ScoreboardPinController {
     }
 
     private void broadcastSnapshotToPin(String pinCode) {
+        // 🚀 Throttling: Tránh broadcast quá nhiều trong thời gian ngắn
+        long currentTime = System.currentTimeMillis();
+        AtomicLong lastTime = lastBroadcastTime.computeIfAbsent(pinCode, k -> new AtomicLong(0));
+
+        if (currentTime - lastTime.get() < MIN_BROADCAST_INTERVAL_MS) {
+            return; // Skip broadcast nếu quá gần lần trước
+        }
+        lastTime.set(currentTime);
+
         // 🚀 Sử dụng enhanced task manager cho SSE broadcast (Java 21 optimized)
         taskManager.executeSseBroadcast(() -> {
             try {
                 BadmintonMatch match = getOrCreateMatch(pinCode);
-                String payload = om.writeValueAsString(match.snapshot());
+
+                // 🚀 Cache JSON payload để tránh serialize lại liên tục
+                String payload = jsonPayloadCache.computeIfAbsent(pinCode + "_" + currentTime, k -> {
+                    try {
+                        return om.writeValueAsString(match.snapshot());
+                    } catch (Exception e) {
+                        log.warn("JSON serialization error for PIN {}: {}", pinCode, e.getMessage());
+                        return "{}";
+                    }
+                });
 
                 List<SseEmitter> clients = pinClients.get(pinCode);
-                if (clients != null) {
+                if (clients != null && !clients.isEmpty()) {
                     // Sử dụng CopyOnWriteArrayList để tránh ConcurrentModificationException
                     clients.removeIf(client -> {
                         try {
@@ -82,10 +150,12 @@ public class ScoreboardPinController {
                             return true;
                         }
                     });
+
+                    // 🧹 Cleanup old cache entries periodically
+                    if (jsonPayloadCache.size() > 100) {
+                        jsonPayloadCache.clear();
+                    }
                 }
-            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-                // JSON serialization error - log and continue
-                log.warn("JSON serialization error broadcasting to PIN {}: {}", pinCode, e.getMessage());
             } catch (RuntimeException e) {
                 // Other runtime issues - log but don't crash the task
                 log.warn("Error broadcasting to PIN {}: {}", pinCode, e.getMessage());
@@ -264,7 +334,8 @@ public class ScoreboardPinController {
     @GetMapping(value = "/{pin}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamWithPin(@PathVariable String pin) {
 
-        SseEmitter em = new SseEmitter(0L); // no timeout
+        // 🚀 Shorter timeout để tránh zombie connections
+        SseEmitter em = new SseEmitter(300000L); // 5 minutes timeout thay vì vô hạn
 
         // Thêm vào danh sách clients của mã PIN này
         pinClients.computeIfAbsent(pin, k -> new CopyOnWriteArrayList<>()).add(em);
@@ -274,6 +345,11 @@ public class ScoreboardPinController {
             em.send(SseEmitter.event().name("init")
                     .data(om.writeValueAsString(match.snapshot())));
         } catch (IOException ignore) {
+            // Remove failed client immediately
+            List<SseEmitter> clients = pinClients.get(pin);
+            if (clients != null) {
+                clients.remove(em);
+            }
         }
 
         em.onCompletion(() -> {
