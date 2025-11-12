@@ -433,9 +433,9 @@ body footer {
     width: 100%;
     height: 100%;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
-    padding: 60px 20px;
+    padding: 40px 0;
     background: var(--main-white);
     overflow: hidden;
     isolation: isolate;
@@ -443,12 +443,29 @@ body footer {
 
 .features-section .container {
     max-height: 100%;
-    overflow: hidden;
+    overflow: visible;
+    max-width: 100%;
+}
+
+.features-section .row.mb-5 {
+    margin-bottom: 1.5rem !important;
+}
+
+.feature-list {
+    color: var(--main-black);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.feature-list li {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
 }
 
 .section-header {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
 }
 
 .section-badge {
@@ -463,19 +480,58 @@ body footer {
 }
 
 .section-title {
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-size: clamp(1.5rem, 3.5vw, 2rem);
     font-weight: 700;
     color: var(--main-black);
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.6rem;
     line-height: 1.2;
+    text-align: center;
 }
 
 .section-description {
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--main-gray-500);
     max-width: 600px;
     margin: 0 auto;
-    line-height: 1.5;
+    line-height: 1.4;
+}
+
+/* Horizontal Scrolling Carousel Wrapper */
+.features-carousel-wrapper {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    margin: 20px 0;
+    cursor: grab;
+}
+
+.features-carousel-wrapper.dragging {
+    cursor: grabbing;
+}
+
+.features-carousel-wrapper.dragging .features-carousel-track {
+    animation-play-state: paused;
+}
+
+.features-carousel-track {
+    display: flex;
+    gap: 20px;
+    animation: scrollFeatures 5s linear infinite;
+    will-change: transform;
+    user-select: none;
+}
+
+.features-carousel-track:hover {
+    animation-play-state: paused;
+}
+
+@keyframes scrollFeatures {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
 }
 
 .feature-card {
@@ -484,13 +540,36 @@ body footer {
     padding: 24px 20px;
     border: 2px solid var(--main-gray-100);
     transition: all 0.3s ease;
-    height: 100%;
+    flex: 0 0 340px;
+    min-width: 340px;
+    height: auto;
 }
 
 .feature-card:hover {
     border-color: var(--main-accent);
     transform: translateY(-10px);
     box-shadow: var(--main-shadow-lg);
+}
+
+.feature-card.featured {
+    position: relative;
+    border-color: var(--main-accent);
+    padding-top: 40px; /* Make room for badge */
+}
+
+.featured-badge {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--main-accent);
+    color: var(--main-white);
+    padding: 4px 14px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 10;
 }
 
 .feature-icon {
@@ -520,8 +599,13 @@ body footer {
 .feature-description {
     color: var(--main-gray-500);
     line-height: 1.5;
-    margin: 0;
+    margin: 0 0 12px 0;
     font-size: 0.9rem;
+}
+
+/* Bottom CTA button styling */
+.features-section .row.mt-5 {
+    margin-top: 1.5rem !important;
 }
 
 /* ===================================

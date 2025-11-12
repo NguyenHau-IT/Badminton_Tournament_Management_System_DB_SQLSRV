@@ -465,11 +465,135 @@
     };
 
     // ===================================
+    // DRAG TO SCROLL FEATURES CAROUSEL
+    // ===================================
+    const setupFeaturesDragScroll = () => {
+        const wrapper = document.querySelector('.features-carousel-wrapper');
+        const track = document.querySelector('.features-carousel-track');
+        
+        if (!wrapper || !track) return;
+        
+        let isDragging = false;
+        let startX = 0;
+        let currentTranslate = 0;
+        let prevTranslate = 0;
+        let animationId = null;
+        
+        // Calculate half width (one set of cards)
+        const getHalfWidth = () => {
+            const cards = track.querySelectorAll('.feature-card');
+            const cardCount = cards.length / 2; // Divided by 2 because duplicated
+            let width = 0;
+            for (let i = 0; i < cardCount; i++) {
+                width += cards[i].offsetWidth;
+                if (i < cardCount - 1) width += 20; // Gap
+            }
+            return width;
+        };
+        
+        // Get current animation progress
+        const getCurrentTransform = () => {
+            const style = window.getComputedStyle(track);
+            const matrix = new DOMMatrix(style.transform);
+            return matrix.m41; // translateX value
+        };
+        
+        // Wrap position to create infinite loop
+        const wrapPosition = (position) => {
+            const halfWidth = getHalfWidth();
+            // Normalize position to stay within one loop cycle
+            while (position < -halfWidth) {
+                position += halfWidth;
+            }
+            while (position > 0) {
+                position -= halfWidth;
+            }
+            return position;
+        };
+        
+        // Animation loop for smooth wrapping
+        const animation = () => {
+            if (isDragging) {
+                const wrappedPosition = wrapPosition(currentTranslate);
+                track.style.transform = `translateX(${wrappedPosition}px)`;
+                animationId = requestAnimationFrame(animation);
+            }
+        };
+        
+        // Mouse down - start dragging
+        wrapper.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            wrapper.classList.add('dragging');
+            startX = e.pageX;
+            
+            // Get current position from animation or previous drag
+            const currentPos = getCurrentTransform();
+            prevTranslate = currentPos;
+            currentTranslate = currentPos;
+            
+            // Pause CSS animation
+            track.style.animation = 'none';
+            
+            animationId = requestAnimationFrame(animation);
+        });
+        
+        // Mouse move - drag
+        wrapper.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const currentX = e.pageX;
+            const diff = currentX - startX;
+            currentTranslate = prevTranslate + diff * 1.5; // Multiply for faster scroll
+        });
+        
+        // Mouse up - stop dragging
+        const stopDragging = () => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            wrapper.classList.remove('dragging');
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            // Wrap final position
+            const wrappedPosition = wrapPosition(currentTranslate);
+            
+            // Resume CSS animation from wrapped position
+            track.style.animation = '';
+            
+            // Calculate progress for animation-delay
+            const halfWidth = getHalfWidth();
+            const progress = Math.abs(wrappedPosition) / halfWidth;
+            track.style.animationDelay = `-${progress * 50}s`;
+        };
+        
+        wrapper.addEventListener('mouseup', stopDragging);
+        wrapper.addEventListener('mouseleave', stopDragging);
+        
+        // Prevent text selection and link clicks during drag
+        wrapper.addEventListener('dragstart', (e) => e.preventDefault());
+        wrapper.addEventListener('click', (e) => {
+            if (Math.abs(currentTranslate - prevTranslate) > 5) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+        
+        console.log('Features drag-to-scroll with infinite loop initialized');
+    };
+
+    // ===================================
     // INITIALIZE ALL FUNCTIONS
     // ===================================
     const init = () => {
         // NEW: Initialize fullpage scroll navigation
         initFullpageScroll();
+        
+        // NEW: Initialize features drag-to-scroll
+        setupFeaturesDragScroll();
         
         // Core animations
         observeCounters();
