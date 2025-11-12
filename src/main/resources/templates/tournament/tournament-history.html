@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title>Lịch sử Giải đấu - BTMS</title>
+    
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-history.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="history-page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container">
+                <h1 data-aos="fade-up">
+                    <i class="bi bi-clock-history"></i> Lịch sử Giải đấu
+                </h1>
+                <p class="lead mb-0" data-aos="fade-up" data-aos-delay="100">
+                    Hành trình phát triển cầu lông Việt Nam qua các giải đấu
+                </p>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Stats Banner -->
+            <div class="stats-banner" data-aos="fade-up">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-number">156</div>
+                        <div class="stat-text">Giải đấu</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">15</div>
+                        <div class="stat-text">Năm tổ chức</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">5000+</div>
+                        <div class="stat-text">VĐV tham gia</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">50+</div>
+                        <div class="stat-text">Nhà vô địch</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="filter-section" data-aos="fade-up">
+                <div class="row">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <select class="form-select">
+                            <option selected>Tất cả năm</option>
+                            <option>2024</option>
+                            <option>2023</option>
+                            <option>2022</option>
+                            <option>2021</option>
+                            <option>2020</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <select class="form-select">
+                            <option selected>Tất cả loại giải</option>
+                            <option>Chuyên nghiệp</option>
+                            <option>Nghiệp dư</option>
+                            <option>Trẻ</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select">
+                            <option selected>Tất cả địa điểm</option>
+                            <option>Hà Nội</option>
+                            <option>TP. Hồ Chí Minh</option>
+                            <option>Đà Nẵng</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="timeline">
+                <!-- 2024 -->
+                <div class="timeline-item" data-aos="fade-right">
+                    <div class="timeline-marker">🏆</div>
+                    <div class="timeline-content">
+                        <span class="year-badge">2024</span>
+                        <h3 class="tournament-title">Giải Vô địch Quốc gia 2024</h3>
+                        <div class="tournament-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-calendar3"></i> 01-15/03/2024
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-geo-alt"></i> Hà Nội
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-people"></i> 128 VĐV
+                            </span>
+                        </div>
+                        <p class="text-muted">
+                            Giải đấu lớn nhất năm với sự tham gia của các tay vợt hàng đầu Việt Nam. 
+                            Tổng giải thưởng lên đến 500 triệu VNĐ.
+                        </p>
+                        <div class="champion-section">
+                            <div class="champion-title">
+                                <i class="bi bi-trophy-fill"></i> Nhà vô địch
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đơn Nam</span>
+                                <span class="champion-name">Nguyễn Văn A</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đơn Nữ</span>
+                                <span class="champion-name">Phạm Thị B</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đôi Nam</span>
+                                <span class="champion-name">Trần C / Lê D</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary view-details-btn">
+                            <i class="bi bi-eye"></i> Xem chi tiết
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2023 -->
+                <div class="timeline-item" data-aos="fade-left">
+                    <div class="timeline-marker">🎯</div>
+                    <div class="timeline-content">
+                        <span class="year-badge">2023</span>
+                        <h3 class="tournament-title">Giải Quốc tế Hà Nội 2023</h3>
+                        <div class="tournament-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-calendar3"></i> 15-30/09/2023
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-geo-alt"></i> Hà Nội
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-people"></i> 96 VĐV
+                            </span>
+                        </div>
+                        <p class="text-muted">
+                            Giải đấu quốc tế thu hút VĐV từ 8 quốc gia Đông Nam Á tham dự, 
+                            khẳng định vị thế cầu lông Việt Nam trong khu vực.
+                        </p>
+                        <div class="champion-section">
+                            <div class="champion-title">
+                                <i class="bi bi-trophy-fill"></i> Nhà vô địch
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đơn Nam</span>
+                                <span class="champion-name">Hoàng Văn E</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đơn Nữ</span>
+                                <span class="champion-name">Vũ Thị F</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary view-details-btn">
+                            <i class="bi bi-eye"></i> Xem chi tiết
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2023 Mid -->
+                <div class="timeline-item" data-aos="fade-right">
+                    <div class="timeline-marker">⭐</div>
+                    <div class="timeline-content">
+                        <span class="year-badge">2023</span>
+                        <h3 class="tournament-title">Giải Vô địch CLB Toàn quốc</h3>
+                        <div class="tournament-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-calendar3"></i> 10-20/05/2023
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-geo-alt"></i> Đà Nẵng
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-people"></i> 64 VĐV
+                            </span>
+                        </div>
+                        <p class="text-muted">
+                            Giải đấu dành cho các câu lạc bộ, tạo sân chơi giao lưu và nâng cao trình độ 
+                            cho VĐV nghiệp dư trên toàn quốc.
+                        </p>
+                        <div class="champion-section">
+                            <div class="champion-title">
+                                <i class="bi bi-trophy-fill"></i> Nhà vô địch
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đơn Nam</span>
+                                <span class="champion-name">Đỗ Văn G</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đơn Nữ</span>
+                                <span class="champion-name">Bùi Thị H</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary view-details-btn">
+                            <i class="bi bi-eye"></i> Xem chi tiết
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2022 -->
+                <div class="timeline-item" data-aos="fade-left">
+                    <div class="timeline-marker">🌟</div>
+                    <div class="timeline-content">
+                        <span class="year-badge">2022</span>
+                        <h3 class="tournament-title">SEA Games 31 - Cầu lông</h3>
+                        <div class="tournament-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-calendar3"></i> 12-23/05/2022
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-geo-alt"></i> Hà Nội
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-people"></i> 11 quốc gia
+                            </span>
+                        </div>
+                        <p class="text-muted">
+                            Sự kiện thể thao lớn nhất khu vực Đông Nam Á, Việt Nam giành 2 HCV, 3 HCB 
+                            trong môn cầu lông, thành tích xuất sắc nhất lịch sử.
+                        </p>
+                        <div class="champion-section">
+                            <div class="champion-title">
+                                <i class="bi bi-trophy-fill"></i> Huy chương Vàng
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đồng đội Nam</span>
+                                <span class="champion-name">Đội tuyển Việt Nam</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">Đôi Nam Nữ</span>
+                                <span class="champion-name">Nguyễn I / Trần J</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary view-details-btn">
+                            <i class="bi bi-eye"></i> Xem chi tiết
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2022 Mid -->
+                <div class="timeline-item" data-aos="fade-right">
+                    <div class="timeline-marker">💫</div>
+                    <div class="timeline-content">
+                        <span class="year-badge">2022</span>
+                        <h3 class="tournament-title">Giải Cầu lông Trẻ Toàn quốc</h3>
+                        <div class="tournament-meta">
+                            <span class="meta-item">
+                                <i class="bi bi-calendar3"></i> 20-28/02/2022
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-geo-alt"></i> TP. Hồ Chí Minh
+                            </span>
+                            <span class="meta-item">
+                                <i class="bi bi-people"></i> 150 VĐV
+                            </span>
+                        </div>
+                        <p class="text-muted">
+                            Giải đấu dành cho lứa tuổi U15, U17, U19 - nơi phát hiện và bồi dưỡng 
+                            tài năng trẻ cho cầu lông Việt Nam.
+                        </p>
+                        <div class="champion-section">
+                            <div class="champion-title">
+                                <i class="bi bi-trophy-fill"></i> Nhà vô địch
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">U19 Đơn Nam</span>
+                                <span class="champion-name">Lê Văn K</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                            <div class="champion-item">
+                                <span class="champion-category">U19 Đơn Nữ</span>
+                                <span class="champion-name">Phan Thị L</span>
+                                <span class="medal">🥇</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary view-details-btn">
+                            <i class="bi bi-eye"></i> Xem chi tiết
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-history.js}"></script>
+    </th:block>
+</body>
+</html>

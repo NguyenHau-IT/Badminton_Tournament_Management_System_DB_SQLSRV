@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="'Bảng xếp hạng - ' + ${tournament.name}">Bảng xếp hạng - BTMS</title>
+    
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-standings.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="standings-page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container text-center">
+                <div class="trophy-icon">🏆</div>
+                <h1 class="mb-2">
+                    Bảng xếp hạng
+                </h1>
+                <h4 th:text="${tournament.name}">Giải Vô địch Quốc gia 2024</h4>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Podium Top 3 -->
+            <div class="podium-section" data-aos="fade-up">
+                <h4 class="text-center mb-4">
+                    <i class="bi bi-stars"></i> Top 3 xuất sắc nhất
+                </h4>
+                <div class="podium">
+                    <!-- 2nd Place -->
+                    <div class="podium-item podium-2">
+                        <div class="podium-position">
+                            <div class="podium-rank">2</div>
+                            <div class="podium-avatar">TB</div>
+                            <div class="podium-name">Trần Văn B</div>
+                            <div class="podium-score">28 điểm</div>
+                        </div>
+                    </div>
+
+                    <!-- 1st Place -->
+                    <div class="podium-item podium-1">
+                        <div class="podium-position">
+                            <div class="podium-rank">1</div>
+                            <div class="podium-avatar">NA</div>
+                            <div class="podium-name">Nguyễn Văn A</div>
+                            <div class="podium-score">32 điểm</div>
+                        </div>
+                    </div>
+
+                    <!-- 3rd Place -->
+                    <div class="podium-item podium-3">
+                        <div class="podium-position">
+                            <div class="podium-rank">3</div>
+                            <div class="podium-avatar">PC</div>
+                            <div class="podium-name">Phạm Văn C</div>
+                            <div class="podium-score">25 điểm</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Tabs -->
+            <div class="category-tabs" data-aos="fade-up">
+                <ul class="nav nav-pills justify-content-center">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#men-singles">
+                            <i class="bi bi-person"></i> Đơn Nam
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#women-singles">
+                            <i class="bi bi-person"></i> Đơn Nữ
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#men-doubles">
+                            <i class="bi bi-people"></i> Đôi Nam
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#women-doubles">
+                            <i class="bi bi-people"></i> Đôi Nữ
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#mixed-doubles">
+                            <i class="bi bi-people"></i> Đôi Nam Nữ
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Men Singles -->
+                <div class="tab-pane fade show active" id="men-singles">
+                    <div class="standings-container" data-aos="fade-up">
+                        <table class="standings-table">
+                            <thead>
+                                <tr>
+                                    <th>Hạng</th>
+                                    <th>Vận động viên</th>
+                                    <th class="text-center">Trận</th>
+                                    <th class="text-center">Thắng</th>
+                                    <th class="text-center">Thua</th>
+                                    <th class="text-center">Điểm</th>
+                                    <th class="text-center">Tỷ lệ thắng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="rank-cell rank-1">
+                                        <span class="medal-icon">🥇</span>
+                                    </td>
+                                    <td>
+                                        <div class="player-info">
+                                            <div class="player-avatar-standings">NA</div>
+                                            <div class="player-details">
+                                                <div class="player-name-standings">Nguyễn Văn A</div>
+                                                <div class="player-club-standings">CLB Thăng Long</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-primary-stat">12</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-success-stat">10</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-warning-stat">2</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong style="font-size: 1.25rem; color: #667eea;">32</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="win-percentage wp-excellent">83%</div>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td class="rank-cell rank-2">
+                                        <span class="medal-icon">🥈</span>
+                                    </td>
+                                    <td>
+                                        <div class="player-info">
+                                            <div class="player-avatar-standings">TB</div>
+                                            <div class="player-details">
+                                                <div class="player-name-standings">Trần Văn B</div>
+                                                <div class="player-club-standings">CLB Hà Nội</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-primary-stat">12</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-success-stat">9</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-warning-stat">3</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong style="font-size: 1.25rem; color: #667eea;">28</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="win-percentage wp-excellent">75%</div>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td class="rank-cell rank-3">
+                                        <span class="medal-icon">🥉</span>
+                                    </td>
+                                    <td>
+                                        <div class="player-info">
+                                            <div class="player-avatar-standings">PC</div>
+                                            <div class="player-details">
+                                                <div class="player-name-standings">Phạm Văn C</div>
+                                                <div class="player-club-standings">CLB Đống Đa</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-primary-stat">12</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-success-stat">8</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-warning-stat">4</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong style="font-size: 1.25rem; color: #667eea;">25</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="win-percentage wp-good">67%</div>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td class="rank-cell">4</td>
+                                    <td>
+                                        <div class="player-info">
+                                            <div class="player-avatar-standings">LD</div>
+                                            <div class="player-details">
+                                                <div class="player-name-standings">Lê Văn D</div>
+                                                <div class="player-club-standings">CLB Cầu Giấy</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-primary-stat">12</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-success-stat">7</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-warning-stat">5</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong style="font-size: 1.25rem; color: #667eea;">22</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="win-percentage wp-average">58%</div>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td class="rank-cell">5</td>
+                                    <td>
+                                        <div class="player-info">
+                                            <div class="player-avatar-standings">HE</div>
+                                            <div class="player-details">
+                                                <div class="player-name-standings">Hoàng Văn E</div>
+                                                <div class="player-club-standings">CLB Tây Hồ</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-primary-stat">12</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-success-stat">6</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-warning-stat">6</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong style="font-size: 1.25rem; color: #667eea;">19</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="win-percentage wp-average">50%</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Other categories (similar structure) -->
+                <div class="tab-pane fade" id="women-singles">
+                    <div class="standings-container" data-aos="fade-up">
+                        <table class="standings-table">
+                            <thead>
+                                <tr>
+                                    <th>Hạng</th>
+                                    <th>Vận động viên</th>
+                                    <th class="text-center">Trận</th>
+                                    <th class="text-center">Thắng</th>
+                                    <th class="text-center">Thua</th>
+                                    <th class="text-center">Điểm</th>
+                                    <th class="text-center">Tỷ lệ thắng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="rank-cell rank-1">
+                                        <span class="medal-icon">🥇</span>
+                                    </td>
+                                    <td>
+                                        <div class="player-info">
+                                            <div class="player-avatar-standings">PA</div>
+                                            <div class="player-details">
+                                                <div class="player-name-standings">Phạm Thị A</div>
+                                                <div class="player-club-standings">CLB Tân Bình</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-primary-stat">10</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-success-stat">9</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stat-badge badge-warning-stat">1</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong style="font-size: 1.25rem; color: #667eea;">28</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="win-percentage wp-excellent">90%</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-standings.js}"></script>
+    </th:block>
+</body>
+</html>

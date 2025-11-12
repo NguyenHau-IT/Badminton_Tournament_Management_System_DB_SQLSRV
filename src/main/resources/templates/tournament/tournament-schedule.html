@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="'Lịch thi đấu - ' + ${tournament.name}">Lịch thi đấu - BTMS</title>
+    
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-schedule.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="schedule-page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container">
+                <div class="tournament-banner">
+                    <img th:src="${tournament.image}" th:alt="${tournament.name}">
+                    <div>
+                        <h1 class="mb-2">
+                            <i class="bi bi-calendar3"></i> Lịch thi đấu
+                        </h1>
+                        <h4 class="mb-0" th:text="${tournament.name}">Tên giải đấu</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Filter Section -->
+            <div class="filter-section" data-aos="fade-up">
+                <h5 class="mb-3">
+                    <i class="bi bi-funnel"></i> Lọc lịch thi đấu
+                </h5>
+                <div class="row">
+                    <div class="col-md-8">
+                        <label class="form-label">Nội dung thi đấu:</label>
+                        <div class="filter-btn-group">
+                            <button class="btn btn-primary btn-sm">Tất cả</button>
+                            <button class="btn btn-outline-primary btn-sm">Đơn Nam</button>
+                            <button class="btn btn-outline-primary btn-sm">Đơn Nữ</button>
+                            <button class="btn btn-outline-primary btn-sm">Đôi Nam</button>
+                            <button class="btn btn-outline-primary btn-sm">Đôi Nữ</button>
+                            <button class="btn btn-outline-primary btn-sm">Đôi Nam Nữ</button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sân thi đấu:</label>
+                        <select class="form-select form-select-sm">
+                            <option>Tất cả sân</option>
+                            <option>Sân 1</option>
+                            <option>Sân 2</option>
+                            <option>Sân 3</option>
+                            <option>Sân 4</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Container -->
+            <div class="schedule-container" data-aos="fade-up">
+                <!-- Day 1 -->
+                <div class="day-section">
+                    <div class="day-header">
+                        <div>
+                            <div class="day-title">Ngày 1 - Vòng loại</div>
+                            <div class="day-date">Thứ Sáu, 01/03/2024</div>
+                        </div>
+                        <span class="badge bg-light text-dark">12 trận</span>
+                    </div>
+
+                    <!-- Match 1 -->
+                    <div class="match-card">
+                        <div class="match-header">
+                            <div class="d-flex align-items-center">
+                                <div class="match-time">
+                                    <i class="bi bi-clock"></i>
+                                    08:00
+                                </div>
+                                <span class="match-category">Đơn Nam</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="match-court">
+                                    <i class="bi bi-building"></i> Sân 1
+                                </span>
+                                <span class="match-status status-completed">
+                                    <i class="bi bi-check-circle"></i> Hoàn thành
+                                </span>
+                            </div>
+                        </div>
+                        <div class="match-players">
+                            <div class="player">
+                                <div class="player-avatar">NA</div>
+                                <div class="player-info">
+                                    <div class="player-name">Nguyễn Văn A</div>
+                                    <div class="player-club">CLB Thăng Long</div>
+                                </div>
+                            </div>
+                            <div class="match-score">
+                                <span>21 - 15</span>
+                            </div>
+                            <div class="vs-divider">VS</div>
+                            <div class="match-score">
+                                <span>19 - 21</span>
+                            </div>
+                            <div class="player text-end">
+                                <div class="player-info">
+                                    <div class="player-name">Trần Văn B</div>
+                                    <div class="player-club">CLB Hà Nội</div>
+                                </div>
+                                <div class="player-avatar">TB</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Match 2 - Live -->
+                    <div class="match-card" style="border-left-color: #dc3545;">
+                        <div class="match-header">
+                            <div class="d-flex align-items-center">
+                                <div class="match-time">
+                                    <i class="bi bi-broadcast"></i>
+                                    09:00
+                                </div>
+                                <span class="match-category">Đơn Nữ</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="match-court">
+                                    <i class="bi bi-building"></i> Sân 2
+                                </span>
+                                <span class="match-status status-live">
+                                    <i class="bi bi-broadcast"></i> LIVE
+                                </span>
+                            </div>
+                        </div>
+                        <div class="match-players">
+                            <div class="player">
+                                <div class="player-avatar">PC</div>
+                                <div class="player-info">
+                                    <div class="player-name">Phạm Thị C</div>
+                                    <div class="player-club">CLB Tân Bình</div>
+                                </div>
+                            </div>
+                            <div class="match-score text-danger">
+                                <span>18 - 15</span>
+                            </div>
+                            <div class="vs-divider">VS</div>
+                            <div class="match-score text-danger">
+                                <span>15 - 18</span>
+                            </div>
+                            <div class="player text-end">
+                                <div class="player-info">
+                                    <div class="player-name">Lê Thị D</div>
+                                    <div class="player-club">CLB Sài Gòn</div>
+                                </div>
+                                <div class="player-avatar">LD</div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">Set 2 - Đang diễn ra</small>
+                        </div>
+                    </div>
+
+                    <!-- Match 3 - Upcoming -->
+                    <div class="match-card">
+                        <div class="match-header">
+                            <div class="d-flex align-items-center">
+                                <div class="match-time">
+                                    <i class="bi bi-clock"></i>
+                                    10:00
+                                </div>
+                                <span class="match-category">Đôi Nam</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="match-court">
+                                    <i class="bi bi-building"></i> Sân 1
+                                </span>
+                                <span class="match-status status-upcoming">
+                                    <i class="bi bi-clock"></i> Sắp tới
+                                </span>
+                            </div>
+                        </div>
+                        <div class="match-players">
+                            <div class="player">
+                                <div class="player-avatar">2</div>
+                                <div class="player-info">
+                                    <div class="player-name">Nguyễn Văn E / Trần Văn F</div>
+                                    <div class="player-club">CLB Đống Đa</div>
+                                </div>
+                            </div>
+                            <div class="vs-divider">VS</div>
+                            <div class="player text-end">
+                                <div class="player-info">
+                                    <div class="player-name">Lê Văn G / Phạm Văn H</div>
+                                    <div class="player-club">CLB Cầu Giấy</div>
+                                </div>
+                                <div class="player-avatar">2</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Day 2 -->
+                <div class="day-section">
+                    <div class="day-header">
+                        <div>
+                            <div class="day-title">Ngày 2 - Vòng 1/8</div>
+                            <div class="day-date">Thứ Bảy, 02/03/2024</div>
+                        </div>
+                        <span class="badge bg-light text-dark">8 trận</span>
+                    </div>
+
+                    <div class="match-card">
+                        <div class="match-header">
+                            <div class="d-flex align-items-center">
+                                <div class="match-time">
+                                    <i class="bi bi-clock"></i>
+                                    08:00
+                                </div>
+                                <span class="match-category">Đơn Nam</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="match-court">
+                                    <i class="bi bi-building"></i> Sân 1
+                                </span>
+                                <span class="match-status status-upcoming">
+                                    <i class="bi bi-clock"></i> Sắp tới
+                                </span>
+                            </div>
+                        </div>
+                        <div class="match-players">
+                            <div class="player">
+                                <div class="player-avatar">TBA</div>
+                                <div class="player-info">
+                                    <div class="player-name">Người thắng trận 1</div>
+                                    <div class="player-club">-</div>
+                                </div>
+                            </div>
+                            <div class="vs-divider">VS</div>
+                            <div class="player text-end">
+                                <div class="player-info">
+                                    <div class="player-name">Người thắng trận 2</div>
+                                    <div class="player-club">-</div>
+                                </div>
+                                <div class="player-avatar">TBA</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State (for no matches) -->
+                <!-- <div class="empty-schedule">
+                    <i class="bi bi-calendar-x"></i>
+                    <h4>Chưa có lịch thi đấu</h4>
+                    <p class="text-muted">Lịch thi đấu sẽ được cập nhật sớm nhất</p>
+                </div> -->
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-schedule.js}"></script>
+    </th:block>
+</body>
+</html>

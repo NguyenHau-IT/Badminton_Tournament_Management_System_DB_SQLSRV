@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title th:text="'Danh sách VĐV - ' + ${tournament.name}">Danh sách VĐV - BTMS</title>
+    
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-participants.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="participants-page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container">
+                <h1 data-aos="fade-up">
+                    <i class="bi bi-people"></i> Danh sách Vận động viên
+                </h1>
+                <p class="lead mb-0" data-aos="fade-up" data-aos-delay="100" th:text="${tournament.name}">
+                    Giải Vô địch Quốc gia 2024
+                </p>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Stats Summary -->
+            <div class="stats-summary" data-aos="fade-up">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-value">128</div>
+                        <div class="stat-label">Tổng VĐV</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-value">64</div>
+                        <div class="stat-label">Đơn Nam</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-value">32</div>
+                        <div class="stat-label">Đơn Nữ</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🤝</div>
+                        <div class="stat-value">32</div>
+                        <div class="stat-label">Đôi</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="filter-controls" data-aos="fade-up">
+                <div class="row align-items-center">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="searchInput" 
+                                   placeholder="Tìm kiếm VĐV theo tên, câu lạc bộ...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="filter-buttons text-md-end">
+                            <button class="btn btn-sm active" data-filter="all">
+                                Tất cả
+                            </button>
+                            <button class="btn btn-sm" data-filter="men-singles">
+                                Đơn Nam
+                            </button>
+                            <button class="btn btn-sm" data-filter="women-singles">
+                                Đơn Nữ
+                            </button>
+                            <button class="btn btn-sm" data-filter="doubles">
+                                Đôi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participants Grid -->
+            <div class="participants-grid" data-aos="fade-up">
+                <!-- Participant 1 -->
+                <div class="participant-card" data-category="men-singles">
+                    <div class="participant-header">
+                        <div class="participant-avatar-large">NA</div>
+                        <div class="participant-name">Nguyễn Văn A</div>
+                        <span class="participant-category-badge">Đơn Nam</span>
+                    </div>
+                    <div class="participant-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Câu lạc bộ</div>
+                                <div class="info-value">CLB Thăng Long</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-trophy"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ranking</div>
+                                <div class="info-value">#1 Quốc gia</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-star"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Trình độ</div>
+                                <div class="info-value">Chuyên nghiệp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Participant 2 -->
+                <div class="participant-card" data-category="men-singles">
+                    <div class="participant-header">
+                        <div class="participant-avatar-large">TB</div>
+                        <div class="participant-name">Trần Văn B</div>
+                        <span class="participant-category-badge">Đơn Nam</span>
+                    </div>
+                    <div class="participant-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Câu lạc bộ</div>
+                                <div class="info-value">CLB Hà Nội</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-trophy"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ranking</div>
+                                <div class="info-value">#3 Quốc gia</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-star"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Trình độ</div>
+                                <div class="info-value">Chuyên nghiệp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Participant 3 -->
+                <div class="participant-card" data-category="women-singles">
+                    <div class="participant-header">
+                        <div class="participant-avatar-large">PA</div>
+                        <div class="participant-name">Phạm Thị A</div>
+                        <span class="participant-category-badge">Đơn Nữ</span>
+                    </div>
+                    <div class="participant-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Câu lạc bộ</div>
+                                <div class="info-value">CLB Tân Bình</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-trophy"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ranking</div>
+                                <div class="info-value">#2 Quốc gia</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-star"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Trình độ</div>
+                                <div class="info-value">Chuyên nghiệp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Participant 4 -->
+                <div class="participant-card" data-category="women-singles">
+                    <div class="participant-header">
+                        <div class="participant-avatar-large">LB</div>
+                        <div class="participant-name">Lê Thị B</div>
+                        <span class="participant-category-badge">Đơn Nữ</span>
+                    </div>
+                    <div class="participant-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Câu lạc bộ</div>
+                                <div class="info-value">CLB Sài Gòn</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-trophy"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ranking</div>
+                                <div class="info-value">#5 Quốc gia</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-star"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Trình độ</div>
+                                <div class="info-value">Chuyên nghiệp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Participant 5 - Doubles -->
+                <div class="participant-card" data-category="doubles">
+                    <div class="participant-header">
+                        <div class="participant-avatar-large">2</div>
+                        <div class="participant-name">Hoàng Văn C / Vũ Văn D</div>
+                        <span class="participant-category-badge">Đôi Nam</span>
+                    </div>
+                    <div class="participant-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Câu lạc bộ</div>
+                                <div class="info-value">CLB Đống Đa</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-trophy"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ranking</div>
+                                <div class="info-value">#4 Quốc gia</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-star"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Trình độ</div>
+                                <div class="info-value">Chuyên nghiệp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Participant 6 - Doubles -->
+                <div class="participant-card" data-category="doubles">
+                    <div class="participant-header">
+                        <div class="participant-avatar-large">2</div>
+                        <div class="participant-name">Ngô Thị E / Đinh Thị F</div>
+                        <span class="participant-category-badge">Đôi Nữ</span>
+                    </div>
+                    <div class="participant-body">
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Câu lạc bộ</div>
+                                <div class="info-value">CLB Cầu Giấy</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-trophy"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Ranking</div>
+                                <div class="info-value">#6 Quốc gia</div>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-icon">
+                                <i class="bi bi-star"></i>
+                            </div>
+                            <div class="info-content">
+                                <div class="info-label">Trình độ</div>
+                                <div class="info-value">Chuyên nghiệp</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State (hidden by default) -->
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <i class="bi bi-person-x"></i>
+                <h4>Không tìm thấy VĐV</h4>
+                <p class="text-muted">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-participants.js}"></script>
+    </th:block>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layouts/base}">
+
+<head>
+    <title th:text="${pageTitle}">Danh sách Giải đấu - BTMS</title>
+
+    <!-- Page-specific CSS -->
+    <th:block layout:fragment="page-css">
+        <link rel="stylesheet" th:href="@{/css/tournament/tournament-list.css}">
+    </th:block>
+</head>
+
+<body>
+    <div layout:fragment="content" class="tournaments-page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container">
+                <h1 data-aos="fade-up">
+                    <i class="bi bi-trophy"></i> Danh sách Giải đấu
+                </h1>
+                <p class="lead mb-0" data-aos="fade-up" data-aos-delay="100">
+                    Khám phá và tham gia các giải đấu cầu lông hấp dẫn
+                </p>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Stats Section -->
+            <div class="stats-section" data-aos="fade-up">
+                <div class="row">
+                    <div class="col-md-3 col-6 mb-3 mb-md-0">
+                        <div class="stat-item">
+                            <div class="stat-value" th:text="${totalItems}">8</div>
+                            <div class="stat-label">Tổng số giải</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3 mb-md-0">
+                        <div class="stat-item">
+                            <div class="stat-value" th:text="${statsByStatus['ongoing'] ?: 0}">1</div>
+                            <div class="stat-label">Đang diễn ra</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-item">
+                            <div class="stat-value" th:text="${statsByStatus['upcoming'] ?: 0}">4</div>
+                            <div class="stat-label">Sắp diễn ra</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="stat-item">
+                            <div class="stat-value" th:text="${statsByStatus['registration'] ?: 0}">2</div>
+                            <div class="stat-label">Đang đăng ký</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="filter-section" data-aos="fade-up">
+                <h5 class="mb-3">
+                    <i class="bi bi-funnel"></i> Lọc giải đấu
+                </h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Trạng thái:</label>
+                        <div>
+                            <a th:href="@{/tournaments}"
+                                th:classappend="${selectedStatus == null ? 'btn-primary' : 'btn-outline-primary'}"
+                                class="btn filter-btn">
+                                Tất cả
+                            </a>
+                            <a th:href="@{/tournaments(status='ongoing')}"
+                                th:classappend="${selectedStatus == 'ongoing' ? 'btn-danger' : 'btn-outline-danger'}"
+                                class="btn filter-btn">
+                                <i class="bi bi-broadcast"></i> Đang diễn ra
+                            </a>
+                            <a th:href="@{/tournaments(status='registration')}"
+                                th:classappend="${selectedStatus == 'registration' ? 'btn-success' : 'btn-outline-success'}"
+                                class="btn filter-btn">
+                                <i class="bi bi-pencil-square"></i> Đăng ký
+                            </a>
+                            <a th:href="@{/tournaments(status='upcoming')}"
+                                th:classappend="${selectedStatus == 'upcoming' ? 'btn-info' : 'btn-outline-info'}"
+                                class="btn filter-btn">
+                                <i class="bi bi-clock"></i> Sắp tới
+                            </a>
+                            <a th:href="@{/tournaments(status='completed')}"
+                                th:classappend="${selectedStatus == 'completed' ? 'btn-secondary' : 'btn-outline-secondary'}"
+                                class="btn filter-btn">
+                                <i class="bi bi-check-circle"></i> Đã kết thúc
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Loại giải:</label>
+                        <div>
+                            <a th:href="@{/tournaments(category='professional')}"
+                                class="btn btn-sm btn-outline-primary filter-btn">
+                                Chuyên nghiệp
+                            </a>
+                            <a th:href="@{/tournaments(category='amateur')}"
+                                class="btn btn-sm btn-outline-primary filter-btn">
+                                Nghiệp dư
+                            </a>
+                            <a th:href="@{/tournaments(category='youth')}"
+                                class="btn btn-sm btn-outline-primary filter-btn">
+                                Trẻ
+                            </a>
+                            <a th:href="@{/tournaments(category='club')}"
+                                class="btn btn-sm btn-outline-primary filter-btn">
+                                CLB
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tournaments Grid -->
+            <div class="row g-4" th:if="${!tournaments.empty}">
+                <div class="col-lg-4 col-md-6" th:each="tournament : ${tournaments}" data-aos="fade-up"
+                    th:attr="data-aos-delay=${tournamentStat.index * 100}">
+                    <div class="tournament-card">
+                        <!-- Image -->
+                        <div class="tournament-image">
+                            <img th:src="${tournament.image}" th:alt="${tournament.name}"
+                                th:onerror="'this.src=\'/icons/tournaments/default.svg\''">
+
+                            <!-- Status Badge -->
+                            <div th:if="${tournament.status == 'ongoing'}" class="status-badge badge-ongoing">
+                                <i class="bi bi-broadcast"></i> LIVE
+                            </div>
+                            <div th:if="${tournament.status == 'registration'}" class="status-badge badge-registration">
+                                <i class="bi bi-pencil-square"></i> Đang đăng ký
+                            </div>
+                            <div th:if="${tournament.status == 'upcoming'}" class="status-badge badge-upcoming">
+                                <i class="bi bi-clock"></i> Sắp diễn ra
+                            </div>
+                            <div th:if="${tournament.status == 'completed'}" class="status-badge badge-completed">
+                                <i class="bi bi-check-circle"></i> Đã kết thúc
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="tournament-content">
+                            <h3 class="tournament-title" th:text="${tournament.name}">
+                                Tên giải đấu
+                            </h3>
+
+                            <div class="tournament-meta">
+                                <span class="meta-item">
+                                    <i class="bi bi-calendar3"></i>
+                                    <span th:text="${tournament.startDate}">Ngày</span>
+                                </span>
+                                <span class="meta-item">
+                                    <i class="bi bi-geo-alt"></i>
+                                    <span th:text="${tournament.location}">Địa điểm</span>
+                                </span>
+                            </div>
+
+                            <p class="tournament-description" th:text="${tournament.description}">
+                                Mô tả ngắn về giải đấu
+                            </p>
+
+                            <div class="tournament-footer">
+                                <span class="tournament-category" th:text="${tournament.category}">
+                                    Category
+                                </span>
+                                <a th:href="@{/tournaments/{id}(id=${tournament.id})}" class="btn btn-primary btn-sm">
+                                    Chi tiết <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" th:if="${tournaments.empty}">
+                <i class="bi bi-inbox"></i>
+                <h3>Không tìm thấy giải đấu</h3>
+                <p class="text-muted">Thử thay đổi bộ lọc hoặc quay lại sau.</p>
+                <a th:href="@{/tournaments}" class="btn btn-primary">
+                    <i class="bi bi-arrow-left"></i> Xem tất cả
+                </a>
+            </div>
+
+            <!-- Pagination -->
+            <nav th:if="${totalPages > 1}" aria-label="Tournament pagination">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${currentPage == 1 ? 'disabled' : ''}">
+                        <a class="page-link"
+                            th:href="@{/tournaments(page=${currentPage - 1}, status=${selectedStatus}, category=${selectedCategory})}">
+                            Trước
+                        </a>
+                    </li>
+
+                    <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}"
+                        th:classappend="${i == currentPage ? 'active' : ''}">
+                        <a class="page-link"
+                            th:href="@{/tournaments(page=${i}, status=${selectedStatus}, category=${selectedCategory})}"
+                            th:text="${i}">1</a>
+                    </li>
+
+                    <li class="page-item" th:classappend="${currentPage == totalPages ? 'disabled' : ''}">
+                        <a class="page-link"
+                            th:href="@{/tournaments(page=${currentPage + 1}, status=${selectedStatus}, category=${selectedCategory})}">
+                            Sau
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Page-specific JavaScript -->
+    <th:block layout:fragment="page-scripts">
+        <script th:src="@{/js/tournament/tournament-list.js}"></script>
+    </th:block>
+</body>
+
+</html>

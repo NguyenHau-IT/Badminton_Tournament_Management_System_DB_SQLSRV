@@ -4,14 +4,19 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-/**
- * Controller xử lý trang chủ và các trang landing
- * Route:
- *   - / : Trang chủ (landing page)
- *   - /home : Alias cho trang chủ
- */
+import com.example.btms.service.tournamentWebData.TournamentDataService;
+
+import java.util.List;
+import java.util.Map;
+
 @Controller
 public class HomeController {
+
+    private final TournamentDataService tournamentDataService;
+
+    public HomeController(TournamentDataService tournamentDataService) {
+        this.tournamentDataService = tournamentDataService;
+    }
 
     /**
      * Hiển thị trang chủ (landing page)
@@ -21,8 +26,17 @@ public class HomeController {
      */
     @GetMapping({"/", "/home"})
     public String showHome(Model model) {
+        // Lấy dữ liệu giải đấu từ service
+        List<Map<String, Object>> featuredTournaments = tournamentDataService.getFeaturedTournaments();
+        List<Map<String, Object>> upcomingTournaments = tournamentDataService.getUpcomingTournaments();
+        int totalTournaments = tournamentDataService.getTotalTournaments();
+        
+        // Thêm dữ liệu giải đấu vào model
+        model.addAttribute("featuredTournaments", featuredTournaments);
+        model.addAttribute("upcomingTournaments", upcomingTournaments);
+        
         // Thêm các thông số thống kê cho stats section
-        model.addAttribute("totalTournaments", 500);
+        model.addAttribute("totalTournaments", totalTournaments);
         model.addAttribute("totalPlayers", 10000);
         model.addAttribute("totalClubs", 150);
         model.addAttribute("totalMatches", 25000);
