@@ -5,6 +5,15 @@
    =================================== */
 
 /* ====================================
+   CRITICAL: Z-INDEX LAYERS
+   ==================================== */
+/* Ensure proper stacking order:
+   - Floating Header: 99999 (top)
+   - Scroll Indicators: 9998
+   - Content: 1-10
+*/
+
+/* ====================================
    THEME: MONOCHROME + ORANGE
    ==================================== */
 :root {
@@ -31,7 +40,7 @@
     --main-danger: #DC2626;
     --main-info: #3B82F6;
     
-    /* Shadows */
+    /* Shadows - Optimized for performance */
     --main-shadow-sm: 0 2px 8px rgba(10,10,10,0.06);
     --main-shadow-md: 0 4px 16px rgba(10,10,10,0.08);
     --main-shadow-lg: 0 10px 30px rgba(10,10,10,0.12);
@@ -50,6 +59,12 @@ body {
     overflow: hidden !important;
     margin: 0;
     padding: 0;
+    /* Keep font-family from base - DO NOT OVERRIDE */
+    font-family: var(--font-family-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif) !important;
+    /* Performance optimizations */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 /* Hide main wrapper for fullpage layout */
@@ -63,13 +78,15 @@ body .main-content {
     position: fixed;
     top: 0;
     left: 0;
+    /* IMPORTANT: Must be below floating-header */
+    z-index: 1 !important;
     width: 100vw;
     height: 100vh;
     overflow-y: scroll;
     overflow-x: hidden;
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
-    z-index: 1;
+    z-index: 1; /* Lower than floating-header (z-index: 9999) */
     
     /* Hide scrollbar but keep functionality */
     scrollbar-width: none; /* Firefox */
@@ -98,6 +115,7 @@ body .main-content {
     position: fixed;
     right: 30px;
     top: 50%;
+    z-index: 9998; /* Below floating-header but above content */
     transform: translateY(-50%);
     z-index: 9998;
     display: flex;
@@ -148,9 +166,22 @@ body .main-content {
     opacity: 1;
 }
 
-/* Embed footer in last slide */
+/* Embed footer in last slide - optimize by hiding instead of removing */
 body footer {
     display: none !important;
+}
+
+/* Performance: Use GPU acceleration for animations */
+.floating-header,
+.scroll-indicators,
+.scroll-indicator,
+.hero-content > *,
+.feature-card,
+.stat-counter,
+.floating-badge {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 /* Inline footer for CTA section */
@@ -192,7 +223,7 @@ body footer {
     color: var(--main-gray-300);
     text-decoration: none;
     font-size: 0.9rem;
-    transition: color 0.2s;
+    transition: color var(--transition-fast, 0.15s ease);
 }
 
 .footer-section ul li a:hover {
@@ -223,7 +254,7 @@ body footer {
     justify-content: center;
     color: var(--main-white);
     text-decoration: none;
-    transition: all 0.3s;
+    transition: background var(--transition-base, 0.3s ease), transform var(--transition-base, 0.3s ease);
 }
 
 .footer-social a:hover {
@@ -259,11 +290,11 @@ body footer {
     height: 100%;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start; /* Align content to left */
     background: linear-gradient(135deg, var(--main-dark) 0%, var(--main-black) 100%);
-    padding: 0 20px;
+    padding: 80px 40px 40px 40px; /* Extra top padding for floating header */
     overflow: hidden;
-    isolation: isolate; /* Create new stacking context */
+    isolation: isolate;
 }
 
 .hero-section::before {
@@ -300,19 +331,23 @@ body footer {
 .hero-content {
     position: relative;
     z-index: 1;
+    max-width: 700px;
+    text-align: left;
 }
 
 .hero-badge {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1.25rem;
+    padding: 0.6rem 1.5rem;
     background: rgba(255, 255, 255, 0.08);
     border-radius: 50px;
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--main-white);
     border: 1px solid rgba(255, 255, 255, 0.15);
+    margin-bottom: 1.5rem;
+    margin-top: 2rem; /* Space below floating header */
 }
 
 .badge.bg-primary-gradient {
@@ -321,11 +356,13 @@ body footer {
 }
 
 .hero-title {
-    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-size: clamp(2.2rem, 6vw, 3.8rem);
     font-weight: 800;
-    line-height: 1.15;
-    margin-bottom: 1.2rem;
+    line-height: 1.2;
+    margin-bottom: 1.5rem;
     color: var(--main-white);
+    max-width: 650px;
+    text-align: left;
 }
 
 .text-gradient,
@@ -334,21 +371,36 @@ body footer {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    white-space: nowrap; /* Keep "cầu lông" on same line */
+    display: inline-block;
 }
 
 .hero-subtitle {
     font-size: clamp(1rem, 2.5vw, 1.25rem);
-    line-height: 1.5;
+    line-height: 1.6;
     color: var(--main-gray-300);
-    max-width: 550px;
+    max-width: 600px;
+    text-align: left;
 }
 
 .hero-features {
     color: var(--main-gray-300);
+    text-align: left;
+    padding-left: 0;
+    max-width: 600px;
+}
+
+.hero-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .hero-features .bi-check-circle-fill {
     color: var(--main-accent) !important;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
 }
 
 .hero-highlights {
@@ -371,9 +423,27 @@ body footer {
     color: var(--main-accent);
 }
 
-/* Hero Buttons */
+/* Hero CTA Buttons - Force Horizontal Layout */
+.hero-cta {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    margin-top: 2rem;
+}
+
+.hero-cta .btn {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    margin-bottom: 0 !important;
+}
+
 .btn-hero-primary {
-    padding: 0.85rem 2rem;
+    padding: 0.95rem 2.2rem;
     font-size: 1rem;
     font-weight: 600;
     border-radius: 50px;
@@ -382,6 +452,7 @@ body footer {
     border: none;
     transition: all 0.3s ease;
     box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+    white-space: nowrap;
 }
 
 .btn-hero-primary:hover {
@@ -408,7 +479,57 @@ body footer {
     color: var(--main-white);
 }
 
-/* Hero Image/Mockup */
+/* Hero Image Container & Floating Badges */
+.hero-image-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    padding: 2rem;
+}
+
+.floating-badge {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 50px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--main-dark);
+    white-space: nowrap;
+    z-index: 10;
+    animation: float 4s ease-in-out infinite;
+}
+
+.floating-badge i {
+    font-size: 1.2rem;
+}
+
+/* Position floating badges nicely */
+.badge-1 {
+    top: 10%;
+    right: 10%;
+    animation-delay: 0s;
+}
+
+.badge-2 {
+    top: 50%;
+    left: 5%;
+    animation-delay: 1s;
+}
+
+.badge-3 {
+    bottom: 15%;
+    right: 15%;
+    animation-delay: 2s;
+}
+
 .hero-mockup-container {
     position: relative;
     z-index: 2;
@@ -672,7 +793,7 @@ body footer {
 }
 
 /* ===================================
-   APP SHOWCASE SECTION - Monochrome
+   APP SHOWCASE SECTION - Monochrome Dark Theme
    =================================== */
 .app-showcase-section {
     width: 100%;
@@ -680,62 +801,265 @@ body footer {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px;
-    background: var(--main-light);
+    padding: 80px 20px;
+    background: linear-gradient(135deg, var(--main-dark) 0%, var(--main-black) 100%);
     overflow: hidden;
     isolation: isolate;
+    position: relative;
+}
+
+.app-showcase-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 80% 50%, rgba(255, 107, 53, 0.08) 0%, transparent 50%);
+    pointer-events: none;
 }
 
 .app-showcase-section .container {
     max-height: 100%;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+/* Section Badge */
+.app-showcase-section .section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--main-white);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.app-showcase-section .section-badge i {
+    color: var(--main-accent);
+}
+
+/* Section Title */
+.app-showcase-section .section-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--main-white);
+    margin-bottom: 1.5rem;
+}
+
+.app-showcase-section .text-primary {
+    background: linear-gradient(135deg, var(--main-accent) 0%, var(--main-accent-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Section Description */
+.app-showcase-section .section-description {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--main-gray-300) !important;
+}
+
+/* Override Bootstrap text-muted */
+.app-showcase-section .text-muted {
+    color: var(--main-gray-300) !important;
+}
+
+/* App Features */
+.app-showcase-section .app-features {
+    margin-top: 2rem;
+}
+
+.app-showcase-section .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.app-showcase-section .feature-icon-sm {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 12px;
+    background: rgba(255, 107, 53, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 107, 53, 0.2);
+}
+
+.app-showcase-section .feature-icon-sm i {
+    font-size: 1.3rem;
+    color: var(--main-accent);
+}
+
+.app-showcase-section .feature-content h5 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--main-white);
+    margin-bottom: 0.5rem;
+}
+
+.app-showcase-section .feature-content p {
+    color: var(--main-gray-300);
+    margin: 0;
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+/* System Requirements Box - Dark with Orange Border */
+.app-showcase-section .system-requirements {
+    background: var(--main-accent);
+    border: 2px solid var(--main-accent);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.app-showcase-section .system-requirements h6 {
+    color: var(--main-white) !important;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.app-showcase-section .system-requirements .small {
+    color: var(--main-accent-light) !important;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.app-showcase-section .system-requirements .col-6 {
+    color: var(--main-gray-300) !important;
+}
+
+.app-showcase-section .system-requirements i.bi-check-circle {
+    color: var(--main-light) !important;
+    font-size: 1.1rem;
+}
+
+.app-showcase-section .system-requirements i.text-success {
+    color: var(--main-light) !important;
+}
+
+/* CTA Buttons */
+.app-showcase-section .app-cta {
+    margin-top: 2rem;
+}
+
+.app-showcase-section .btn-primary {
+    background: linear-gradient(135deg, var(--main-accent) 0%, var(--main-accent-dark) 100%);
+    border: none;
+    color: var(--main-white);
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+    transition: all 0.3s ease;
+}
+
+.app-showcase-section .btn-primary:hover {
+    background: var(--main-accent-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+}
+
+.app-showcase-section .btn-outline-primary {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: var(--main-white);
+    font-weight: 600;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.app-showcase-section .btn-outline-primary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--main-accent);
+    color: var(--main-white);
+}
+
+/* Version Info */
+.app-showcase-section .text-muted.small {
+    color: var(--main-gray-400);
+}
+
+/* Screenshots Container */
+.app-screenshots {
+    position: relative;
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-screenshots .screenshot-main {
+    position: relative;
+    z-index: 1;
+}
+
+.app-screenshots .screenshot-mobile {
+    position: absolute;
+    bottom: -20px;
+    right: -30px;
+    max-width: 40%;
+    z-index: 2;
 }
 
 .showcase-image-container {
     position: relative;
 }
 
-.showcase-image {
+.showcase-image,
+.app-screenshots .screenshot-main img,
+.app-screenshots .screenshot-mobile img {
     max-width: 100%;
     height: auto;
-    border-radius: 20px;
-    box-shadow: var(--main-shadow-xl);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.showcase-feature {
-    display: flex;
-    align-items: flex-start;
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-.showcase-feature-icon {
-    width: 50px;
-    height: 50px;
-    min-width: 50px;
-    border-radius: 12px;
-    background: var(--main-accent-pale);
+/* Screenshot Badges - Constrained to screenshot container */
+.app-screenshots .screenshot-badge {
+    position: absolute;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 50px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--main-dark);
+    white-space: nowrap;
+    z-index: 5;
+    animation: float 4s ease-in-out infinite;
 }
 
-.showcase-feature-icon i {
-    font-size: 1.5rem;
-    color: var(--main-accent);
+/* Position badges within screenshot container */
+.app-screenshots .badge-1 {
+    top: 5%;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
-.showcase-feature-content h4 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--main-black);
-    margin-bottom: 8px;
-}
-
-.showcase-feature-content p {
-    color: var(--main-gray-500);
-    margin: 0;
-    line-height: 1.6;
+.app-screenshots .badge-2 {
+    bottom: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    animation-delay: 1s;
 }
 
 /* ===================================

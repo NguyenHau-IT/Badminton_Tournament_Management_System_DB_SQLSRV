@@ -22,22 +22,22 @@ html {
 
 /* Body defaults */
 body {
-    font-family: var(--font-family-sans);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-normal);
-    line-height: var(--line-height-normal);
-    color: var(--text-primary);
-    background-color: var(--bg-primary);
+    font-family: var(--font-family-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif) !important;
+    font-size: var(--font-size-base, 1rem);
+    font-weight: var(--font-weight-normal, 400);
+    line-height: var(--line-height-normal, 1.5);
+    color: var(--text-primary, #212529);
+    background-color: var(--bg-primary, #ffffff);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 /* Headings */
 h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-family-heading);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-tight);
-    color: var(--text-primary);
+    font-family: var(--font-family-heading, 'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
+    font-weight: var(--font-weight-bold, 700);
+    line-height: var(--line-height-tight, 1.25);
+    color: var(--text-primary, #212529);
     margin: 0;
 }
 

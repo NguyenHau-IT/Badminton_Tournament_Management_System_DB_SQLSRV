@@ -5,9 +5,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import com.example.btms.service.tournamentWebData.TournamentDataService;
+import com.example.btms.web.dto.TournamentCardDTO;
+import com.example.btms.web.dto.TournamentDTO;
 
 import java.util.List;
-import java.util.Map;
 
 @Controller
 public class HomeController {
@@ -26,10 +27,10 @@ public class HomeController {
      */
     @GetMapping({"/", "/home"})
     public String showHome(Model model) {
-        // Lấy dữ liệu giải đấu từ service
-        List<Map<String, Object>> featuredTournaments = tournamentDataService.getFeaturedTournaments();
-        List<Map<String, Object>> upcomingTournaments = tournamentDataService.getUpcomingTournaments();
-        int totalTournaments = tournamentDataService.getTotalTournaments();
+        // Lấy dữ liệu giải đấu từ service (DTO objects)
+        List<TournamentCardDTO> featuredTournaments = tournamentDataService.getFeaturedTournaments();
+        List<TournamentDTO> upcomingTournaments = tournamentDataService.getUpcomingTournaments();
+        long totalTournaments = tournamentDataService.getTotalTournaments();
         
         // Thêm dữ liệu giải đấu vào model
         model.addAttribute("featuredTournaments", featuredTournaments);

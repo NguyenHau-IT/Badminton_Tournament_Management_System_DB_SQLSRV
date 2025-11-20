@@ -44,19 +44,46 @@
     <!-- AOS (Animate On Scroll) Library -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css">
     
-    <!-- Common CSS -->
+    <!-- Swiper.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    
+    <!-- Common CSS - Load in correct order -->
     <link rel="stylesheet" th:href="@{/css/common/variables.css}">
     <link rel="stylesheet" th:href="@{/css/common/reset.css}">
     <link rel="stylesheet" th:href="@{/css/common/typography.css}">
     <link rel="stylesheet" th:href="@{/css/common/utilities.css}">
     
-    <!-- Layout CSS -->
+    <!-- Layout CSS - Load before page-specific -->
     <link rel="stylesheet" th:href="@{/css/layout/floating-header.css}">
     <link rel="stylesheet" th:href="@{/css/layouts/footer.css}">
     
-    <!-- Page-specific CSS -->
+    <!-- Page-specific CSS - Loaded last to allow overrides -->
     <th:block layout:fragment="css"></th:block>
     <th:block layout:fragment="page-css"></th:block>
+    
+    <!-- Critical inline CSS for immediate rendering -->
+    <style>
+        /* Prevent FOUC (Flash of Unstyled Content) */
+        body { opacity: 0; }
+        body.loaded { opacity: 1; transition: opacity 0.2s ease; }
+        
+        /* CRITICAL: Ensure floating header is CENTERED on ALL pages */
+        .floating-header {
+            position: fixed !important;
+            top: 20px !important;
+            left: 0 !important;
+            right: 0 !important;
+            margin: 0 auto !important;
+            width: fit-content !important;
+            max-width: 90% !important;
+            z-index: 999999 !important;
+            display: flex !important;
+            justify-content: center !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+    </style>
 </head>
 
 <body data-theme="monochrome">
@@ -82,14 +109,57 @@
     <!-- AOS (Animate On Scroll) Library -->
     <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
     <script>
-        // Initialize AOS
+        // Initialize AOS with enhanced configuration
         AOS.init({
-            duration: 800,
-            easing: 'ease-in-out',
-            once: true,
-            offset: 100
+            // Animation duration (ms)
+            duration: 1000,          // Increased from 800 to 1000 for smoother effect
+            
+            // Easing function
+            easing: 'ease-out-cubic', // Changed to cubic for more natural feel
+            
+            // Trigger once or every time scrolling
+            once: true,              // Animate only once (better performance)
+            
+            // Offset from original trigger point (px)
+            offset: 120,             // Increased from 100 to 120 for earlier trigger
+            
+            // Delay between animations (ms)
+            delay: 0,                // No default delay (use data-aos-delay for specific elements)
+            
+            // Duration of delay (ms)
+            anchorPlacement: 'top-bottom', // Element's top hits viewport's bottom
+            
+            // Disable on mobile (optional - set to false to keep animations)
+            disable: false,          // Keep animations on all devices
+            
+            // Start with elements invisible
+            startEvent: 'DOMContentLoaded',
+            
+            // Animation init class
+            initClassName: 'aos-init',
+            
+            // Class applied after animation
+            animatedClassName: 'aos-animate',
+            
+            // Use CSS3 transforms
+            useClassNames: false,
+            
+            // Disable mutationObserver (better performance if you don't add elements dynamically)
+            disableMutationObserver: false,
+            
+            // Debug mode
+            debounceDelay: 50,       // Delay on resize events
+            throttleDelay: 99        // Delay on scroll events
+        });
+        
+        // Refresh AOS after dynamic content loaded (if needed)
+        window.addEventListener('load', function() {
+            AOS.refresh();
         });
     </script>
+    
+    <!-- Swiper.js JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     
     <!-- Common JS -->
     <script th:src="@{/js/common/app.js}"></script>
@@ -101,5 +171,25 @@
     <!-- Page-specific JS -->
     <th:block layout:fragment="scripts"></th:block>
     <th:block layout:fragment="page-scripts"></th:block>
+    
+    <!-- Remove FOUC after everything loaded -->
+    <script>
+        // Show body immediately, don't wait for DOMContentLoaded
+        document.body.classList.add('loaded');
+        
+        // Ensure floating header is visible
+        document.addEventListener('DOMContentLoaded', function() {
+            const header = document.querySelector('.floating-header');
+            if (header) {
+                console.log('Floating header found:', header);
+                header.style.display = 'block';
+                header.style.visibility = 'visible';
+                header.style.opacity = '1';
+                header.style.zIndex = '999999';
+            } else {
+                console.error('Floating header NOT found!');
+            }
+        });
+    </script>
 </body>
 </html>

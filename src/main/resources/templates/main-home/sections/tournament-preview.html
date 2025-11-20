@@ -29,22 +29,22 @@
                     <div class="tournament-card h-100">
                         <!-- Tournament Image -->
                         <div class="tournament-image">
-                            <img th:src="${tournament.image}" 
-                                 th:alt="${tournament.name}"
+                            <img th:src="${tournament.hinhAnh}" 
+                                 th:alt="${tournament.tenGiai}"
                                  th:onerror="'this.src=\'/icons/tournaments/default.jpg\''"
                                  class="img-fluid">
                             
                             <!-- Dynamic Badge based on status -->
-                            <div th:if="${tournament.status == 'ongoing'}" class="tournament-badge badge-live">
+                            <div th:if="${tournament.trangThai == 'ongoing'}" class="tournament-badge badge-live">
                                 <i class="bi bi-broadcast"></i> LIVE
                             </div>
-                            <div th:if="${tournament.status == 'upcoming'}" class="tournament-badge badge-upcoming">
+                            <div th:if="${tournament.trangThai == 'upcoming'}" class="tournament-badge badge-upcoming">
                                 <i class="bi bi-clock"></i> Sắp diễn ra
                             </div>
-                            <div th:if="${tournament.status == 'registration'}" class="tournament-badge badge-registration">
+                            <div th:if="${tournament.trangThai == 'registration'}" class="tournament-badge badge-registration">
                                 <i class="bi bi-pencil-square"></i> Đang nhận đăng ký
                             </div>
-                            <div th:if="${tournament.status == 'completed'}" class="tournament-badge badge-completed">
+                            <div th:if="${tournament.trangThai == 'completed'}" class="tournament-badge badge-completed">
                                 <i class="bi bi-check-circle"></i> Đã kết thúc
                             </div>
                         </div>
@@ -54,53 +54,49 @@
                             <div class="tournament-meta mb-2">
                                 <span class="meta-item">
                                     <i class="bi bi-calendar3"></i>
-                                    <span th:text="${tournament.startDate} + ' - ' + ${tournament.endDate}">Ngày</span>
+                                    <span th:text="${tournament.ngayBatDau} + ' - ' + ${tournament.ngayKetThuc}">Ngày</span>
                                 </span>
                                 <span class="meta-item">
                                     <i class="bi bi-geo-alt"></i>
-                                    <span th:text="${tournament.location}">Địa điểm</span>
+                                    <span th:text="${tournament.tinhThanh}">Địa điểm</span>
                                 </span>
                             </div>
                             
-                            <h4 class="tournament-title" th:text="${tournament.name}">
+                            <h4 class="tournament-title" th:text="${tournament.tenGiai}">
                                 Tên giải đấu
                             </h4>
                             
-                            <p class="tournament-description text-muted" th:text="${tournament.description}">
-                                Mô tả giải đấu
-                            </p>
-                            
                             <div class="tournament-stats mb-3">
                                 <div class="stat-item">
-                                    <i class="bi bi-people"></i>
-                                    <span th:text="${tournament.participants} + ' VĐV'">VĐV</span>
+                                    <i class="bi bi-star-fill"></i>
+                                    <span th:text="${tournament.danhGiaTb} ?: '0.0'">Rating</span>
                                 </div>
                                 <div class="stat-item">
                                     <i class="bi bi-trophy"></i>
-                                    <span th:text="${tournament.category}">Hạng</span>
+                                    <span th:text="${tournament.capDo}">Hạng</span>
                                 </div>
                                 <div class="stat-item">
                                     <i class="bi bi-cash"></i>
-                                    <span th:text="${tournament.prize}">Giải thưởng</span>
+                                    <span th:text="${tournament.phiThamGiaText}">Giải thưởng</span>
                                 </div>
                             </div>
                             
                             <!-- Dynamic button based on status -->
-                            <a th:if="${tournament.status == 'ongoing'}" 
+                            <a th:if="${tournament.trangThai == 'ongoing'}" 
                                th:href="@{/tournament/detail/{id}(id=${tournament.id})}" 
                                class="btn btn-primary w-100">
                                 Xem chi tiết
                                 <i class="bi bi-arrow-right ms-2"></i>
                             </a>
                             
-                            <a th:if="${tournament.status == 'registration'}" 
+                            <a th:if="${tournament.trangThai == 'registration'}" 
                                th:href="@{/tournament/register/{id}(id=${tournament.id})}" 
                                class="btn btn-success w-100">
                                 Đăng ký tham gia
                                 <i class="bi bi-arrow-right ms-2"></i>
                             </a>
                             
-                            <a th:if="${tournament.status == 'upcoming' or tournament.status == 'completed'}" 
+                            <a th:if="${tournament.trangThai == 'upcoming' or tournament.trangThai == 'completed'}" 
                                th:href="@{/tournament/detail/{id}(id=${tournament.id})}" 
                                class="btn btn-outline-primary w-100">
                                 Xem chi tiết

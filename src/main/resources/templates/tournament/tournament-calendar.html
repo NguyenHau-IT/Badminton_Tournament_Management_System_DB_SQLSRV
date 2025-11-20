@@ -75,30 +75,30 @@
                     <a th:href="@{/tournaments/{id}(id=${tournament.id})}" class="text-decoration-none">
                         <div class="upcoming-item">
                             <div class="upcoming-date">
-                                <div class="upcoming-day" th:text="${#temporals.format(tournament.startDate, 'dd')}">
+                                <div class="upcoming-day" th:text="${#temporals.format(tournament.ngayBatDau, 'dd')}">
                                     15
                                 </div>
-                                <div class="upcoming-month" th:text="${#temporals.format(tournament.startDate, 'MMM')}">
+                                <div class="upcoming-month" th:text="${#temporals.format(tournament.ngayBatDau, 'MMM')}">
                                     Mar
                                 </div>
                             </div>
                             <div class="upcoming-info">
-                                <div class="upcoming-title" th:text="${tournament.name}">
+                                <div class="upcoming-title" th:text="${tournament.tenGiai}">
                                     Tên giải đấu
                                 </div>
                                 <div class="upcoming-location">
                                     <i class="bi bi-geo-alt"></i>
-                                    <span th:text="${tournament.location}">Địa điểm</span>
+                                    <span th:text="${tournament.tinhThanh}">Địa điểm</span>
                                 </div>
                             </div>
-                            <span th:if="${tournament.status == 'ongoing'}" class="upcoming-status badge-ongoing">
+                            <span th:if="${tournament.trangThai == 'ongoing'}" class="upcoming-status badge-ongoing">
                                 LIVE
                             </span>
-                            <span th:if="${tournament.status == 'registration'}"
+                            <span th:if="${tournament.trangThai == 'registration'}"
                                 class="upcoming-status badge-registration">
                                 Đăng ký
                             </span>
-                            <span th:if="${tournament.status == 'upcoming'}" class="upcoming-status badge-upcoming">
+                            <span th:if="${tournament.trangThai == 'upcoming'}" class="upcoming-status badge-upcoming">
                                 Sắp tới
                             </span>
                         </div>

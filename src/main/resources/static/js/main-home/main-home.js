@@ -152,6 +152,31 @@
     };
 
     // ===================================
+    // THROTTLE UTILITY FUNCTION
+    // ===================================
+    const throttle = (func, delay) => {
+        let timeoutId;
+        let lastExecTime = 0;
+        
+        return function(...args) {
+            const currentTime = Date.now();
+            const timeSinceLastExec = currentTime - lastExecTime;
+            
+            clearTimeout(timeoutId);
+            
+            if (timeSinceLastExec > delay) {
+                lastExecTime = currentTime;
+                func.apply(this, args);
+            } else {
+                timeoutId = setTimeout(() => {
+                    lastExecTime = Date.now();
+                    func.apply(this, args);
+                }, delay - timeSinceLastExec);
+            }
+        };
+    };
+
+    // ===================================
     // PARALLAX EFFECT FOR HERO
     // ===================================
     const setupParallax = () => {
@@ -159,7 +184,7 @@
         
         if (!hero) return;
         
-        window.addEventListener('scroll', BTMSUtils.throttle(() => {
+        window.addEventListener('scroll', throttle(() => {
             const scrolled = window.pageYOffset;
             const parallaxElements = hero.querySelectorAll('.hero-content, .hero-image');
             
@@ -475,21 +500,8 @@
         
         let isDragging = false;
         let startX = 0;
-        let currentTranslate = 0;
-        let prevTranslate = 0;
-        let animationId = null;
-        
-        // Calculate half width (one set of cards)
-        const getHalfWidth = () => {
-            const cards = track.querySelectorAll('.feature-card');
-            const cardCount = cards.length / 2; // Divided by 2 because duplicated
-            let width = 0;
-            for (let i = 0; i < cardCount; i++) {
-                width += cards[i].offsetWidth;
-                if (i < cardCount - 1) width += 20; // Gap
-            }
-            return width;
-        };
+        let scrollLeft = 0;
+        let animationPaused = false;
         
         // Get current animation progress
         const getCurrentTransform = () => {
@@ -498,43 +510,16 @@
             return matrix.m41; // translateX value
         };
         
-        // Wrap position to create infinite loop
-        const wrapPosition = (position) => {
-            const halfWidth = getHalfWidth();
-            // Normalize position to stay within one loop cycle
-            while (position < -halfWidth) {
-                position += halfWidth;
-            }
-            while (position > 0) {
-                position -= halfWidth;
-            }
-            return position;
-        };
-        
-        // Animation loop for smooth wrapping
-        const animation = () => {
-            if (isDragging) {
-                const wrappedPosition = wrapPosition(currentTranslate);
-                track.style.transform = `translateX(${wrappedPosition}px)`;
-                animationId = requestAnimationFrame(animation);
-            }
-        };
-        
         // Mouse down - start dragging
         wrapper.addEventListener('mousedown', (e) => {
             isDragging = true;
             wrapper.classList.add('dragging');
             startX = e.pageX;
+            scrollLeft = getCurrentTransform();
             
-            // Get current position from animation or previous drag
-            const currentPos = getCurrentTransform();
-            prevTranslate = currentPos;
-            currentTranslate = currentPos;
-            
-            // Pause CSS animation
+            // Pause animation and store current position
             track.style.animation = 'none';
-            
-            animationId = requestAnimationFrame(animation);
+            track.style.transform = `translateX(${scrollLeft}px)`;
         });
         
         // Mouse move - drag
@@ -542,9 +527,11 @@
             if (!isDragging) return;
             e.preventDefault();
             
-            const currentX = e.pageX;
-            const diff = currentX - startX;
-            currentTranslate = prevTranslate + diff * 1.5; // Multiply for faster scroll
+            const x = e.pageX;
+            const walk = (x - startX) * 1.5; // Multiply for faster scroll
+            const newPosition = scrollLeft + walk;
+            
+            track.style.transform = `translateX(${newPosition}px)`;
         });
         
         // Mouse up - stop dragging
@@ -554,35 +541,29 @@
             isDragging = false;
             wrapper.classList.remove('dragging');
             
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-            }
-            
-            // Wrap final position
-            const wrappedPosition = wrapPosition(currentTranslate);
-            
-            // Resume CSS animation from wrapped position
+            // Resume animation from current position
+            const currentTransform = getCurrentTransform();
             track.style.animation = '';
             
-            // Calculate progress for animation-delay
-            const halfWidth = getHalfWidth();
-            const progress = Math.abs(wrappedPosition) / halfWidth;
+            // Adjust animation to continue from current position
+            const trackWidth = track.scrollWidth / 2; // Half because duplicated
+            const normalizedPosition = ((currentTransform % trackWidth) + trackWidth) % trackWidth;
+            const progress = (normalizedPosition / trackWidth);
+            
             track.style.animationDelay = `-${progress * 50}s`;
         };
         
         wrapper.addEventListener('mouseup', stopDragging);
         wrapper.addEventListener('mouseleave', stopDragging);
         
-        // Prevent text selection and link clicks during drag
-        wrapper.addEventListener('dragstart', (e) => e.preventDefault());
+        // Prevent click when dragging
         wrapper.addEventListener('click', (e) => {
-            if (Math.abs(currentTranslate - prevTranslate) > 5) {
+            if (Math.abs(e.pageX - startX) > 5) {
                 e.preventDefault();
-                e.stopPropagation();
             }
-        }, true);
+        });
         
-        console.log('Features drag-to-scroll with infinite loop initialized');
+        console.log('Features drag-to-scroll initialized');
     };
 
     // ===================================

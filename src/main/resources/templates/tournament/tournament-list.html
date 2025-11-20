@@ -56,114 +56,261 @@
                 </div>
             </div>
 
-            <!-- Filter Section -->
-            <div class="filter-section" data-aos="fade-up">
-                <h5 class="mb-3">
-                    <i class="bi bi-funnel"></i> Lọc giải đấu
-                </h5>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Trạng thái:</label>
-                        <div>
-                            <a th:href="@{/tournaments}"
-                                th:classappend="${selectedStatus == null ? 'btn-primary' : 'btn-outline-primary'}"
-                                class="btn filter-btn">
-                                Tất cả
-                            </a>
-                            <a th:href="@{/tournaments(status='ongoing')}"
-                                th:classappend="${selectedStatus == 'ongoing' ? 'btn-danger' : 'btn-outline-danger'}"
-                                class="btn filter-btn">
-                                <i class="bi bi-broadcast"></i> Đang diễn ra
-                            </a>
-                            <a th:href="@{/tournaments(status='registration')}"
-                                th:classappend="${selectedStatus == 'registration' ? 'btn-success' : 'btn-outline-success'}"
-                                class="btn filter-btn">
-                                <i class="bi bi-pencil-square"></i> Đăng ký
-                            </a>
-                            <a th:href="@{/tournaments(status='upcoming')}"
-                                th:classappend="${selectedStatus == 'upcoming' ? 'btn-info' : 'btn-outline-info'}"
-                                class="btn filter-btn">
-                                <i class="bi bi-clock"></i> Sắp tới
-                            </a>
-                            <a th:href="@{/tournaments(status='completed')}"
-                                th:classappend="${selectedStatus == 'completed' ? 'btn-secondary' : 'btn-outline-secondary'}"
-                                class="btn filter-btn">
-                                <i class="bi bi-check-circle"></i> Đã kết thúc
-                            </a>
-                        </div>
+            <!-- Advanced Filter Panel -->
+            <div class="advanced-filter-panel" data-aos="fade-up">
+                <!-- Filter Header with Toggle -->
+                <div class="filter-header" id="filterHeader">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">
+                            <i class="bi bi-funnel-fill"></i> Bộ lọc nâng cao
+                            <span class="filter-count-badge" id="filterCountBadge" style="display: none;">0</span>
+                        </h5>
+                        <button class="btn btn-link text-decoration-none text-white" type="button" id="toggleFilterBtn" data-bs-toggle="collapse" data-bs-target="#filterBody" aria-expanded="false" aria-controls="filterBody">
+                            <i class="bi bi-chevron-down" id="toggleFilterIcon"></i>
+                            <span id="toggleFilterText">Mở rộng</span>
+                        </button>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Loại giải:</label>
-                        <div>
-                            <a th:href="@{/tournaments(category='professional')}"
-                                class="btn btn-sm btn-outline-primary filter-btn">
-                                Chuyên nghiệp
-                            </a>
-                            <a th:href="@{/tournaments(category='amateur')}"
-                                class="btn btn-sm btn-outline-primary filter-btn">
-                                Nghiệp dư
-                            </a>
-                            <a th:href="@{/tournaments(category='youth')}"
-                                class="btn btn-sm btn-outline-primary filter-btn">
-                                Trẻ
-                            </a>
-                            <a th:href="@{/tournaments(category='club')}"
-                                class="btn btn-sm btn-outline-primary filter-btn">
-                                CLB
-                            </a>
+                </div>
+
+                <!-- Collapsible Filter Body -->
+                <div class="filter-body collapse" id="filterBody" aria-labelledby="filterHeader">
+                    <form id="advancedFilterForm" class="mt-3">
+                        <div class="row g-3">
+                            <!-- Status Multi-Select -->
+                            <div class="col-md-6 col-lg-3">
+                                <label class="form-label">
+                                    <i class="bi bi-toggle-on"></i> Trạng thái
+                                </label>
+                                <select class="form-select filter-select" id="statusFilter" multiple size="4">
+                                    <option value="ongoing">🔴 Đang diễn ra</option>
+                                    <option value="registration">🟢 Đang đăng ký</option>
+                                    <option value="upcoming">🔵 Sắp diễn ra</option>
+                                    <option value="completed">⚫ Đã kết thúc</option>
+                                </select>
+                            </div>
+
+                            <!-- Province Select -->
+                            <div class="col-md-6 col-lg-3">
+                                <label class="form-label">
+                                    <i class="bi bi-geo-alt"></i> Tỉnh/Thành phố
+                                </label>
+                                <select class="form-select filter-select" id="provinceFilter">
+                                    <option value="">Tất cả</option>
+                                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                                    <option value="Hà Nội">Hà Nội</option>
+                                    <option value="Đà Nẵng">Đà Nẵng</option>
+                                    <option value="Cần Thơ">Cần Thơ</option>
+                                    <option value="Hải Phòng">Hải Phòng</option>
+                                    <option value="Đồng Nai">Đồng Nai</option>
+                                    <option value="Bình Dương">Bình Dương</option>
+                                    <option value="Khác">Khác...</option>
+                                </select>
+                            </div>
+
+                            <!-- Level Select -->
+                            <div class="col-md-6 col-lg-3">
+                                <label class="form-label">
+                                    <i class="bi bi-trophy"></i> Cấp độ
+                                </label>
+                                <select class="form-select filter-select" id="levelFilter" multiple size="4">
+                                    <option value="Quốc tế">🌍 Quốc tế</option>
+                                    <option value="Chuyên nghiệp">⭐ Chuyên nghiệp</option>
+                                    <option value="Nghiệp dư">👤 Nghiệp dư</option>
+                                    <option value="Học sinh">🎓 Học sinh</option>
+                                </select>
+                            </div>
+
+                            <!-- Type Select -->
+                            <div class="col-md-6 col-lg-3">
+                                <label class="form-label">
+                                    <i class="bi bi-people"></i> Loại nội dung
+                                </label>
+                                <select class="form-select filter-select" id="typeFilter" multiple size="4">
+                                    <option value="Đơn nam">👨 Đơn nam</option>
+                                    <option value="Đơn nữ">👩 Đơn nữ</option>
+                                    <option value="Đôi nam">👬 Đôi nam</option>
+                                    <option value="Đôi nữ">👭 Đôi nữ</option>
+                                    <option value="Đôi nam nữ">👫 Đôi nam nữ</option>
+                                </select>
+                            </div>
+
+                            <!-- Date Range -->
+                            <div class="col-md-6 col-lg-4">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar-range"></i> Ngày bắt đầu
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">Từ</span>
+                                    <input type="date" class="form-control" id="dateFromFilter">
+                                </div>
+                                <div class="input-group mt-2">
+                                    <span class="input-group-text">Đến</span>
+                                    <input type="date" class="form-control" id="dateToFilter">
+                                </div>
+                            </div>
+
+                            <!-- Price Range Slider -->
+                            <div class="col-md-6 col-lg-4">
+                                <label class="form-label">
+                                    <i class="bi bi-currency-dollar"></i> Phí tham gia
+                                    <span class="text-muted" id="priceRangeDisplay">0đ - 2,000,000đ</span>
+                                </label>
+                                <div class="price-slider-container">
+                                    <input type="range" class="form-range" id="priceMinFilter" min="0" max="2000000" step="100000" value="0">
+                                    <input type="range" class="form-range mt-2" id="priceMaxFilter" min="0" max="2000000" step="100000" value="2000000">
+                                    <div class="price-labels d-flex justify-content-between mt-1">
+                                        <small id="priceMinLabel">0đ</small>
+                                        <small id="priceMaxLabel">2,000,000đ</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="col-md-12 col-lg-4">
+                                <label class="form-label d-block">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary btn-apply-filter w-100 mb-2" id="applyFiltersBtn">
+                                    <i class="bi bi-check-circle"></i> Áp dụng bộ lọc
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-reset-filter w-100" id="resetFiltersBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> Đặt lại
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Toolbar: Sort + View Toggle -->
+            <div class="list-toolbar" data-aos="fade-up">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <!-- Results Count -->
+                    <div class="results-info">
+                        <span class="results-count">
+                            <i class="bi bi-list-check"></i>
+                            <strong th:text="${totalItems}">8</strong> giải đấu
+                        </span>
+                    </div>
+
+                    <!-- Right Controls: Sort + View Toggle -->
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <!-- Sort Dropdown -->
+                        <div class="sort-dropdown-container">
+                            <label class="me-2 mb-0">
+                                <i class="bi bi-sort-down"></i> Sắp xếp:
+                            </label>
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-outline-primary dropdown-toggle sort-dropdown-btn" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span id="sortSelectedText">Mới nhất</span>
+                                </button>
+                            <ul class="dropdown-menu dropdown-menu-end sort-dropdown-menu" aria-labelledby="sortDropdown">
+                                <li>
+                                    <a class="dropdown-item sort-option active" href="#" data-sort="newest">
+                                        <i class="bi bi-calendar-plus"></i>
+                                        <span>Mới nhất</span>
+                                        <i class="bi bi-check-circle-fill check-icon"></i>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item sort-option" href="#" data-sort="most-viewed">
+                                        <i class="bi bi-eye"></i>
+                                        <span>Xem nhiều nhất</span>
+                                        <i class="bi bi-check-circle-fill check-icon"></i>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item sort-option" href="#" data-sort="highest-rated">
+                                        <i class="bi bi-star-fill"></i>
+                                        <span>Đánh giá cao nhất</span>
+                                        <i class="bi bi-check-circle-fill check-icon"></i>
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item sort-option" href="#" data-sort="price-low">
+                                        <i class="bi bi-cash-coin"></i>
+                                        <span>Phí thấp đến cao</span>
+                                        <i class="bi bi-check-circle-fill check-icon"></i>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item sort-option" href="#" data-sort="price-high">
+                                        <i class="bi bi-cash-stack"></i>
+                                        <span>Phí cao đến thấp</span>
+                                        <i class="bi bi-check-circle-fill check-icon"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        </div>
+
+                        <!-- View Toggle Buttons -->
+                        <div class="view-toggle-group">
+                            <button class="btn-view-toggle active" data-view="grid" type="button" 
+                                    title="Chế độ lưới">
+                                <i class="bi bi-grid-3x3-gap"></i>
+                            </button>
+                            <button class="btn-view-toggle" data-view="list" type="button"
+                                    title="Chế độ danh sách">
+                                <i class="bi bi-list-ul"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Tournaments Grid -->
-            <div class="row g-4" th:if="${!tournaments.empty}">
-                <div class="col-lg-4 col-md-6" th:each="tournament : ${tournaments}" data-aos="fade-up"
+            <div class="row g-4 view-mode grid-view" id="tournamentsContainer" th:if="${!tournaments.empty}">
+                <div class="col-lg-4 col-md-6 tournament-col" th:each="tournament : ${tournaments}" data-aos="fade-up"
                     th:attr="data-aos-delay=${tournamentStat.index * 100}">
                     <div class="tournament-card">
                         <!-- Image -->
                         <div class="tournament-image">
-                            <img th:src="${tournament.image}" th:alt="${tournament.name}"
-                                th:onerror="'this.src=\'/icons/tournaments/default.svg\''">
+                            <img th:src="${tournament.hinhAnh != null && !tournament.hinhAnh.isEmpty() ? tournament.hinhAnh : '/icons/tournaments/default.svg'}" 
+                                 th:alt="${tournament.tenGiai}"
+                                 loading="lazy"
+                                 onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg, #667eea 0%, #764ba2 100%)';">
+
+                            <!-- Quick View Button -->
+                            <button class="btn btn-light btn-quick-view rounded-pill shadow" 
+                                    th:data-tournament-id="${tournament.id}"
+                                    onclick="openQuickView(this.getAttribute('data-tournament-id'))">
+                                <i class="bi bi-eye"></i> Xem nhanh
+                            </button>
 
                             <!-- Status Badge -->
-                            <div th:if="${tournament.status == 'ongoing'}" class="status-badge badge-ongoing">
+                            <div th:if="${tournament.trangThai == 'ongoing'}" class="status-badge badge-ongoing">
                                 <i class="bi bi-broadcast"></i> LIVE
                             </div>
-                            <div th:if="${tournament.status == 'registration'}" class="status-badge badge-registration">
+                            <div th:if="${tournament.trangThai == 'registration'}" class="status-badge badge-registration">
                                 <i class="bi bi-pencil-square"></i> Đang đăng ký
                             </div>
-                            <div th:if="${tournament.status == 'upcoming'}" class="status-badge badge-upcoming">
+                            <div th:if="${tournament.trangThai == 'upcoming'}" class="status-badge badge-upcoming">
                                 <i class="bi bi-clock"></i> Sắp diễn ra
                             </div>
-                            <div th:if="${tournament.status == 'completed'}" class="status-badge badge-completed">
+                            <div th:if="${tournament.trangThai == 'completed'}" class="status-badge badge-completed">
                                 <i class="bi bi-check-circle"></i> Đã kết thúc
                             </div>
                         </div>
 
                         <!-- Content -->
                         <div class="tournament-content">
-                            <h3 class="tournament-title" th:text="${tournament.name}">
+                            <h3 class="tournament-title" th:text="${tournament.tenGiai}">
                                 Tên giải đấu
                             </h3>
 
                             <div class="tournament-meta">
                                 <span class="meta-item">
                                     <i class="bi bi-calendar3"></i>
-                                    <span th:text="${tournament.startDate}">Ngày</span>
+                                    <span th:text="${tournament.ngayBatDau}">Ngày</span>
                                 </span>
                                 <span class="meta-item">
                                     <i class="bi bi-geo-alt"></i>
-                                    <span th:text="${tournament.location}">Địa điểm</span>
+                                    <span th:text="${tournament.tinhThanh}">Địa điểm</span>
                                 </span>
                             </div>
 
-                            <p class="tournament-description" th:text="${tournament.description}">
-                                Mô tả ngắn về giải đấu
-                            </p>
-
                             <div class="tournament-footer">
-                                <span class="tournament-category" th:text="${tournament.category}">
+                                <span class="tournament-category" th:text="${tournament.capDo}">
                                     Category
                                 </span>
                                 <a th:href="@{/tournaments/{id}(id=${tournament.id})}" class="btn btn-primary btn-sm">
@@ -185,8 +332,10 @@
                 </a>
             </div>
 
-            <!-- Pagination -->
-            <nav th:if="${totalPages > 1}" aria-label="Tournament pagination">
+            <!-- Pagination (Hidden - Using Infinite Scroll) -->
+            <!-- Infinite scroll is enabled via JavaScript in tournament-list.js -->
+            <!-- Traditional pagination kept here for fallback/SEO purposes -->
+            <nav th:if="${totalPages > 1}" aria-label="Tournament pagination" style="display: none;" id="traditionalPagination">
                 <ul class="pagination justify-content-center">
                     <li class="page-item" th:classappend="${currentPage == 1 ? 'disabled' : ''}">
                         <a class="page-link"
@@ -211,11 +360,175 @@
                 </ul>
             </nav>
         </div>
+
+        <!-- Quick View Modal -->
+        <div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title" id="quickViewModalLabel">
+                            <i class="bi bi-eye"></i> Xem nhanh
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <!-- Loading State -->
+                        <div id="quickViewLoading" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Đang tải thông tin giải đấu...</p>
+                        </div>
+
+                        <!-- Content Container -->
+                        <div id="quickViewContent" style="display: none;">
+                            <!-- Tournament Header -->
+                            <div class="quick-view-header">
+                                <div class="position-relative">
+                                    <img id="qvTournamentImage" 
+                                         src="" 
+                                         alt="Tournament" 
+                                         class="w-100"
+                                         style="height: 300px; object-fit: cover;">
+                                    <div class="position-absolute top-0 start-0 w-100 h-100" 
+                                         style="background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7));">
+                                    </div>
+                                    <div class="position-absolute bottom-0 start-0 p-4 text-white w-100">
+                                        <span id="qvStatus" class="badge bg-danger mb-2">Status</span>
+                                        <h2 id="qvTournamentName" class="mb-2">Tournament Name</h2>
+                                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                                            <span><i class="bi bi-calendar-event"></i> <span id="qvDate">Date</span></span>
+                                            <span><i class="bi bi-geo-alt"></i> <span id="qvLocation">Location</span></span>
+                                            <span><i class="bi bi-people"></i> <span id="qvParticipants">Participants</span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tournament Details -->
+                            <div class="quick-view-body p-4">
+                                <div class="row">
+                                    <!-- Left Column -->
+                                    <div class="col-lg-8">
+                                        <!-- Description -->
+                                        <div class="mb-4">
+                                            <h5 class="mb-3">
+                                                <i class="bi bi-info-circle"></i> Giới thiệu
+                                            </h5>
+                                            <div id="qvDescription" class="text-muted">
+                                                Description content...
+                                            </div>
+                                        </div>
+
+                                        <!-- Competition Format -->
+                                        <div class="mb-4">
+                                            <h5 class="mb-3">
+                                                <i class="bi bi-diagram-3"></i> Thể thức thi đấu
+                                            </h5>
+                                            <div id="qvFormat" class="text-muted">
+                                                Format details...
+                                            </div>
+                                        </div>
+
+                                        <!-- Prize -->
+                                        <div class="mb-4">
+                                            <h5 class="mb-3">
+                                                <i class="bi bi-trophy"></i> Giải thưởng
+                                            </h5>
+                                            <div id="qvPrize" class="text-muted">
+                                                Prize information...
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right Column -->
+                                    <div class="col-lg-4">
+                                        <!-- Quick Info Card -->
+                                        <div class="card shadow-sm mb-4">
+                                            <div class="card-body">
+                                                <h6 class="card-title mb-3">
+                                                    <i class="bi bi-list-check"></i> Thông tin chi tiết
+                                                </h6>
+                                                <ul class="list-unstyled mb-0">
+                                                    <li class="mb-2">
+                                                        <small class="text-muted">Cấp độ:</small>
+                                                        <strong id="qvLevel" class="d-block">Level</strong>
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <small class="text-muted">Thể loại:</small>
+                                                        <strong id="qvType" class="d-block">Type</strong>
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <small class="text-muted">Phí tham gia:</small>
+                                                        <strong id="qvFee" class="d-block text-success">Fee</strong>
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <small class="text-muted">Hạn đăng ký:</small>
+                                                        <strong id="qvDeadline" class="d-block text-danger">Deadline</strong>
+                                                    </li>
+                                                    <li class="mb-2">
+                                                        <small class="text-muted">Số lượng đã đăng ký:</small>
+                                                        <strong id="qvRegistered" class="d-block">0/100</strong>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <!-- Stats Card -->
+                                        <div class="card shadow-sm mb-4">
+                                            <div class="card-body">
+                                                <h6 class="card-title mb-3">
+                                                    <i class="bi bi-bar-chart"></i> Thống kê
+                                                </h6>
+                                                <div class="d-flex justify-content-around text-center">
+                                                    <div>
+                                                        <div class="h4 mb-0" id="qvViews">0</div>
+                                                        <small class="text-muted">Lượt xem</small>
+                                                    </div>
+                                                    <div>
+                                                        <div class="h4 mb-0 text-warning">
+                                                            <i class="bi bi-star-fill"></i>
+                                                            <span id="qvRating">0.0</span>
+                                                        </div>
+                                                        <small class="text-muted">Đánh giá</small>
+                                                    </div>
+                                                    <div>
+                                                        <div class="h4 mb-0" id="qvReviews">0</div>
+                                                        <small class="text-muted">Bình luận</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="d-grid gap-2">
+                                            <a id="qvViewDetailsBtn" href="#" class="btn btn-primary btn-lg">
+                                                <i class="bi bi-box-arrow-up-right"></i> Xem chi tiết
+                                            </a>
+                                            <button id="qvRegisterBtn" class="btn btn-success btn-lg">
+                                                <i class="bi bi-pencil-square"></i> Đăng ký tham gia
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="quickViewError" class="text-center py-5" style="display: none;">
+                            <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">Không thể tải thông tin</h5>
+                            <p class="text-muted">Vui lòng thử lại sau</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Page-specific JavaScript -->
     <th:block layout:fragment="page-scripts">
-        <script th:src="@{/js/tournament/tournament-list.js}"></script>
+        <script th:src="@{/js/tournament/tournament-list.js(v=${#temporals.format(#temporals.createNow(), 'yyyyMMddHHmmss')})}"></script>
     </th:block>
 </body>
 

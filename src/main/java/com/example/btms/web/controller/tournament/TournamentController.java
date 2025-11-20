@@ -1,6 +1,9 @@
 package com.example.btms.web.controller.tournament;
 
 import com.example.btms.service.tournamentWebData.TournamentDataService;
+import com.example.btms.web.dto.TournamentDTO;
+import com.example.btms.web.dto.TournamentDetailDTO;
+import com.example.btms.web.dto.TournamentCardDTO;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,8 +11,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Controller quản lý các trang liên quan đến giải đấu
@@ -34,31 +42,26 @@ public class TournamentController {
      */
     @GetMapping({"", "/", "/home"})
     public String tournamentHome(Model model) {
-        // Lấy tất cả giải đấu để xử lý
-        List<Map<String, Object>> allTournaments = tournamentDataService.getAllTournaments();
+        // Lấy tất cả giải đấu để xử lý (DTO objects)
+        List<TournamentDTO> allTournaments = tournamentDataService.getAllTournaments();
         
         // Featured tournaments (giải đấu nổi bật - lấy 4 giải đầu tiên)
-        List<Map<String, Object>> featuredTournaments = allTournaments.stream()
-            .limit(4)
-            .toList();
+        List<TournamentCardDTO> featuredTournaments = tournamentDataService.getFeaturedTournaments(4);
         
         // Live tournaments (đang diễn ra)
-        List<Map<String, Object>> liveTournaments = allTournaments.stream()
-            .filter(t -> "ongoing".equals(t.get("status")))
+        List<TournamentDTO> liveTournaments = tournamentDataService.getOngoingTournaments().stream()
             .limit(3)
-            .toList();
+            .collect(Collectors.toList());
         
         // Upcoming tournaments (sắp diễn ra)
-        List<Map<String, Object>> upcomingTournaments = allTournaments.stream()
-            .filter(t -> "upcoming".equals(t.get("status")))
+        List<TournamentDTO> upcomingTournaments = tournamentDataService.getUpcomingTournaments().stream()
             .limit(3)
-            .toList();
+            .collect(Collectors.toList());
         
         // Registration open (đang mở đăng ký)
-        List<Map<String, Object>> registrationOpen = allTournaments.stream()
-            .filter(t -> "registration".equals(t.get("status")))
+        List<TournamentDTO> registrationOpen = tournamentDataService.getOpenForRegistrationTournaments().stream()
             .limit(3)
-            .toList();
+            .collect(Collectors.toList());
         
         // Thống kê tổng quan
         Map<String, Long> statsByStatus = tournamentDataService.getStatsByStatus();
@@ -106,25 +109,144 @@ public class TournamentController {
     public String listTournaments(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            @RequestParam(required = false) Integer priceMin,
+            @RequestParam(required = false) Integer priceMax,
+            @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "12") int size,
             Model model) {
         
-        // Lấy tất cả giải đấu
-        List<Map<String, Object>> allTournaments = tournamentDataService.getAllTournaments();
+        // Lấy tất cả giải đấu (DTO objects)
+        List<TournamentDTO> allTournaments = tournamentDataService.getAllTournaments();
         
-        // Filter theo status nếu có
+        // Filter theo status (multi-select: comma-separated)
         if (status != null && !status.isEmpty()) {
+            String[] statuses = status.split(",");
             allTournaments = allTournaments.stream()
-                .filter(t -> status.equals(t.get("status")))
-                .toList();
+                .filter(t -> Arrays.asList(statuses).contains(t.getTrangThai()))
+                .collect(Collectors.toList());
         }
         
-        // Filter theo category nếu có
+        // Filter theo province
+        if (province != null && !province.isEmpty()) {
+            allTournaments = allTournaments.stream()
+                .filter(t -> province.equals(t.getTinhThanh()))
+                .collect(Collectors.toList());
+        }
+        
+        // Filter theo level (multi-select: comma-separated)
+        if (level != null && !level.isEmpty()) {
+            String[] levels = level.split(",");
+            allTournaments = allTournaments.stream()
+                .filter(t -> Arrays.asList(levels).contains(t.getCapDo()))
+                .collect(Collectors.toList());
+        }
+        
+        // Filter theo type (multi-select: comma-separated)
+        if (type != null && !type.isEmpty()) {
+            String[] types = type.split(",");
+            allTournaments = allTournaments.stream()
+                .filter(t -> Arrays.asList(types).contains(t.getTheLoai()))
+                .collect(Collectors.toList());
+        }
+        
+        // Filter theo category (legacy support)
         if (category != null && !category.isEmpty()) {
             allTournaments = allTournaments.stream()
-                .filter(t -> category.equals(t.get("category")))
-                .toList();
+                .filter(t -> category.equals(t.getCapDo()) || category.equals(t.getTheLoai()))
+                .collect(Collectors.toList());
+        }
+        
+        // Filter theo date range
+        if (dateFrom != null && !dateFrom.isEmpty()) {
+            try {
+                LocalDate fromDate = LocalDate.parse(dateFrom);
+                allTournaments = allTournaments.stream()
+                    .filter(t -> {
+                        if (t.getNgayBatDau() == null) return false;
+                        return !t.getNgayBatDau().isBefore(fromDate);
+                    })
+                    .collect(Collectors.toList());
+            } catch (Exception e) {
+                // Invalid date format, skip filter
+            }
+        }
+        
+        if (dateTo != null && !dateTo.isEmpty()) {
+            try {
+                LocalDate toDate = LocalDate.parse(dateTo);
+                allTournaments = allTournaments.stream()
+                    .filter(t -> {
+                        if (t.getNgayBatDau() == null) return false;
+                        return !t.getNgayBatDau().isAfter(toDate);
+                    })
+                    .collect(Collectors.toList());
+            } catch (Exception e) {
+                // Invalid date format, skip filter
+            }
+        }
+        
+        // Filter theo price range
+        if (priceMin != null || priceMax != null) {
+            allTournaments = allTournaments.stream()
+                .filter(t -> {
+                    BigDecimal price = t.getPhiThamGia();
+                    if (price == null) return false;
+                    if (priceMin != null && price.compareTo(BigDecimal.valueOf(priceMin)) < 0) return false;
+                    if (priceMax != null && price.compareTo(BigDecimal.valueOf(priceMax)) > 0) return false;
+                    return true;
+                })
+                .collect(Collectors.toList());
+        }
+        
+        // Sorting
+        if (sort != null && !sort.isEmpty()) {
+            switch (sort) {
+                case "newest":
+                    // Sắp xếp theo ngày bắt đầu giảm dần (mới nhất)
+                    allTournaments.sort((t1, t2) -> {
+                        if (t1.getNgayBatDau() == null) return 1;
+                        if (t2.getNgayBatDau() == null) return -1;
+                        return t2.getNgayBatDau().compareTo(t1.getNgayBatDau());
+                    });
+                    break;
+                case "most-viewed":
+                    // Sắp xếp theo lượt xem
+                    allTournaments.sort((t1, t2) -> Integer.compare(
+                        t2.getLuotXem() != null ? t2.getLuotXem() : 0,
+                        t1.getLuotXem() != null ? t1.getLuotXem() : 0
+                    ));
+                    break;
+                case "highest-rated":
+                    // Sắp xếp theo đánh giá cao nhất (BigDecimal)
+                    allTournaments.sort((t1, t2) -> {
+                        BigDecimal rating1 = t1.getDanhGiaTb() != null ? t1.getDanhGiaTb() : BigDecimal.ZERO;
+                        BigDecimal rating2 = t2.getDanhGiaTb() != null ? t2.getDanhGiaTb() : BigDecimal.ZERO;
+                        return rating2.compareTo(rating1);
+                    });
+                    break;
+                case "price-low":
+                    // Sắp xếp theo giá tăng dần (BigDecimal)
+                    allTournaments.sort((t1, t2) -> {
+                        BigDecimal price1 = t1.getPhiThamGia() != null ? t1.getPhiThamGia() : BigDecimal.ZERO;
+                        BigDecimal price2 = t2.getPhiThamGia() != null ? t2.getPhiThamGia() : BigDecimal.ZERO;
+                        return price1.compareTo(price2);
+                    });
+                    break;
+                case "price-high":
+                    // Sắp xếp theo giá giảm dần (BigDecimal)
+                    allTournaments.sort((t1, t2) -> {
+                        BigDecimal price1 = t1.getPhiThamGia() != null ? t1.getPhiThamGia() : BigDecimal.ZERO;
+                        BigDecimal price2 = t2.getPhiThamGia() != null ? t2.getPhiThamGia() : BigDecimal.ZERO;
+                        return price2.compareTo(price1);
+                    });
+                    break;
+            }
         }
         
         // Pagination (simple)
@@ -133,7 +255,7 @@ public class TournamentController {
         int start = (page - 1) * size;
         int end = Math.min(start + size, totalItems);
         
-        List<Map<String, Object>> pagedTournaments = start < totalItems 
+        List<TournamentDTO> pagedTournaments = start < totalItems 
             ? allTournaments.subList(start, end) 
             : List.of();
         
@@ -143,8 +265,18 @@ public class TournamentController {
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("totalItems", totalItems);
         model.addAttribute("pageSize", size);
+        
+        // Thêm filter parameters để restore state
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedCategory", category);
+        model.addAttribute("selectedProvince", province);
+        model.addAttribute("selectedLevel", level);
+        model.addAttribute("selectedType", type);
+        model.addAttribute("selectedDateFrom", dateFrom);
+        model.addAttribute("selectedDateTo", dateTo);
+        model.addAttribute("selectedPriceMin", priceMin);
+        model.addAttribute("selectedPriceMax", priceMax);
+        model.addAttribute("selectedSort", sort);
         
         // Lấy thống kê theo status
         Map<String, Long> statsByStatus = tournamentDataService.getStatsByStatus();
@@ -168,8 +300,8 @@ public class TournamentController {
      */
     @GetMapping({"/{id}", "/detail/{id}"})
     public String tournamentDetail(@PathVariable int id, Model model) {
-        // Lấy thông tin giải đấu
-        Map<String, Object> tournament = tournamentDataService.getTournamentById(id);
+        // Lấy thông tin giải đấu (DetailDTO)
+        TournamentDetailDTO tournament = tournamentDataService.getTournamentById(id);
         
         if (tournament == null) {
             // Redirect về trang danh sách nếu không tìm thấy
@@ -177,24 +309,24 @@ public class TournamentController {
         }
         
         // Lấy các giải đấu liên quan (cùng category hoặc cùng location)
-        List<Map<String, Object>> relatedTournaments = tournamentDataService.getAllTournaments().stream()
-            .filter(t -> !t.get("id").equals(id)) // Loại bỏ giải đấu hiện tại
-            .filter(t -> t.get("category").equals(tournament.get("category")) 
-                      || t.get("location").equals(tournament.get("location")))
+        List<TournamentDTO> relatedTournaments = tournamentDataService.getAllTournaments().stream()
+            .filter(t -> !t.getId().equals(id)) // Loại bỏ giải đấu hiện tại
+            .filter(t -> (tournament.getCapDo() != null && tournament.getCapDo().equals(t.getCapDo())) 
+                      || (tournament.getTinhThanh() != null && tournament.getTinhThanh().equals(t.getTinhThanh())))
             .limit(3)
-            .toList();
+            .collect(Collectors.toList());
         
         // Thêm dữ liệu vào model
         model.addAttribute("tournament", tournament);
         model.addAttribute("relatedTournaments", relatedTournaments);
         
         // Kiểm tra xem có đang mở đăng ký không
-        boolean isRegistrationOpen = tournamentDataService.isRegistrationOpen(tournament);
+        boolean isRegistrationOpen = tournamentDataService.isRegistrationOpen(id);
         model.addAttribute("isRegistrationOpen", isRegistrationOpen);
         
         // SEO & metadata
-        model.addAttribute("pageTitle", tournament.get("name") + " - BTMS");
-        model.addAttribute("pageDescription", tournament.get("description"));
+        model.addAttribute("pageTitle", tournament.getTenGiai() + " - BTMS");
+        model.addAttribute("pageDescription", tournament.getMoTa());
         model.addAttribute("activePage", "tournaments");
         
         return "tournament/tournament-detail";
@@ -211,14 +343,14 @@ public class TournamentController {
     @GetMapping("/{id}/register")
     public String tournamentRegister(@PathVariable int id, Model model) {
         // Lấy thông tin giải đấu
-        Map<String, Object> tournament = tournamentDataService.getTournamentById(id);
+        TournamentDetailDTO tournament = tournamentDataService.getTournamentById(id);
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
         }
         
         // Kiểm tra xem có đang mở đăng ký không
-        boolean isRegistrationOpen = tournamentDataService.isRegistrationOpen(tournament);
+        boolean isRegistrationOpen = tournamentDataService.isRegistrationOpen(id);
         
         if (!isRegistrationOpen) {
             // Redirect về trang chi tiết nếu không mở đăng ký
@@ -229,8 +361,8 @@ public class TournamentController {
         model.addAttribute("tournament", tournament);
         
         // SEO & metadata
-        model.addAttribute("pageTitle", "Đăng ký - " + tournament.get("name"));
-        model.addAttribute("pageDescription", "Đăng ký tham gia " + tournament.get("name"));
+        model.addAttribute("pageTitle", "Đăng ký - " + tournament.getTenGiai());
+        model.addAttribute("pageDescription", "Đăng ký tham gia " + tournament.getTenGiai());
         model.addAttribute("activePage", "tournaments");
         
         return "tournament/tournament-register";
@@ -247,7 +379,7 @@ public class TournamentController {
     @GetMapping("/{id}/schedule")
     public String tournamentSchedule(@PathVariable int id, Model model) {
         // Lấy thông tin giải đấu
-        Map<String, Object> tournament = tournamentDataService.getTournamentById(id);
+        TournamentDetailDTO tournament = tournamentDataService.getTournamentById(id);
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
@@ -261,8 +393,8 @@ public class TournamentController {
         // model.addAttribute("matches", matches);
         
         // SEO & metadata
-        model.addAttribute("pageTitle", "Lịch thi đấu - " + tournament.get("name"));
-        model.addAttribute("pageDescription", "Xem lịch thi đấu của " + tournament.get("name"));
+        model.addAttribute("pageTitle", "Lịch thi đấu - " + tournament.getTenGiai());
+        model.addAttribute("pageDescription", "Xem lịch thi đấu của " + tournament.getTenGiai());
         model.addAttribute("activePage", "tournaments");
         
         return "tournament/tournament-schedule";
@@ -279,14 +411,14 @@ public class TournamentController {
     @GetMapping("/{id}/live")
     public String tournamentLive(@PathVariable int id, Model model) {
         // Lấy thông tin giải đấu
-        Map<String, Object> tournament = tournamentDataService.getTournamentById(id);
+        TournamentDetailDTO tournament = tournamentDataService.getTournamentById(id);
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
         }
         
         // Chỉ hiển thị live cho giải đang diễn ra
-        if (!"ongoing".equals(tournament.get("status"))) {
+        if (!"ongoing".equals(tournament.getTrangThai())) {
             return "redirect:/tournaments/" + id + "?error=not-live";
         }
         
@@ -298,8 +430,8 @@ public class TournamentController {
         // model.addAttribute("liveMatches", liveMatches);
         
         // SEO & metadata
-        model.addAttribute("pageTitle", "LIVE - " + tournament.get("name"));
-        model.addAttribute("pageDescription", "Theo dõi trực tiếp " + tournament.get("name"));
+        model.addAttribute("pageTitle", "LIVE - " + tournament.getTenGiai());
+        model.addAttribute("pageDescription", "Theo dõi trực tiếp " + tournament.getTenGiai());
         model.addAttribute("activePage", "tournaments");
         
         return "tournament/tournament-live";
@@ -316,7 +448,7 @@ public class TournamentController {
     @GetMapping("/{id}/standings")
     public String tournamentStandings(@PathVariable int id, Model model) {
         // Lấy thông tin giải đấu
-        Map<String, Object> tournament = tournamentDataService.getTournamentById(id);
+        TournamentDetailDTO tournament = tournamentDataService.getTournamentById(id);
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
@@ -330,8 +462,8 @@ public class TournamentController {
         // model.addAttribute("standings", standings);
         
         // SEO & metadata
-        model.addAttribute("pageTitle", "Bảng xếp hạng - " + tournament.get("name"));
-        model.addAttribute("pageDescription", "Xem bảng xếp hạng của " + tournament.get("name"));
+        model.addAttribute("pageTitle", "Bảng xếp hạng - " + tournament.getTenGiai());
+        model.addAttribute("pageDescription", "Xem bảng xếp hạng của " + tournament.getTenGiai());
         model.addAttribute("activePage", "tournaments");
         
         return "tournament/tournament-standings";
@@ -348,7 +480,7 @@ public class TournamentController {
     @GetMapping("/{id}/participants")
     public String tournamentParticipants(@PathVariable int id, Model model) {
         // Lấy thông tin giải đấu
-        Map<String, Object> tournament = tournamentDataService.getTournamentById(id);
+        TournamentDetailDTO tournament = tournamentDataService.getTournamentById(id);
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
@@ -362,8 +494,8 @@ public class TournamentController {
         // model.addAttribute("participants", participants);
         
         // SEO & metadata
-        model.addAttribute("pageTitle", "Danh sách VĐV - " + tournament.get("name"));
-        model.addAttribute("pageDescription", "Xem danh sách VĐV tham gia " + tournament.get("name"));
+        model.addAttribute("pageTitle", "Danh sách VĐV - " + tournament.getTenGiai());
+        model.addAttribute("pageDescription", "Xem danh sách VĐV tham gia " + tournament.getTenGiai());
         model.addAttribute("activePage", "tournaments");
         
         return "tournament/tournament-participants";
@@ -380,7 +512,7 @@ public class TournamentController {
     @GetMapping("/{id}/rules")
     public String tournamentRules(@PathVariable int id, Model model) {
         // Lấy thông tin giải đấu
-        Map<String, Object> tournament = tournamentDataService.getTournamentById(id);
+        TournamentDetailDTO tournament = tournamentDataService.getTournamentById(id);
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
@@ -394,8 +526,8 @@ public class TournamentController {
         // model.addAttribute("rules", rules);
         
         // SEO & metadata
-        model.addAttribute("pageTitle", "Thể lệ - " + tournament.get("name"));
-        model.addAttribute("pageDescription", "Thể lệ và quy định của " + tournament.get("name"));
+        model.addAttribute("pageTitle", "Thể lệ - " + tournament.getTenGiai());
+        model.addAttribute("pageDescription", "Thể lệ và quy định của " + tournament.getTenGiai());
         model.addAttribute("activePage", "tournaments");
         
         return "tournament/tournament-rules";
@@ -411,9 +543,7 @@ public class TournamentController {
     @GetMapping("/history")
     public String tournamentHistory(Model model) {
         // Lấy các giải đã kết thúc
-        List<Map<String, Object>> completedTournaments = tournamentDataService.getAllTournaments().stream()
-            .filter(t -> "completed".equals(t.get("status")))
-            .toList();
+        List<TournamentDTO> completedTournaments = tournamentDataService.getTournamentsByStatus("completed");
         
         // Thêm dữ liệu vào model
         model.addAttribute("tournaments", completedTournaments);
@@ -436,8 +566,8 @@ public class TournamentController {
     @GetMapping("/calendar")
     public String tournamentCalendar(Model model) {
         // Lấy tất cả giải đấu (upcoming + ongoing)
-        List<Map<String, Object>> upcomingTournaments = tournamentDataService.getUpcomingTournaments();
-        List<Map<String, Object>> ongoingTournaments = tournamentDataService.getOngoingTournaments();
+        List<TournamentDTO> upcomingTournaments = tournamentDataService.getUpcomingTournaments();
+        List<TournamentDTO> ongoingTournaments = tournamentDataService.getOngoingTournaments();
         
         // Thêm dữ liệu vào model
         model.addAttribute("upcomingTournaments", upcomingTournaments);

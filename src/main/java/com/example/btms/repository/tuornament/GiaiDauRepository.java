@@ -222,4 +222,46 @@ public class GiaiDauRepository {
 
         return giaiDau;
     }
+
+    /**
+     * Tìm kiếm giải đấu theo keyword (cho autocomplete)
+     * @param keyword Từ khóa tìm kiếm trong tên giải, tỉnh thành
+     * @param limit Số lượng kết quả tối đa
+     * @return Danh sách giải đấu khớp
+     */
+    public List<GiaiDau> searchByKeyword(String keyword, int limit) throws SQLException {
+        String sql = """
+                SELECT TOP (?) ID_GIAI, TEN_GIAI, NGAY_BD, NGAY_KT, NGAY_TAO, NGAY_CAP_NHAT, 
+                       ID_USER, MO_TA, DIA_DIEM, TINH_THANH, TRANG_THAI, NOI_BAT, HINH_ANH,
+                       PHI_THAM_GIA, CAP_DO, LUOT_XEM, DANH_GIA_TB
+                FROM GIAI_DAU
+                WHERE TEN_GIAI LIKE ? OR TINH_THANH LIKE ? OR MO_TA LIKE ?
+                ORDER BY 
+                    CASE 
+                        WHEN TRANG_THAI = 'ongoing' THEN 1
+                        WHEN TRANG_THAI = 'registration' THEN 2
+                        WHEN TRANG_THAI = 'upcoming' THEN 3
+                        ELSE 4
+                    END,
+                    NGAY_BD DESC
+                """;
+
+        List<GiaiDau> results = new ArrayList<>();
+        String searchPattern = "%" + keyword + "%";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, limit);
+            pstmt.setString(2, searchPattern);
+            pstmt.setString(3, searchPattern);
+            pstmt.setString(4, searchPattern);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(mapResultSetToGiaiDau(rs));
+                }
+            }
+        }
+
+        return results;
+    }
 }

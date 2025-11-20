@@ -228,3 +228,336 @@
     background: #d4edda;
     border-radius: 8px;
 }
+
+/* ========== PHASE 4 ENHANCEMENTS ========== */
+
+/* Hero Section Improvements */
+.hero-section {
+    height: 600px;
+}
+
+.parallax-bg {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(30, 60, 114, 0.85) 0%, rgba(42, 82, 152, 0.75) 100%);
+    z-index: 1;
+}
+
+/* Animated Badge with Pulse */
+.animated-badge {
+    position: relative;
+    animation: float 3s ease-in-out infinite;
+}
+
+.badge-pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 25px;
+    background: currentColor;
+    opacity: 0.3;
+    animation: pulse 2s ease-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.3;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 0;
+    }
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* Countdown Timer */
+.countdown-timer {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.countdown-label {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    font-weight: 500;
+}
+
+.countdown-boxes {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.countdown-box {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 1rem;
+    min-width: 80px;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.countdown-box:hover {
+    transform: scale(1.05);
+}
+
+.countdown-value {
+    display: block;
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #fff;
+    line-height: 1;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.countdown-unit {
+    display: block;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.countdown-separator {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #fff;
+    opacity: 0.7;
+}
+
+/* Pulse Button Animation */
+.pulse-btn {
+    animation: buttonPulse 2s ease-in-out infinite;
+}
+
+@keyframes buttonPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 15px rgba(40, 167, 69, 0);
+    }
+}
+
+/* Social Share Card */
+.social-share-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.share-title {
+    color: #2c3e50;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.share-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.share-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    color: white;
+}
+
+.share-btn i {
+    font-size: 1.25rem;
+}
+
+.share-btn.facebook {
+    background: linear-gradient(135deg, #1877f2 0%, #0a58ca 100%);
+}
+
+.share-btn.facebook:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(24, 119, 242, 0.4);
+}
+
+.share-btn.twitter {
+    background: linear-gradient(135deg, #1da1f2 0%, #0d8bd9 100%);
+}
+
+.share-btn.twitter:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(29, 161, 242, 0.4);
+}
+
+.share-btn.zalo {
+    background: linear-gradient(135deg, #0068ff 0%, #0052cc 100%);
+}
+
+.share-btn.zalo:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0, 104, 255, 0.4);
+}
+
+.share-btn.copy {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+}
+
+.share-btn.copy:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+}
+
+.copy-success {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: #d4edda;
+    color: #155724;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 500;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Scroll Indicator */
+.scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    text-align: center;
+    z-index: 3;
+    animation: bounce 2s ease-in-out infinite;
+}
+
+.scroll-indicator span {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+}
+
+.scroll-indicator i {
+    font-size: 1.5rem;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(10px);
+    }
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .hero-section {
+        height: auto;
+        min-height: 500px;
+    }
+
+    .countdown-boxes {
+        flex-wrap: wrap;
+    }
+
+    .countdown-box {
+        min-width: 70px;
+        padding: 0.75rem;
+    }
+
+    .countdown-value {
+        font-size: 2rem;
+    }
+
+    .social-share-card {
+        margin-top: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+
+    .countdown-timer {
+        padding: 1rem;
+    }
+
+    .countdown-box {
+        min-width: 60px;
+        padding: 0.5rem;
+    }
+
+    .countdown-value {
+        font-size: 1.5rem;
+    }
+
+    .countdown-unit {
+        font-size: 0.65rem;
+    }
+
+    .share-buttons {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .share-btn {
+        flex: 1;
+        min-width: 45%;
+    }
+}
