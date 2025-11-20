@@ -383,11 +383,7 @@ public class TournamentController {
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
-        }
-        
-        // TODO: Lấy lịch thi đấu từ database (sau này)
-        // List<Match> matches = matchService.getMatchesByTournamentId(id);
-        
+        }        
         // Thêm dữ liệu vào model
         model.addAttribute("tournament", tournament);
         // model.addAttribute("matches", matches);
@@ -420,11 +416,7 @@ public class TournamentController {
         // Chỉ hiển thị live cho giải đang diễn ra
         if (!"ongoing".equals(tournament.getTrangThai())) {
             return "redirect:/tournaments/" + id + "?error=not-live";
-        }
-        
-        // TODO: Lấy live matches từ database (sau này)
-        // List<Match> liveMatches = matchService.getLiveMatchesByTournamentId(id);
-        
+        }        
         // Thêm dữ liệu vào model
         model.addAttribute("tournament", tournament);
         // model.addAttribute("liveMatches", liveMatches);
@@ -452,11 +444,7 @@ public class TournamentController {
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
-        }
-        
-        // TODO: Lấy bảng xếp hạng từ database (sau này)
-        // List<Standing> standings = standingService.getStandingsByTournamentId(id);
-        
+        }        
         // Thêm dữ liệu vào model
         model.addAttribute("tournament", tournament);
         // model.addAttribute("standings", standings);
@@ -484,11 +472,7 @@ public class TournamentController {
         
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
-        }
-        
-        // TODO: Lấy danh sách VĐV từ database (sau này)
-        // List<Player> participants = playerService.getParticipantsByTournamentId(id);
-        
+        }        
         // Thêm dữ liệu vào model
         model.addAttribute("tournament", tournament);
         // model.addAttribute("participants", participants);
@@ -517,11 +501,6 @@ public class TournamentController {
         if (tournament == null) {
             return "redirect:/tournaments?error=not-found";
         }
-        
-        // TODO: Lấy thể lệ từ database (sau này)
-        // TournamentRules rules = rulesService.getRulesByTournamentId(id);
-        
-        // Thêm dữ liệu vào model
         model.addAttribute("tournament", tournament);
         // model.addAttribute("rules", rules);
         

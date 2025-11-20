@@ -634,10 +634,6 @@ public class DbConnectionFrame extends JFrame {
         p.putBool("db.remember", sel.isRemember());
     }
 
-    private void initH2DatabaseFromScript(String dbName) throws Exception {
-        initH2DatabaseFromScript(dbName, null);
-    }
-
     private void initH2DatabaseFromScript(String dbName, H2ScriptUtil.LogCallback logger) throws Exception {
         // Tìm file script từ resources hoặc fallback về database folder
         File script = getScriptFile();
