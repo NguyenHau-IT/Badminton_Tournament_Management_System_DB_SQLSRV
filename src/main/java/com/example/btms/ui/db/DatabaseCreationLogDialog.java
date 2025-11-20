@@ -14,7 +14,6 @@ public class DatabaseCreationLogDialog extends JDialog {
     private final JScrollPane scrollPane;
     private final JButton closeButton;
     private final JProgressBar progressBar;
-    private CompletableFuture<Void> creationTask;
 
     public DatabaseCreationLogDialog(Window parent, String dbName) {
         super(parent, "Đang tạo database: " + dbName, ModalityType.APPLICATION_MODAL);
@@ -102,6 +101,5 @@ public class DatabaseCreationLogDialog extends JDialog {
      * Set task để có thể cancel nếu cần
      */
     public void setCreationTask(CompletableFuture<Void> task) {
-        this.creationTask = task;
     }
 }
